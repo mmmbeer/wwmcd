@@ -28,6 +28,8 @@ export function renderTurnEconomyPanel(root, snapshot, stateManager) {
         <button class="btn btn-secondary" type="button" data-turn="action">Use Action</button>
         <button class="btn btn-secondary" type="button" data-turn="bonus">Use Bonus</button>
         <button class="btn btn-secondary" type="button" data-turn="reaction">Use Reaction</button>
+        <button class="btn btn-secondary" type="button" data-rest="short">Short Rest</button>
+        <button class="btn btn-secondary" type="button" data-rest="long">Long Rest</button>
       </div>
     </article>
   `;
@@ -37,6 +39,8 @@ export function renderTurnEconomyPanel(root, snapshot, stateManager) {
   root.querySelector("[data-turn='action']").addEventListener("click", () => stateManager.useAction());
   root.querySelector("[data-turn='bonus']").addEventListener("click", () => stateManager.useBonusAction());
   root.querySelector("[data-turn='reaction']").addEventListener("click", () => stateManager.useReaction());
+  root.querySelector("[data-rest='short']").addEventListener("click", () => stateManager.takeShortRest());
+  root.querySelector("[data-rest='long']").addEventListener("click", () => stateManager.takeLongRest());
 }
 
 function economyItem(label, value) {

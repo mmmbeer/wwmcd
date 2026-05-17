@@ -1,4 +1,5 @@
 import { addLogEntry, createCombatState, resetTurn } from "../models/combatStateModel.js";
+import { resetLongRestResources, resetShortRestResources } from "../rules/restRules.js";
 
 export function createStateManager({ storage, eventBus }) {
   let characters = [];
@@ -232,6 +233,29 @@ export function createStateManager({ storage, eventBus }) {
     emitChange();
   }
 
+  function takeShortRest() {
+    const state = getCombatState();
+    const character = getActiveCharacter();
+    if (!state || !character) return;
+    combatStates[activeCharacterId] = addLogEntry({
+      ...state,
+      resourcesUsed: resetShortRestResources(character, state.resourcesUsed)
+    }, "Short rest: eligible limited resources reset.");
+    persistCombatStates();
+    emitChange();
+  }
+
+  function takeLongRest() {
+    const state = getCombatState();
+    if (!state) return;
+    combatStates[activeCharacterId] = addLogEntry({
+      ...state,
+      resourcesUsed: resetLongRestResources(state.resourcesUsed)
+    }, "Long rest: spell slots and limited resources reset.");
+    persistCombatStates();
+    emitChange();
+  }
+
   function updateTurn(patch, message) {
     const state = getCombatState();
     if (!state) return;
@@ -298,6 +322,8 @@ export function createStateManager({ storage, eventBus }) {
     setClassResourceUsed,
     adjustClassResourceUsed,
     resetClassResources,
+    takeShortRest,
+    takeLongRest,
     logMessage,
     logRoll,
     getSnapshot

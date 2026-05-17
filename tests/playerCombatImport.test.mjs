@@ -5,6 +5,7 @@ import { normalizeCharacter } from "../js/player-combat/normalizers/characterNor
 import { createStateManager } from "../js/player-combat/core/stateManager.js";
 import { applyActionEconomyRules, getMovementRemaining } from "../js/player-combat/rules/actionEconomyRules.js";
 import { getResourceActions } from "../js/player-combat/rules/resourceActions.js";
+import { resetsOnShortRest } from "../js/player-combat/rules/restRules.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
 import { getWeaponActions } from "../js/player-combat/rules/weaponActions.js";
 
@@ -179,6 +180,73 @@ test("manual limited resource controls persist only in combat state", () => {
   stateManager.resetClassResources("resource-ki");
 
   assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-ki"], 0);
+});
+
+test("short rest resets only explicit short-rest limited resources", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "mixed-rests",
+    name: "Mixed Rests",
+    importedAt: "2026-05-17T00:00:00.000Z",
+    combat: { maxHp: 20, ac: 14, speed: { walk: 30 } },
+    resources: {
+      spellSlots: { 1: 2 },
+      classResources: [
+        { id: "resource-ki", name: "Ki", max: 3, reset: "Short Rest" },
+        { id: "resource-arcane-recovery", name: "Arcane Recovery", max: 1, reset: "Long Rest" },
+        { id: "resource-vague", name: "Vague Feature", max: 1, reset: "Rest" }
+      ],
+      limitedUses: []
+    }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.setSpellSlotUsed(1, 1);
+  stateManager.setClassResourceUsed("resource-ki", 2);
+  stateManager.setClassResourceUsed("resource-arcane-recovery", 1);
+  stateManager.setClassResourceUsed("resource-vague", 1);
+  stateManager.takeShortRest();
+
+  assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 1);
+  assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-ki"], 0);
+  assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-arcane-recovery"], 1);
+  assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-vague"], 1);
+  assert.ok(stateManager.getCombatState().log[0].message.includes("Short rest"));
+  assert.equal(stateManager.getActiveCharacter().resources.classResources[0].max, 3);
+});
+
+test("long rest resets tracked spell slots and limited resources", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "long-rest",
+    name: "Long Rest",
+    importedAt: "2026-05-17T00:00:00.000Z",
+    combat: { maxHp: 20, ac: 14, speed: { walk: 30 } },
+    resources: {
+      spellSlots: { 1: 2 },
+      classResources: [{ id: "resource-arcane-recovery", name: "Arcane Recovery", max: 1, reset: "Long Rest" }],
+      limitedUses: []
+    }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.setSpellSlotUsed(1, 1);
+  stateManager.setClassResourceUsed("resource-arcane-recovery", 1);
+  stateManager.takeLongRest();
+
+  assert.deepEqual(stateManager.getCombatState().resourcesUsed.spellSlots, {});
+  assert.deepEqual(stateManager.getCombatState().resourcesUsed.classResources, {});
+  assert.ok(stateManager.getCombatState().log[0].message.includes("Long rest"));
+  assert.equal(stateManager.getActiveCharacter().resources.classResources[0].max, 1);
+});
+
+test("short-rest reset text detection stays conservative", () => {
+  assert.equal(resetsOnShortRest("Short Rest"), true);
+  assert.equal(resetsOnShortRest("Short or Long Rest"), true);
+  assert.equal(resetsOnShortRest("Long Rest"), false);
+  assert.equal(resetsOnShortRest("Rest"), false);
 });
 
 function createMemoryStorage() {

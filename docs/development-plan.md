@@ -1,6 +1,66 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Limited Resource Tracker
+## Current Session: Player Combat Assistant Rest Reset Helper Layer
+
+### Implemented
+
+- Added manual Short Rest and Long Rest controls to the Turn Economy panel.
+- Added a focused rest rules helper for tracked resource resets:
+  - Short Rest resets only limited resources whose normalized reset text clearly names short rest.
+  - Long Rest resets tracked spell slot usage and tracked limited resource usage.
+  - Vague reset text such as `Rest` is not treated as short-rest eligible.
+- Preserved imported character resource definitions; rest buttons only update `combatState.resourcesUsed`.
+- Added combat log entries for Short Rest and Long Rest reset actions.
+- Added lightweight tests for short-rest filtering, long-rest reset behavior, conservative reset-text detection, log entries, and preserving imported resource definitions.
+
+### Files Changed
+
+- `js/player-combat/rules/restRules.js`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Rest controls do not automate class-specific feature behavior, hit dice, HP recovery, exhaustion, pact magic, item charges, wild shape, or spell preparation.
+- Short Rest depends on normalized reset display text and does not infer feature rules from class names or feature descriptions.
+- Long Rest does not recalculate resource maximums; it only clears tracked usage maps.
+- Rest controls do not currently ask for confirmation.
+
+### Data Assumptions
+
+- Normalized limited resources use `resource.reset` for display text such as `Short Rest`, `Short or Long Rest`, or `Long Rest`.
+- `combatState.resourcesUsed.spellSlots` is the only tracked spell slot usage map.
+- `combatState.resourcesUsed.classResources` is the shared tracked usage map for class resources and limited-use feature resources.
+- Reset text that does not explicitly include `short` near `rest` is not short-rest eligible.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/`.
+2. Import a character with spell slots and limited resources that include at least one `Short Rest` resource and one `Long Rest` resource.
+3. Spend a spell slot and mark both limited resources used.
+4. Tap `Short Rest` and confirm only the short-rest limited resource returns to 0 used.
+5. Confirm spell slot usage and long-rest-only resource usage are unchanged after Short Rest.
+6. Tap `Long Rest` and confirm spell slot usage and all limited resource usage reset.
+7. Confirm the combat log records both rest actions.
+8. Refresh and confirm rest changes persist through combat state.
+9. Confirm imported resource maximums and reset labels are unchanged.
+10. At mobile width, confirm the new rest buttons remain usable in the Turn Economy panel.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `characterNormalizer.js` at 341 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/`, `/data/classes.json`, and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Add confirmation dialogs for high-impact reset buttons, or add narrow resource reminder metadata for common class resources without automating feature effects.
+
+## Previous Session: Player Combat Assistant Limited Resource Tracker
 
 ### Implemented
 
