@@ -1,6 +1,69 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Rest Reset Helper Layer
+## Current Session: Player Combat Assistant PDF Character Sheet Import
+
+### Implemented
+
+- Replaced the player PDF placeholder with a focused fillable-PDF importer modeled after the `dm-roster` form-field extraction approach.
+- Kept the player app independent from `dm-roster` at runtime; the player importer lives in `js/player-combat/importers/ddbPdfImporterAdapter.js`.
+- Added PDF upload support to the existing Import Character panel alongside JSON upload and JSON paste.
+- Converted extracted PDF form fields into the existing player normalizer input shape so raw PDF data does not leak into UI modules.
+- Extracted common fillable sheet fields when present:
+  - Name, race, class/level, ability scores, HP, temp HP, AC, speed, proficiency bonus.
+  - Weapon rows from `Wpn Name`, damage, and notes fields.
+  - Spell headers, slot headers, spell names, prepared flags, casting time, range, duration, notes, and casting ability.
+  - Simple feature text fields for class features, racial traits, and feats.
+- Added best-effort PDF import warnings to the existing import feedback.
+- Added lightweight tests for fillable PDF import and graceful rejection of flattened/no-form-field PDFs.
+
+### Files Changed
+
+- `js/player-combat/importers/ddbPdfImporterAdapter.js`
+- `js/player-combat/ui/characterImportPanel.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- PDF import supports fillable form fields only; scanned, image-only, and flattened PDFs are rejected.
+- PDF import is best-effort and depends on recognizable D&D Beyond or WotC-style field names.
+- PDF parsing does not perform OCR, full text layout extraction, or complex class feature automation.
+- Weapon attack bonuses from the PDF are not trusted as rules data; weapon cards still use the existing player weapon rules to calculate attacks from normalized stats.
+- Spell parsing remains lightweight and does not handle every PDF spell sheet layout, upcasting, pact magic, or full rules text.
+- Limited resource extraction from PDFs is not implemented in this pass.
+
+### Data Assumptions
+
+- Fillable PDFs store useful values in `/T` field-name and `/V` value entries, sometimes inside FlateDecode streams.
+- Class level text appears in fields such as `CLASS LEVEL` or `ClassLevel`, using simple values like `Cleric 3`.
+- D&D Beyond-style spell fields use names such as `spellHeader1`, `spellSlotHeader1`, `spellName1`, and related metadata fields.
+- Weapon rows use fields such as `Wpn Name`, `Wpn1 Damage`, and `Wpn Notes 1`.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/`.
+2. Upload a fillable D&D Beyond or WotC character sheet PDF.
+3. Confirm import feedback shows best-effort PDF warnings instead of native dialogs.
+4. Confirm the character summary shows name, class, race, HP, AC, speed, and ability-derived values.
+5. If the PDF has weapon rows, confirm weapon action cards appear and can roll attack/damage.
+6. If the PDF has spell sheet fields, confirm spell cards and spell slot controls appear where fields are recognized.
+7. Refresh and confirm the imported PDF character persists through local storage.
+8. Upload a flattened or scanned PDF and confirm a clear inline unsupported message appears.
+9. At mobile width, confirm the import panel remains usable with JSON and PDF controls.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 365 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/`, `/data/classes.json`, and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Exercise the PDF importer against real exported sheets and add narrow field mappings for missed common fields, especially limited resources and alternate spell slot layouts.
+
+## Previous Session: Player Combat Assistant Rest Reset Helper Layer
 
 ### Implemented
 

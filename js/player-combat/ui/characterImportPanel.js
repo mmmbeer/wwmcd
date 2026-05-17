@@ -1,4 +1,5 @@
 import { parseDdbJsonFile, parseDdbJsonText } from "../importers/ddbJsonImporter.js";
+import { importCharacterFromPdf } from "../importers/ddbPdfImporterAdapter.js";
 import { normalizeCharacter } from "../normalizers/characterNormalizer.js";
 import { escapeHtml } from "./renderUtils.js";
 
@@ -8,6 +9,10 @@ export function renderCharacterImportPanel(root, { stateManager, showToast }) {
       <div class="field">
         <label for="character-json-file">Upload D&D Beyond JSON</label>
         <input id="character-json-file" type="file" accept="application/json,.json">
+      </div>
+      <div class="field">
+        <label for="character-pdf-file">Upload Fillable Character Sheet PDF</label>
+        <input id="character-pdf-file" type="file" accept="application/pdf,.pdf">
       </div>
       <div class="field">
         <label for="character-json-text">Paste D&D Beyond JSON</label>
@@ -23,14 +28,17 @@ export function renderCharacterImportPanel(root, { stateManager, showToast }) {
 
   const form = root.querySelector("#character-import-form");
   const fileInput = root.querySelector("#character-json-file");
+  const pdfInput = root.querySelector("#character-pdf-file");
   const textInput = root.querySelector("#character-json-text");
   const feedback = root.querySelector("#import-feedback");
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const parsed = fileInput.files?.[0]
-      ? await parseDdbJsonFile(fileInput.files[0])
-      : parseDdbJsonText(textInput.value);
+    const parsed = pdfInput.files?.[0]
+      ? await importCharacterFromPdf(pdfInput.files[0])
+      : fileInput.files?.[0]
+        ? await parseDdbJsonFile(fileInput.files[0])
+        : parseDdbJsonText(textInput.value);
 
     if (parsed.errors.length) {
       feedback.innerHTML = `<div class="inline-message error">${escapeHtml(parsed.errors.join(" "))}</div>`;
@@ -44,7 +52,7 @@ export function renderCharacterImportPanel(root, { stateManager, showToast }) {
     }
 
     stateManager.importCharacter(result.character);
-    feedback.innerHTML = renderWarnings(result.warnings);
+    feedback.innerHTML = renderWarnings([...(parsed.warnings ?? []), ...result.warnings]);
     showToast({ type: "success", message: `${result.character.name} imported.` });
     form.reset();
   });

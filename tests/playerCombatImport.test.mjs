@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { normalizeCharacter } from "../js/player-combat/normalizers/characterNormalizer.js";
 import { createStateManager } from "../js/player-combat/core/stateManager.js";
+import { importCharacterFromPdfText } from "../js/player-combat/importers/ddbPdfImporterAdapter.js";
 import { applyActionEconomyRules, getMovementRemaining } from "../js/player-combat/rules/actionEconomyRules.js";
 import { getResourceActions } from "../js/player-combat/rules/resourceActions.js";
 import { resetsOnShortRest } from "../js/player-combat/rules/restRules.js";
@@ -63,6 +64,66 @@ test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", 
   assert.equal(character.inventory.weapons[0].name, "Rapier");
   assert.equal(character.inventory.weapons[0].damageType, "piercing");
   assert.equal(character.spells.cantrips[0].name, "Fire Bolt");
+});
+
+test("imports fillable PDF form fields into the player normalizer shape", () => {
+  const pdf = [
+    "%PDF-1.7",
+    pdfField("CharacterName", "Pdf Hero"),
+    pdfField("CLASS LEVEL", "Cleric 3"),
+    pdfField("RACE", "Hill Dwarf"),
+    pdfField("STR", "12"),
+    pdfField("DEX", "10"),
+    pdfField("CON", "14"),
+    pdfField("INT", "8"),
+    pdfField("WIS", "16"),
+    pdfField("CHA", "13"),
+    pdfField("MaxHP", "24"),
+    pdfField("CurrentHP", "18"),
+    pdfField("TempHP", "5"),
+    pdfField("AC", "17"),
+    pdfField("Speed", "25 ft"),
+    pdfField("ProfBonus", "+2"),
+    pdfField("Wpn Name", "Mace"),
+    pdfField("Wpn1 Damage", "1d6 bludgeoning"),
+    pdfField("spellCastingAbility0", "WIS"),
+    pdfField("spellHeader1", "1st Level"),
+    pdfField("spellSlotHeader1", "4 Slots"),
+    pdfField("spellName1", "Guiding Bolt"),
+    pdfField("spellPrepared1", "Yes"),
+    pdfField("spellCastingTime1", "1 action"),
+    pdfField("spellRange1", "120 ft"),
+    pdfField("spellDuration1", "1 round"),
+    pdfField("spellNotes1", "Make a ranged spell attack. On a hit, the target takes 4d6 radiant damage.")
+  ].join("\n");
+
+  const imported = importCharacterFromPdfText(pdf, { sourceName: "hero.pdf" });
+  const { character, errors } = normalizeCharacter(imported.raw);
+
+  assert.equal(imported.accepted, true);
+  assert.deepEqual(errors, []);
+  assert.equal(character.name, "Pdf Hero");
+  assert.equal(character.classes[0].name, "Cleric");
+  assert.equal(character.classes[0].level, 3);
+  assert.equal(character.combat.maxHp, 24);
+  assert.equal(character.combat.currentHp, 18);
+  assert.equal(character.combat.tempHp, 5);
+  assert.equal(character.combat.ac, 17);
+  assert.equal(character.combat.speed.walk, 25);
+  assert.equal(character.stats.wis, 16);
+  assert.equal(character.resources.spellSlots[1], 4);
+  assert.equal(character.spells.spellcastingAbility, "wis");
+  assert.equal(character.spells.prepared[0].name, "Guiding Bolt");
+  assert.equal(character.inventory.weapons[0].name, "Mace");
+  assert.equal(character.inventory.weapons[0].damageType, "bludgeoning");
+});
+
+test("rejects PDFs without fillable form fields", () => {
+  const imported = importCharacterFromPdfText("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>", { sourceName: "flat.pdf" });
+
+  assert.equal(imported.accepted, false);
+  assert.equal(imported.raw, null);
+  assert.ok(imported.errors[0].includes("No fillable PDF form fields"));
 });
 
 test("weapon actions use finesse and spell actions expose attack metadata", () => {
@@ -265,4 +326,8 @@ function createMemoryStorage() {
     getImportHistory: () => importHistory,
     saveImportHistory: (value) => { importHistory = value; }
   };
+}
+
+function pdfField(name, value) {
+  return `<< /T (${name}) /V (${value}) >>`;
 }
