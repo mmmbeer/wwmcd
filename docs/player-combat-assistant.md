@@ -2,7 +2,7 @@
 
 ## Implementation Status: Phases 1-2 Foundation
 
-The initial Player Combat Assistant foundation now lives at `player-combat.html`.
+The initial "what would my character do?" foundation now lives at `index.html`.
 
 Current architecture:
 

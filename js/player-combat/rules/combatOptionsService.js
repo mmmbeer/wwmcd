@@ -4,6 +4,7 @@ import {
   groupOptionsByTurnCost
 } from "./actionEconomyRules.js";
 import { getBasicActions } from "./basicActions.js";
+import { getResourceActions } from "./resourceActions.js";
 import { getSpellActions } from "./spellActions.js";
 import { getWeaponActions } from "./weaponActions.js";
 
@@ -14,7 +15,8 @@ export function getCombatOptions({ character, combatState, referenceData }) {
     movementOption(character, combatState),
     ...getBasicActions(character),
     ...getWeaponActions(character, referenceData),
-    ...getSpellActions(character, combatState, referenceData)
+    ...getSpellActions(character, combatState, referenceData),
+    ...getResourceActions(character, combatState)
   ];
 
   const checked = applyActionEconomyRules(options, character, combatState);

@@ -31,6 +31,8 @@ export function renderCombatStatePanel(root, snapshot, { stateManager, modalApi 
     <p class="inline-message">${escapeHtml(state.current.concentration || "None")}</p>
     <h3>Spell Slots</h3>
     ${renderSpellSlots(character.resources.spellSlots, state.resourcesUsed.spellSlots)}
+    <h3>Limited Resources</h3>
+    ${renderLimitedResources(character.resources, state.resourcesUsed.classResources)}
   `;
 
   bindNumber(root, "hp", (value) => updateCurrent(stateManager, { hp: value }));
@@ -90,6 +92,26 @@ export function renderCombatStatePanel(root, snapshot, { stateManager, modalApi 
 
   root.querySelector("[data-action='reset-slots']")?.addEventListener("click", () => {
     stateManager.resetSpellSlots();
+  });
+
+  root.querySelectorAll("[data-resource-dec]").forEach((button) => {
+    button.addEventListener("click", () => stateManager.adjustClassResourceUsed(button.dataset.resourceDec, -1));
+  });
+
+  root.querySelectorAll("[data-resource-inc]").forEach((button) => {
+    button.addEventListener("click", () => stateManager.adjustClassResourceUsed(button.dataset.resourceInc, 1));
+  });
+
+  root.querySelectorAll("[data-resource-reset]").forEach((button) => {
+    button.addEventListener("click", () => stateManager.resetClassResources(button.dataset.resourceReset));
+  });
+
+  root.querySelectorAll("[data-resource-used]").forEach((input) => {
+    input.addEventListener("change", () => stateManager.setClassResourceUsed(input.dataset.resourceUsed, input.value));
+  });
+
+  root.querySelector("[data-action='reset-resources']")?.addEventListener("click", () => {
+    stateManager.resetClassResources();
   });
 }
 
@@ -154,6 +176,49 @@ function renderSpellSlots(slots, usedSlots) {
       }).join("")}
     </div>
   `;
+}
+
+function renderLimitedResources(resources, usedResources) {
+  const entries = uniqueResources([
+    ...(resources?.classResources ?? []),
+    ...(resources?.limitedUses ?? [])
+  ]);
+  if (!entries.length) return `<p class="inline-message">No limited resources found.</p>`;
+  return `
+    <div class="button-row">
+      <button class="btn btn-secondary" type="button" data-action="reset-resources">Reset Resources</button>
+    </div>
+    <div class="status-grid">
+      ${entries.map((resource) => {
+        const max = Number(resource.max ?? 0);
+        const used = Math.min(Number(usedResources?.[resource.id] ?? 0), max);
+        const remaining = Math.max(0, max - used);
+        return `
+        <div class="status-item">
+          <span class="status-label">${escapeHtml(resource.name)}</span>
+          <span class="status-value">${remaining} remaining</span>
+          <div class="slot-controls" aria-label="${escapeHtml(resource.name)} controls">
+            <button class="btn btn-secondary" type="button" data-resource-dec="${escapeHtml(resource.id)}" aria-label="Decrease ${escapeHtml(resource.name)} used">-</button>
+            <input data-resource-used="${escapeHtml(resource.id)}" type="number" inputmode="numeric" min="0" max="${max}" value="${used}" aria-label="${escapeHtml(resource.name)} used">
+            <button class="btn btn-secondary" type="button" data-resource-inc="${escapeHtml(resource.id)}" aria-label="Increase ${escapeHtml(resource.name)} used">+</button>
+            <button class="btn btn-secondary" type="button" data-resource-reset="${escapeHtml(resource.id)}">Reset</button>
+          </div>
+          <small>${used} / ${max} used${resource.reset ? ` - ${escapeHtml(resource.reset)}` : ""}</small>
+        </div>
+      `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function uniqueResources(resources) {
+  const seen = new Set();
+  return resources.filter((resource) => {
+    const key = resource.id || resource.name;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function spellSlotMax(value) {

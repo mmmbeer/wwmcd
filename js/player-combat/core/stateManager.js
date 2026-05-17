@@ -189,6 +189,49 @@ export function createStateManager({ storage, eventBus }) {
     emitChange();
   }
 
+  function setClassResourceUsed(resourceId, used) {
+    const state = getCombatState();
+    const character = getActiveCharacter();
+    if (!state || !character) return;
+    const resource = findClassResource(character, resourceId);
+    if (!resource) return;
+    const nextUsed = clamp(Number(used || 0), 0, resource.max);
+    combatStates[activeCharacterId] = addLogEntry({
+      ...state,
+      resourcesUsed: {
+        ...state.resourcesUsed,
+        classResources: {
+          ...(state.resourcesUsed?.classResources ?? {}),
+          [resource.id]: nextUsed
+        }
+      }
+    }, `${resource.name} used set to ${nextUsed}.`);
+    persistCombatStates();
+    emitChange();
+  }
+
+  function adjustClassResourceUsed(resourceId, delta) {
+    const current = Number(getCombatState()?.resourcesUsed?.classResources?.[resourceId] ?? 0);
+    setClassResourceUsed(resourceId, current + Number(delta || 0));
+  }
+
+  function resetClassResources(resourceId = null) {
+    const state = getCombatState();
+    if (!state) return;
+    const classResources = resourceId === null
+      ? {}
+      : { ...(state.resourcesUsed?.classResources ?? {}), [resourceId]: 0 };
+    combatStates[activeCharacterId] = addLogEntry({
+      ...state,
+      resourcesUsed: {
+        ...state.resourcesUsed,
+        classResources
+      }
+    }, resourceId === null ? "Limited resources reset." : "Limited resource reset.");
+    persistCombatStates();
+    emitChange();
+  }
+
   function updateTurn(patch, message) {
     const state = getCombatState();
     if (!state) return;
@@ -252,6 +295,9 @@ export function createStateManager({ storage, eventBus }) {
     setSpellSlotUsed,
     adjustSpellSlotUsed,
     resetSpellSlots,
+    setClassResourceUsed,
+    adjustClassResourceUsed,
+    resetClassResources,
     logMessage,
     logRoll,
     getSnapshot
@@ -285,6 +331,13 @@ function spendResource(resourcesUsed, resource) {
 function spellSlotMax(value) {
   const max = value && typeof value === "object" ? Number(value.available ?? value.max ?? value.value ?? 0) : Number(value ?? 0);
   return Number.isFinite(max) ? max : 0;
+}
+
+function findClassResource(character, resourceId) {
+  return [
+    ...(character.resources?.classResources ?? []),
+    ...(character.resources?.limitedUses ?? [])
+  ].find((resource) => resource.id === resourceId);
 }
 
 function clamp(value, min, max) {

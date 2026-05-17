@@ -37,8 +37,8 @@ export function normalizeCharacter(raw) {
     combat,
     resources: {
       spellSlots: extractSpellSlots(root),
-      classResources: arrayAt(root, ["classResources", "actions.classResources"]),
-      limitedUses: arrayAt(root, ["limitedUses", "features.limitedUses"])
+      classResources: extractLimitedResources(root, ["classResources", "actions.classResources", "resources.classResources"], "class"),
+      limitedUses: extractLimitedResources(root, ["limitedUses", "features.limitedUses", "resources.limitedUses"], "feature")
     },
     inventory,
     spells,
@@ -186,6 +186,52 @@ function extractFeatures(root) {
     feats: normalizeNamedList(arrayAt(root, ["features.feats", "feats"])),
     other: normalizeNamedList(arrayAt(root, ["features.other", "actions.other"]))
   };
+}
+
+function extractLimitedResources(root, paths, defaultSource) {
+  return uniqueByName(arrayAt(root, paths)
+    .map((item, index) => normalizeLimitedResource(item, index, defaultSource))
+    .filter((resource) => resource.name && resource.max > 0));
+}
+
+function normalizeLimitedResource(item, index, defaultSource) {
+  const definition = item?.definition ?? item;
+  if (!definition || typeof definition !== "object") return { name: "", max: 0 };
+  const limitedUse = definition.limitedUse ?? item?.limitedUse ?? {};
+  const name = stringAt(definition, ["name", "displayAs", "label", "resourceName"], "")
+    || stringAt(limitedUse, ["name", "displayAs", "label"], "");
+  const max = resourceMax(definition, limitedUse);
+  const reset = stringAt(definition, ["resetType", "reset", "recovery"], "")
+    || stringAt(limitedUse, ["resetType", "reset", "recovery"], "");
+  const source = stringAt(definition, ["source", "type", "activation.activationType"], defaultSource);
+  const cost = numberValue(first(definition, ["activation.cost", "cost", "minNumberConsumed"]), 0)
+    || numberValue(first(limitedUse, ["minNumberConsumed", "cost"]), 0);
+
+  return {
+    id: stableResourceId(name || `resource-${index}`, index),
+    name,
+    max,
+    reset,
+    source,
+    cost,
+    note: resourceNote(definition, limitedUse)
+  };
+}
+
+function resourceMax(definition, limitedUse) {
+  const value = first(definition, ["max", "maximum", "maxUses", "uses", "count", "value", "available"])
+    ?? first(limitedUse, ["max", "maximum", "maxUses", "uses", "count", "value", "available"]);
+  return Math.max(0, numberValue(value, 0));
+}
+
+function resourceNote(definition, limitedUse) {
+  const timing = activationToCastingTime(definition.activation);
+  return timing || "";
+}
+
+function stableResourceId(name, index) {
+  const key = String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `resource-${key || index}`;
 }
 
 function normalizeNamedList(items) {

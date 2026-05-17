@@ -1,6 +1,83 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Resource and Condition Warning Pass
+## Current Session: Player Combat Assistant Limited Resource Tracker
+
+### Implemented
+
+- Moved the player-facing app entry point from `player-combat.html` to root `index.html` so it can be served at `https://www.fairway3games.com/wwmcd/`.
+- Renamed the visible app title and header to `what would my character do?`.
+- Added normalized support for simple imported class and limited-use resources:
+  - `classResources` are read from `classResources`, `actions.classResources`, and `resources.classResources`.
+  - `limitedUses` are read from `limitedUses`, `features.limitedUses`, and `resources.limitedUses`.
+  - Resource definitions keep a stable id, name, max, reset text, source, optional cost, and simple note when available.
+  - Missing names, missing maximums, and incomplete entries are ignored gracefully.
+- Added manual limited resource controls in the Combat State panel:
+  - Each resource shows name, max, used, and remaining.
+  - Used counts can be decremented, incremented, directly edited, reset individually, or reset together.
+  - Used counts are clamped to the normalized max.
+  - Usage persists only through `combatState.resourcesUsed.classResources`.
+  - Imported character resource definitions are not mutated.
+- Added lightweight Resources-tab reminder cards for normalized limited resources:
+  - Cards show remaining uses, used/max, reset text, and a no-uses warning when spent.
+  - Cards do not automate class-specific timing, action economy, or feature effects.
+- Added focused tests for limited resource normalization, combat-state-only persistence, clamping, reset, and reminder card metadata.
+
+### Files Changed
+
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/ui/combatStatePanel.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/resourceActions.js`
+- `tests/playerCombatImport.test.mjs`
+- `index.html`
+- `player-combat.html` removed
+- `docs/development-plan.md`
+- `docs/player-combat-assistant.md`
+
+### Known Limitations
+
+- The resource tracker is manual-first and does not implement Rage, Ki, Channel Divinity, Wild Shape, Action Surge, or other class-specific automation.
+- Resource max values are only normalized when the import provides an obvious numeric max such as `max`, `maxUses`, `uses`, `count`, `value`, or `available`.
+- Stat-derived, proficiency-derived, level-derived, and formula-derived resource counts are not calculated yet.
+- Imported current used counts, if present in raw data, are not treated as combat usage; combat usage starts in combat state.
+- Resource cards are reminders only and do not create action, bonus action, reaction, or roll buttons.
+- Pact magic, item charges, wild shape forms, VTT features, and multiplayer remain out of scope.
+
+### Data Assumptions
+
+- Simple limited resource imports provide an object with a displayable name and numeric maximum.
+- D&D Beyond-style resource limits may appear directly on the resource entry or under `definition.limitedUse`.
+- Reset information, when available, is display text only and does not drive short-rest or long-rest automation.
+- `combatState.resourcesUsed.classResources` is the generic used-count map for both class resources and limited-use feature resources.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/` or `https://www.fairway3games.com/wwmcd/`.
+2. Import a character JSON that includes simple limited resources such as Ki, Arcane Recovery, Fey Step, Bardic Inspiration, or another feature with an obvious numeric max.
+3. Confirm the Combat State panel shows each resource with remaining, used/max, `-`, `+`, direct input, individual reset, and all-resource reset controls.
+4. Increment, decrement, direct edit, and reset a resource; refresh and confirm the used count persists through combat state.
+5. Confirm the imported character's normalized resource `max` does not change after manual edits.
+6. Confirm resource used counts clamp between 0 and max.
+7. Open the Resources tab and confirm resource reminder cards show remaining uses and reset text when available.
+8. Spend all uses of a resource and confirm the reminder card shows a no-uses warning without disabling unrelated actions.
+9. Import or simulate a character with no limited resources and confirm the panel shows a graceful empty message.
+10. At mobile width, confirm resource controls remain readable and touch-sized.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `characterNormalizer.js` at 341 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/` and `/data/spells.json` return HTTP 200.
+- Confirmed `/` contains the app name `what would my character do?`.
+
+### Next Recommended Phase
+
+Add tiny generic rest/reset helpers for tracked limited resources, or add a narrow feature-reminder layer for common class resources without automating class-specific effects.
+
+## Previous Session: Player Combat Assistant Resource and Condition Warning Pass
 
 ### Implemented
 
@@ -50,7 +127,7 @@
 
 ### Manual Test Checklist
 
-1. Serve the project from the repo root and open `/player-combat.html`.
+1. Serve the project from the repo root and open `/`.
 2. Import a spellcaster with spell slot data.
 3. Confirm each spell level shows remaining slots, used slots, and `-`, `+`, direct input, per-level reset, and all-slot reset controls.
 4. Spend a spell slot with a spell card and confirm the matching level's remaining count decreases.
@@ -68,7 +145,7 @@
 - `node --check` for every `js/player-combat/**/*.js` file.
 - Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `characterNormalizer.js` at 340 lines.
 - Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
-- Served the repo with `python -m http.server` and confirmed `/player-combat.html` and `/data/spells.json` return HTTP 200.
+- Served the repo with `python -m http.server` and confirmed `/` and `/data/spells.json` return HTTP 200.
 
 ### Next Recommended Phase
 
@@ -125,7 +202,7 @@ Add a small resource tracker for class resources and limited-use features using 
 
 ### Manual Test Checklist
 
-1. Serve the project from the repo root and open `/player-combat.html`.
+1. Serve the project from the repo root and open `/`.
 2. Import a D&D Beyond JSON character with at least one weapon and one prepared spell.
 3. Confirm weapon cards appear for imported weapon inventory.
 4. Confirm a finesse weapon uses Dexterity when Dexterity is higher than Strength.
@@ -144,7 +221,7 @@ Add a small resource tracker for class resources and limited-use features using 
 - `node --check` for every `js/player-combat/**/*.js` file.
 - Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `characterNormalizer.js` at 301 lines.
 - Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
-- Served the repo with `python -m http.server` and confirmed `/player-combat.html` and `/data/spells.json` return HTTP 200.
+- Served the repo with `python -m http.server` and confirmed `/` and `/data/spells.json` return HTTP 200.
 
 ### Next Recommended Phase
 
@@ -154,7 +231,7 @@ Add focused resource controls and the next layer of condition/resource warnings,
 
 ### Implemented
 
-- Added `player-combat.html` as the first player-facing combat assistant page.
+- Added `index.html` as the first player-facing combat assistant page.
 - Added mobile-first shared UI styling in `css/player-combat.css`.
 - Added reference data loading for `classes`, `conditions`, `equipment`, `feats`, `items`, `magic-items`, `races`, and `spells`.
 - Added reference data status cards with loaded counts and non-blocking load errors.
@@ -182,7 +259,7 @@ Add focused resource controls and the next layer of condition/resource warnings,
 
 ### Files Created
 
-- `player-combat.html`
+- `index.html`
 - `css/player-combat.css`
 - `js/player-combat/app.js`
 - `js/player-combat/bootstrap.js`
@@ -243,7 +320,7 @@ Add focused resource controls and the next layer of condition/resource warnings,
 
 ### Manual Test Checklist
 
-1. Serve the project from the repo root and open `/player-combat.html`.
+1. Serve the project from the repo root and open `/`.
 2. Confirm reference data status shows loaded counts for all eight data files.
 3. At 375px browser width, confirm panels stack cleanly and controls remain touch-sized.
 4. Paste invalid JSON and confirm an inline error appears.

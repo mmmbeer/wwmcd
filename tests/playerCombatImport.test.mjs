@@ -4,6 +4,7 @@ import test from "node:test";
 import { normalizeCharacter } from "../js/player-combat/normalizers/characterNormalizer.js";
 import { createStateManager } from "../js/player-combat/core/stateManager.js";
 import { applyActionEconomyRules, getMovementRemaining } from "../js/player-combat/rules/actionEconomyRules.js";
+import { getResourceActions } from "../js/player-combat/rules/resourceActions.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
 import { getWeaponActions } from "../js/player-combat/rules/weaponActions.js";
 
@@ -21,6 +22,8 @@ test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", 
     ],
     baseHitPoints: 32,
     spellSlots: [{ level: 1, available: 4 }, { level: 2, available: 3 }],
+    classResources: [{ name: "Arcane Recovery", maxUses: 1, resetType: "Long Rest" }],
+    limitedUses: [{ definition: { name: "Fey Step", limitedUse: { maxUses: 2, resetType: "Long Rest" } } }],
     inventory: [{
       equipped: true,
       definition: {
@@ -52,6 +55,10 @@ test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", 
   assert.equal(character.spells.spellcastingAbility, "int");
   assert.equal(character.spells.attackBonus, 7);
   assert.equal(character.resources.spellSlots[1], 4);
+  assert.equal(character.resources.classResources[0].name, "Arcane Recovery");
+  assert.equal(character.resources.classResources[0].max, 1);
+  assert.equal(character.resources.limitedUses[0].name, "Fey Step");
+  assert.equal(character.resources.limitedUses[0].max, 2);
   assert.equal(character.inventory.weapons[0].name, "Rapier");
   assert.equal(character.inventory.weapons[0].damageType, "piercing");
   assert.equal(character.spells.cantrips[0].name, "Fire Bolt");
@@ -140,6 +147,38 @@ test("manual spell slot controls persist only in combat state", () => {
   stateManager.resetSpellSlots(1);
 
   assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 0);
+});
+
+test("manual limited resource controls persist only in combat state", () => {
+  const storage = createMemoryStorage();
+  const eventBus = { emit() {} };
+  const stateManager = createStateManager({ storage, eventBus });
+  const character = {
+    id: "monk",
+    name: "Monk",
+    importedAt: "2026-05-17T00:00:00.000Z",
+    combat: { maxHp: 22, ac: 15, speed: { walk: 40 } },
+    resources: {
+      spellSlots: {},
+      classResources: [{ id: "resource-ki", name: "Ki", max: 3, reset: "Short Rest" }],
+      limitedUses: []
+    }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.setClassResourceUsed("resource-ki", 2);
+  stateManager.adjustClassResourceUsed("resource-ki", 5);
+
+  assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-ki"], 3);
+  assert.equal(stateManager.getActiveCharacter().resources.classResources[0].max, 3);
+
+  const [card] = getResourceActions(stateManager.getActiveCharacter(), stateManager.getCombatState());
+  assert.equal(card.description, "0 of 3 remaining.");
+  assert.ok(card.warnings.includes("Ki has no uses remaining."));
+
+  stateManager.resetClassResources("resource-ki");
+
+  assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-ki"], 0);
 });
 
 function createMemoryStorage() {
