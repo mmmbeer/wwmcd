@@ -6,7 +6,8 @@ The initial "what would my character do?" foundation now lives at `index.html`.
 
 Current architecture:
 
-- `js/player-combat/data/referenceDataService.js` wraps the existing DM roster reference data loader and exposes player-facing indexes.
+- `js/player-combat/data/referenceDataLoader.js` loads player app reference JSON directly.
+- `js/player-combat/data/referenceDataService.js` wraps the player reference loader and exposes player-facing indexes.
 - `js/player-combat/importers/ddbJsonImporter.js` handles JSON file/text parsing only.
 - `js/player-combat/normalizers/characterNormalizer.js` converts raw D&D Beyond-style JSON into the player combat model.
 - `js/player-combat/core/storage.js` owns all `localStorage` access.
@@ -16,7 +17,7 @@ Current architecture:
 
 Data loading approach:
 
-- The app reuses `dm-roster/data/referenceDataLoader.js` for the actual browser `fetch()` calls.
+- The app loads reference data through its own player-combat data loader.
 - The player wrapper loads all required data files and builds name indexes for spells, classes, races, conditions, equipment, feats, items, and magic items.
 - The DM IndexedDB SRD repository was not directly reused because it depends on DM database stores; a small browser adapter provides lookup methods over the player indexes.
 

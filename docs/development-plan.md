@@ -29,11 +29,19 @@
 - `js/player-combat/ui/combatStatePanel.js`
 - `js/player-combat/rules/combatOptionsService.js`
 - `js/player-combat/rules/resourceActions.js`
+- `js/player-combat/data/referenceDataLoader.js`
+- `js/player-combat/data/referenceDataService.js`
 - `tests/playerCombatImport.test.mjs`
 - `index.html`
 - `player-combat.html` removed
 - `docs/development-plan.md`
 - `docs/player-combat-assistant.md`
+
+### Runtime Dependency Cleanup
+
+- Copied the browser reference data loader into `js/player-combat/data/referenceDataLoader.js`.
+- Updated `referenceDataService.js` to use the local player-combat loader instead of importing from `dm-roster`.
+- `dm-roster` scripts and data are now reference material only for the player app, not runtime dependencies.
 
 ### Known Limitations
 
@@ -301,7 +309,7 @@ Add focused resource controls and the next layer of condition/resource warnings,
 
 ### Existing DM Roster Reuse Findings
 
-- `dm-roster/data/referenceDataLoader.js` is browser-safe and directly reusable. The player app wraps it in `referenceDataService.js` so the rest of the app sees player-focused lookup helpers rather than the DM loader.
+- `dm-roster/data/referenceDataLoader.js` informed the player copy, but the player app now uses `js/player-combat/data/referenceDataLoader.js` so it has no runtime dependency on `dm-roster`.
 - `dm-roster/db/srdRepository.js` is IndexedDB/repository-oriented and depends on the DM database module. It was not reused directly. A browser-safe `srdRepositoryAdapter.js` now exposes the small lookup surface needed for this phase.
 - `dm-roster/importers/ddbPdfImporter.js` is substantial and best-effort. PDF import is intentionally not primary for this phase, so `ddbPdfImporterAdapter.js` exposes a safe unsupported result for future integration.
 - `dm-roster/importers/ddbJsonImporter.js` has useful extraction ideas, but it normalizes into the DM roster model and is larger than needed for this first player phase. The player app uses a small JSON parser plus a separate player normalizer.

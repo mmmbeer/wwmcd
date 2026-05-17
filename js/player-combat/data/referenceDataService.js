@@ -1,7 +1,7 @@
 import {
   listAvailableReferenceFiles,
-  loadReferenceData as loadDmReferenceData
-} from "../../../dm-roster/data/referenceDataLoader.js";
+  loadReferenceDataFile
+} from "./referenceDataLoader.js";
 import { normalizeName, transformCombatData } from "./combatDataTransformer.js";
 
 let cache = null;
@@ -13,7 +13,7 @@ export async function loadReferenceData() {
 
   for (const file of files) {
     try {
-      data[file.name] = await loadDmReferenceData(file.name);
+      data[file.name] = await loadReferenceDataFile(file.name);
       statuses.push({ name: file.name, ok: true, count: countEntries(data[file.name]) });
     } catch (error) {
       data[file.name] = null;
