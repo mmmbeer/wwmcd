@@ -1,6 +1,80 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Import Reliability Pass
+## Current Session: Player Combat Assistant Resource and Condition Warning Pass
+
+### Implemented
+
+- Added focused manual spell slot controls in the Combat State panel:
+  - Remaining slots are shown as the primary value for each imported spell level.
+  - Used slots can be decremented, incremented, directly edited, reset by level, or reset for all levels.
+  - Slot changes are clamped to the imported maximum and persist only through `combatState.resourcesUsed.spellSlots`.
+  - Imported character spell slot data remains unchanged.
+- Added a focused condition rules module for simple combat warnings and blockers.
+- Preserved hard action/movement blockers for Incapacitated, Paralyzed, Petrified, Stunned, and Unconscious.
+- Added movement blocking for Grappled and Restrained.
+- Added Prone movement reminder metadata when movement options are shown.
+- Added simple non-automated warning metadata for:
+  - Blinded attack rolls.
+  - Poisoned attack rolls and ability checks.
+  - Frightened attack rolls and ability checks while the source is in sight.
+  - Restrained attack rolls.
+- Improved unavailable reasons for movement blocked by condition while keeping existing action, bonus action, reaction, movement, and spell slot reasons.
+- Rendered rule warnings on action cards without applying advantage/disadvantage automation.
+- Added focused tests for condition warnings/blockers and manual spell slot combat-state persistence.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/conditionRules.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/combatStatePanel.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Condition warnings are reminders only; the app does not automate advantage/disadvantage, saving throw changes, attack targeting rules, or speed-cost math.
+- Prone only shows a standing movement reminder; it does not spend half speed automatically.
+- Grappled and Restrained reduce available movement to 0 for the simple movement option, but no escape action automation is implemented.
+- Spell slot controls only cover imported standard spell slot levels. Pact magic, class resources, item charges, and custom limited-use resources remain future work.
+- Spell slot spending still consumes only the spell's base level and does not support upcasting selection.
+- Class features, race features, wild shape, VTT features, and multiplayer remain out of scope.
+
+### Data Assumptions
+
+- Normalized character spell slots are keyed by spell level and contain either a number or an object with `available`, `max`, or `value`.
+- Active conditions in combat state are user-managed strings that match common SRD condition names.
+- Condition warnings are intentionally broad because source-specific details such as Frightened line of sight are not tracked.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/player-combat.html`.
+2. Import a spellcaster with spell slot data.
+3. Confirm each spell level shows remaining slots, used slots, and `-`, `+`, direct input, per-level reset, and all-slot reset controls.
+4. Spend a spell slot with a spell card and confirm the matching level's remaining count decreases.
+5. Manually increment, decrement, directly edit, and reset a slot level; refresh and confirm the combat state persists.
+6. Confirm the imported character's base spell slot maximum does not change after manual slot edits.
+7. Add Grappled or Restrained and confirm movement options are unavailable with a movement-blocked reason.
+8. Add Prone and confirm movement options show a standing-cost reminder.
+9. Add Poisoned, Blinded, Frightened, or Restrained and confirm relevant attack/check cards show warning reminders without changing formulas.
+10. Mark action, bonus action, or reaction used and confirm existing unavailable reasons still appear.
+11. At mobile width, confirm spell slot controls remain readable and touch-sized.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `characterNormalizer.js` at 340 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/player-combat.html` and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Add a small resource tracker for class resources and limited-use features using the same combat-state-only persistence pattern, or add targeted spell override data for high-value spell metadata gaps.
+
+## Previous Session: Player Combat Assistant Import Reliability Pass
 
 ### Implemented
 

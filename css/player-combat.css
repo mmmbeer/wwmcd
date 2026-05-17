@@ -349,6 +349,23 @@ select {
   color: var(--muted);
 }
 
+.slot-controls {
+  display: grid;
+  grid-template-columns: auto minmax(54px, 1fr) auto auto;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-2);
+}
+
+.slot-controls .btn {
+  min-height: 36px;
+  padding: 6px 9px;
+}
+
+.slot-controls input {
+  min-width: 0;
+}
+
 .option-meta {
   gap: var(--space-1);
   margin: 0;

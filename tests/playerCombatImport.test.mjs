@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { normalizeCharacter } from "../js/player-combat/normalizers/characterNormalizer.js";
+import { createStateManager } from "../js/player-combat/core/stateManager.js";
+import { applyActionEconomyRules, getMovementRemaining } from "../js/player-combat/rules/actionEconomyRules.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
 import { getWeaponActions } from "../js/player-combat/rules/weaponActions.js";
 
@@ -95,3 +97,65 @@ test("weapon actions use finesse and spell actions expose attack metadata", () =
   assert.ok(spell.meta.includes("DEX save DC 15"));
   assert.equal(spell.rolls[0].formula, "3d6");
 });
+
+test("condition rules block movement and add simple roll warnings", () => {
+  const character = { combat: { speed: { walk: 30 } } };
+  const combatState = {
+    turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, movementUsed: 0 },
+    current: { conditions: ["Grappled", "Poisoned", "Prone"] }
+  };
+  const [movement, attack, check] = applyActionEconomyRules([
+    { id: "move", name: "Move", cost: { movement: true }, rolls: [] },
+    { id: "attack", name: "Attack", cost: { action: true }, tags: ["attack"], rolls: [{ type: "attack" }] },
+    { id: "hide", name: "Hide", cost: { action: true }, rolls: [{ type: "check" }] }
+  ], character, combatState);
+
+  assert.equal(getMovementRemaining(character, combatState), 0);
+  assert.equal(movement.available, false);
+  assert.deepEqual(movement.unavailableReasons, ["Movement blocked by Grappled."]);
+  assert.ok(movement.warnings.includes("Prone: standing costs half your speed."));
+  assert.ok(attack.warnings.includes("Poisoned: attack rolls have disadvantage."));
+  assert.ok(check.warnings.includes("Poisoned: ability checks have disadvantage."));
+});
+
+test("manual spell slot controls persist only in combat state", () => {
+  const storage = createMemoryStorage();
+  const eventBus = { emit() {} };
+  const stateManager = createStateManager({ storage, eventBus });
+  const character = {
+    id: "caster",
+    name: "Caster",
+    importedAt: "2026-05-17T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: { 1: 2 } }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.setSpellSlotUsed(1, 1);
+  stateManager.adjustSpellSlotUsed(1, 5);
+
+  assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 2);
+  assert.equal(stateManager.getActiveCharacter().resources.spellSlots[1], 2);
+
+  stateManager.resetSpellSlots(1);
+
+  assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 0);
+});
+
+function createMemoryStorage() {
+  let characters = [];
+  let activeCharacterId = null;
+  let combatStates = {};
+  let importHistory = [];
+  return {
+    available: true,
+    getCharacters: () => characters,
+    saveCharacters: (value) => { characters = value; },
+    getActiveCharacterId: () => activeCharacterId,
+    saveActiveCharacterId: (value) => { activeCharacterId = value; },
+    getCombatStates: () => combatStates,
+    saveCombatStates: (value) => { combatStates = value; },
+    getImportHistory: () => importHistory,
+    saveImportHistory: (value) => { importHistory = value; }
+  };
+}

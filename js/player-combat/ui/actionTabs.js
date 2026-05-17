@@ -64,6 +64,7 @@ function renderOptionCard(option) {
       </div>
       <p>${escapeHtml(option.description || "")}</p>
       ${renderMeta(option)}
+      ${renderWarnings(option.warnings)}
       ${unavailable ? renderReasons(option.unavailableReasons) : ""}
       <div class="button-row">
         ${(option.rolls ?? []).map((roll) => `
@@ -88,6 +89,11 @@ function renderMeta(option) {
 
 function renderReasons(reasons = []) {
   return `<p class="inline-message warning">${escapeHtml(reasons.join(" "))}</p>`;
+}
+
+function renderWarnings(warnings = []) {
+  if (!warnings.length) return "";
+  return `<p class="inline-message warning">${escapeHtml(warnings.join(" "))}</p>`;
 }
 
 function renderLogGroup(label, combatState) {

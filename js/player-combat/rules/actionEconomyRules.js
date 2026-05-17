@@ -1,3 +1,10 @@
+import {
+  actionBlockReason,
+  conditionWarnings,
+  hasMovementBlocker,
+  movementBlockReason
+} from "./conditionRules.js";
+
 const ACTION_COSTS = {
   action: ["actionUsed", "Action already used."],
   bonus: ["bonusActionUsed", "Bonus action already used."],
@@ -5,32 +12,34 @@ const ACTION_COSTS = {
   object: ["objectInteractionUsed", "Object interaction already used."]
 };
 
-const BLOCKING_CONDITIONS = new Set(["incapacitated", "paralyzed", "petrified", "stunned", "unconscious"]);
-
 export function applyActionEconomyRules(options, character, combatState) {
   return options.map((option) => {
     const reasons = [...(option.unavailableReasons ?? [])];
+    const warnings = [...(option.warnings ?? [])];
     const cost = option.cost ?? {};
 
     for (const [costName, [turnKey, reason]] of Object.entries(ACTION_COSTS)) {
       if (cost[costName] && combatState?.turn?.[turnKey]) reasons.push(reason);
     }
 
-    if (cost.movement) {
+    const movementBlock = movementBlockReason(option, combatState);
+    if (movementBlock) reasons.push(movementBlock);
+
+    if (cost.movement && !movementBlock) {
       const remaining = getMovementRemaining(character, combatState);
       if (remaining <= 0) reasons.push("No movement remaining.");
     }
 
-    for (const condition of combatState?.current?.conditions ?? []) {
-      if (BLOCKING_CONDITIONS.has(String(condition).toLowerCase()) && affectsBlockedOption(option)) {
-        reasons.push(`${condition} prevents actions and movement.`);
-      }
-    }
+    const actionBlock = actionBlockReason(option, combatState);
+    if (actionBlock) reasons.push(actionBlock);
+
+    warnings.push(...conditionWarnings(option, combatState));
 
     return {
       ...option,
       available: reasons.length === 0,
-      unavailableReasons: reasons
+      unavailableReasons: [...new Set(reasons)],
+      warnings: [...new Set(warnings)]
     };
   });
 }
@@ -54,10 +63,7 @@ export function groupOptionsByTurnCost(options) {
 }
 
 export function getMovementRemaining(character, combatState) {
+  if (hasMovementBlocker(combatState)) return 0;
   const speed = Number(character?.combat?.speed?.walk ?? 0);
   return Math.max(0, speed - Number(combatState?.turn?.movementUsed ?? 0));
-}
-
-function affectsBlockedOption(option) {
-  return option.cost?.action || option.cost?.bonus || option.cost?.reaction || option.cost?.movement;
 }
