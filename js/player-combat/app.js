@@ -2,7 +2,6 @@ import { createEventBus } from "./core/eventBus.js";
 import { createStateManager } from "./core/stateManager.js";
 import { createStorage } from "./core/storage.js";
 import { loadReferenceData } from "./data/referenceDataService.js";
-import { renderReferenceStatus } from "./ui/cards.js";
 import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCharacterSummaryPanel } from "./ui/characterSummaryPanel.js";
 import { renderCombatStatePanel } from "./ui/combatStatePanel.js";
@@ -18,8 +17,8 @@ export async function createPlayerCombatApp() {
   const modalApi = createModal(document.querySelector("#modal-root"));
   const showToast = createToast(document.querySelector("#toast-region"));
   const roots = {
-    referenceStatus: document.querySelector("#reference-status-list"),
-    importPanel: document.querySelector("#character-import-panel"),
+    headerActions: document.querySelector("#header-actions"),
+    importLauncher: document.querySelector("#import-launcher"),
     summaryPanel: document.querySelector("#character-summary-panel"),
     turnPanel: document.querySelector("#turn-economy-panel"),
     combatPanel: document.querySelector("#combat-state-panel"),
@@ -27,14 +26,14 @@ export async function createPlayerCombatApp() {
   };
 
   eventBus.on("state:changed", (snapshot) => {
-    renderReferenceStatus(roots.referenceStatus, snapshot);
+    renderHeaderActions(roots.headerActions, snapshot, { stateManager, modalApi, showToast });
+    renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast });
     renderCharacterSummaryPanel(roots.summaryPanel, snapshot);
     renderTurnEconomyPanel(roots.turnPanel, snapshot, stateManager);
     renderCombatStatePanel(roots.combatPanel, snapshot, { stateManager, modalApi });
     renderActionTabs(roots.tabs, snapshot, { stateManager });
   });
 
-  renderCharacterImportPanel(roots.importPanel, { stateManager, showToast });
   stateManager.initializeAppState();
 
   if (!storage.available) {
@@ -48,4 +47,42 @@ export async function createPlayerCombatApp() {
   }
 
   return { stateManager };
+}
+
+function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast }) {
+  if (!root) return;
+  if (!snapshot.activeCharacter) {
+    root.innerHTML = "";
+    return;
+  }
+
+  root.innerHTML = `
+    <button class="btn btn-secondary" type="button" data-header-action="import">Import</button>
+    <button class="btn btn-secondary" type="button" data-header-action="short-rest">Short Rest</button>
+    <button class="btn btn-secondary" type="button" data-header-action="long-rest">Long Rest</button>
+  `;
+
+  root.querySelector("[data-header-action='import']").addEventListener("click", () => openImportModal({ modalApi, stateManager, showToast }));
+  root.querySelector("[data-header-action='short-rest']")?.addEventListener("click", () => stateManager.takeShortRest());
+  root.querySelector("[data-header-action='long-rest']")?.addEventListener("click", () => stateManager.takeLongRest());
+}
+
+function renderImportLauncher(root, snapshot, { stateManager, modalApi, showToast }) {
+  if (!root) return;
+  root.innerHTML = snapshot.activeCharacter ? "" : `
+    <section class="import-empty" aria-label="Import character">
+      <button class="btn btn-primary" type="button" data-action="import-character">Import Character</button>
+    </section>
+  `;
+  root.querySelector("[data-action='import-character']")?.addEventListener("click", () => openImportModal({ modalApi, stateManager, showToast }));
+}
+
+function openImportModal({ modalApi, stateManager, showToast }) {
+  const body = document.createElement("div");
+  renderCharacterImportPanel(body, { stateManager, showToast });
+  modalApi.showModal({
+    title: "Import Character",
+    body,
+    actions: [{ label: "Close", variant: "secondary" }]
+  });
 }

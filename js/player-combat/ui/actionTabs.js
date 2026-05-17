@@ -8,12 +8,18 @@ const GROUPS = [
   ["actions", "Actions"],
   ["bonus", "Bonus"],
   ["movement", "Movement"],
+  ["free", "Free Action"],
   ["spells", "Spells"],
   ["resources", "Resources"],
   ["log", "Log"]
 ];
+const GROUP_LABELS = Object.fromEntries(GROUPS);
+let selectedGroup = "recommended";
+let lastRender = null;
 
 export function renderActionTabs(root, snapshot, { stateManager }) {
+  lastRender = () => renderActionTabs(root, snapshot, { stateManager });
+  bindGroupSelection();
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
 
@@ -23,12 +29,23 @@ export function renderActionTabs(root, snapshot, { stateManager }) {
   }
 
   const groups = getCombatOptions({ character, combatState, referenceData: snapshot.referenceData });
+  const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   root.innerHTML = `
     ${combatState.lastRoll ? `<div class="latest-roll">${renderDiceResult(combatState.lastRoll)}</div>` : ""}
     <div class="option-tabs">
-      ${GROUPS.map(([key, label]) => renderGroup(key, label, groups[key] ?? [], combatState)).join("")}
+      <div class="button-row">
+        ${GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
+      </div>
+      ${renderGroup(visibleGroup, GROUP_LABELS[visibleGroup], groups[visibleGroup] ?? [], combatState)}
     </div>
   `;
+
+  root.querySelectorAll("[data-tab-group]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedGroup = button.dataset.tabGroup;
+      renderActionTabs(root, snapshot, { stateManager });
+    });
+  });
 
   root.querySelectorAll("[data-roll-option]").forEach((button) => {
     button.addEventListener("click", () => handleRoll(button, groups, stateManager));
@@ -39,6 +56,16 @@ export function renderActionTabs(root, snapshot, { stateManager }) {
       const option = findOption(groups, button.dataset.useOption);
       if (option) stateManager.useCombatOption(option);
     });
+  });
+}
+
+function bindGroupSelection() {
+  if (bindGroupSelection.bound) return;
+  bindGroupSelection.bound = true;
+  window.addEventListener("combat:select-option-group", (event) => {
+    selectedGroup = event.detail?.group ?? selectedGroup;
+    lastRender?.();
+    document.querySelector("#actions-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -136,6 +163,7 @@ function costLabel(option) {
   if (option.cost?.reaction) return "Reaction";
   if (option.cost?.movement) return "Movement";
   if (option.cost?.action) return "Action";
+  if (option.cost?.object) return "Free";
   return option.resource ?? "Option";
 }
 

@@ -5,6 +5,8 @@ import { normalizeCharacter } from "../js/player-combat/normalizers/characterNor
 import { createStateManager } from "../js/player-combat/core/stateManager.js";
 import { importCharacterFromPdfText } from "../js/player-combat/importers/ddbPdfImporterAdapter.js";
 import { applyActionEconomyRules, getMovementRemaining } from "../js/player-combat/rules/actionEconomyRules.js";
+import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
+import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 import { getResourceActions } from "../js/player-combat/rules/resourceActions.js";
 import { resetsOnShortRest } from "../js/player-combat/rules/restRules.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
@@ -185,6 +187,30 @@ test("condition rules block movement and add simple roll warnings", () => {
   assert.ok(movement.warnings.includes("Prone: standing costs half your speed."));
   assert.ok(attack.warnings.includes("Poisoned: attack rolls have disadvantage."));
   assert.ok(check.warnings.includes("Poisoned: ability checks have disadvantage."));
+});
+
+test("combat options expose free actions and inferred extra attacks", () => {
+  const character = {
+    classes: [{ name: "Fighter", level: 11 }],
+    features: { class: [{ name: "Extra Attack" }] },
+    stats: { str: 16, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
+    combat: { proficiencyBonus: 4, speed: { walk: 30 } },
+    resources: { spellSlots: {}, classResources: [], limitedUses: [] },
+    inventory: { weapons: [] },
+    spells: { known: [], prepared: [], cantrips: [] }
+  };
+  const combatState = {
+    turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
+    current: { conditions: [] },
+    resourcesUsed: { spellSlots: {}, classResources: {} }
+  };
+
+  const groups = getCombatOptions({ character, combatState, referenceData: null });
+  const attack = groups.actions.find((option) => option.id === "basic_attack");
+
+  assert.equal(getAttackCount(character), 3);
+  assert.ok(attack.description.includes("3 attacks"));
+  assert.ok(groups.free.some((option) => option.id === "basic_object_interaction"));
 });
 
 test("manual spell slot controls persist only in combat state", () => {

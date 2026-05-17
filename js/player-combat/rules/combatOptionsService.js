@@ -46,6 +46,7 @@ function emptyGroups() {
     actions: [],
     bonus: [],
     movement: [],
+    free: [],
     spells: [],
     resources: [],
     log: []

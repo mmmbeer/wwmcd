@@ -1,4 +1,5 @@
 import { formatFeet } from "./renderUtils.js";
+import { getAttackCount } from "../rules/attackCountRules.js";
 
 export function renderTurnEconomyPanel(root, snapshot, stateManager) {
   const character = snapshot.activeCharacter;
@@ -9,45 +10,41 @@ export function renderTurnEconomyPanel(root, snapshot, stateManager) {
     return;
   }
 
-  const movement = `${formatFeet(state.turn.movementUsed)} / ${formatFeet(character.combat.speed.walk)}`;
+  const speed = Number(character.combat.speed.walk ?? 0);
+  const movementUsed = Number(state.turn.movementUsed ?? 0);
+  const movement = `${formatFeet(movementUsed)} / ${formatFeet(speed)}`;
+  const attacks = getAttackCount(character);
   root.innerHTML = `
-    <article class="turn-card">
-      <div class="panel-header">
-        <h2>Turn Economy</h2>
-        <span class="badge ${state.turnActive ? "is-ready" : ""}">${state.turnActive ? "Active" : "Idle"}</span>
+    <nav class="turn-progress" aria-label="Turn progress">
+      ${segment("actions", "Actions", state.turn.actionUsed, attacks > 1 ? `${attacks} attacks` : "1 action")}
+      ${segment("bonus", "Bonus Action", state.turn.bonusActionUsed, "1 bonus")}
+      ${segment("reaction", "Reaction", state.turn.reactionUsed, "1 reaction")}
+      ${segment("free", "Free Action", state.turn.objectInteractionUsed, "object")}
+      <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""}">
+        <button class="turn-segment" type="button" data-group="movement">
+          <span>Movement</span>
+          <strong>${movement}</strong>
+        </button>
+        <button class="turn-move-add" type="button" data-move="5" aria-label="Add 5 feet of movement">+</button>
       </div>
-      <div class="economy-grid">
-        ${economyItem("Movement", movement)}
-        ${economyItem("Action", state.turn.actionUsed ? "Used" : "Available")}
-        ${economyItem("Bonus", state.turn.bonusActionUsed ? "Used" : "Available")}
-        ${economyItem("Reaction", state.turn.reactionUsed ? "Used" : "Available")}
-      </div>
-      <div class="button-row">
-        <button class="btn btn-primary" type="button" data-turn="start">Start Turn</button>
-        <button class="btn btn-secondary" type="button" data-turn="end">End Turn</button>
-        <button class="btn btn-secondary" type="button" data-turn="action">Use Action</button>
-        <button class="btn btn-secondary" type="button" data-turn="bonus">Use Bonus</button>
-        <button class="btn btn-secondary" type="button" data-turn="reaction">Use Reaction</button>
-        <button class="btn btn-secondary" type="button" data-rest="short">Short Rest</button>
-        <button class="btn btn-secondary" type="button" data-rest="long">Long Rest</button>
-      </div>
-    </article>
+      <button class="turn-done" type="button" data-turn="end">Done</button>
+    </nav>
   `;
 
-  root.querySelector("[data-turn='start']").addEventListener("click", () => stateManager.startTurn());
   root.querySelector("[data-turn='end']").addEventListener("click", () => stateManager.endTurn());
-  root.querySelector("[data-turn='action']").addEventListener("click", () => stateManager.useAction());
-  root.querySelector("[data-turn='bonus']").addEventListener("click", () => stateManager.useBonusAction());
-  root.querySelector("[data-turn='reaction']").addEventListener("click", () => stateManager.useReaction());
-  root.querySelector("[data-rest='short']").addEventListener("click", () => stateManager.takeShortRest());
-  root.querySelector("[data-rest='long']").addEventListener("click", () => stateManager.takeLongRest());
+  root.querySelector("[data-move='5']").addEventListener("click", () => stateManager.useMovement(5));
+  root.querySelectorAll("[data-group]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: button.dataset.group } }));
+    });
+  });
 }
 
-function economyItem(label, value) {
+function segment(group, label, spent, detail) {
   return `
-    <div class="economy-item">
-      <span class="economy-label">${label}</span>
-      <span class="economy-value">${value}</span>
-    </div>
+    <button class="turn-segment ${spent ? "is-spent" : ""}" type="button" data-group="${group}">
+      <span>${label}</span>
+      <strong>${spent ? "Used" : detail}</strong>
+    </button>
   `;
 }

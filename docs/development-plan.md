@@ -1,6 +1,85 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant PDF Character Sheet Import
+## Current Session: Player Combat Assistant Header, Import Modal, and Turn Progress Bar
+
+### Implemented
+
+- Removed the top Reference Data card from the app shell while keeping reference data loading active in the background.
+- Moved character import into a modal:
+  - When no character is loaded, the main screen shows a single `Import Character` button.
+  - When a character is loaded, the header shows `Import`, `Short Rest`, and `Long Rest` buttons.
+  - JSON upload, PDF upload, and JSON paste continue to use the existing import form inside the modal.
+- Replaced the old Turn Economy card with a compact progress bar below the header:
+  - `Actions`, `Bonus Action`, `Reaction`, `Free Action`, `Movement x/NN`, and `Done`.
+  - Segments start colored and gray out when their tracked turn resource is used.
+  - Movement includes a `+` control that adds 5 feet at a time and clamps at walking speed.
+  - `Done` ends the current turn through the existing state manager.
+  - Clicking a segment opens the matching action group.
+- Added a Free Action group backed by `turn.objectInteractionUsed`.
+- Added a basic `Object Interaction` option for the free-action segment.
+- Added conservative Extra Attack awareness:
+  - Fighter level 11/20 shows 3/4 attacks.
+  - Any explicit `Extra Attack` feature shows 2 attacks.
+  - The action economy remains one Attack action; this only improves labels and descriptions.
+- Added focused tests for free-action grouping and inferred multiple attacks.
+
+### Files Changed
+
+- `index.html`
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/attackCountRules.js`
+- `js/player-combat/rules/basicActions.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Extra Attack detection is intentionally conservative and does not cover every subclass, monster form, temporary effect, or special attack replacement rule.
+- The progress bar tracks action economy usage, not every sub-choice inside an action.
+- Movement uses walking speed only and does not incorporate Dash, difficult terrain, prone standing cost automation, or alternate movement modes.
+- Free Action currently represents one simple object interaction.
+- The import modal stays open after a successful import so warnings remain visible.
+
+### Data Assumptions
+
+- Normalized character features may expose an `Extra Attack` feature by name.
+- Fighter class levels are available in `character.classes`.
+- Walking speed is available as `character.combat.speed.walk`.
+- Turn usage continues to live only in `combatState.turn`.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/`.
+2. Confirm the Reference Data card is no longer visible.
+3. With no character loaded, confirm the page shows one `Import Character` button and opens the import modal.
+4. Import a character and confirm the header shows `Import`, `Short Rest`, and `Long Rest`.
+5. Confirm the progress bar appears below the header with Actions, Bonus Action, Reaction, Free Action, Movement, and Done.
+6. Click each progress segment and confirm the matching action group opens.
+7. Use an action, bonus action, reaction, and object interaction, then confirm matching segments gray out.
+8. Click the movement `+` button until walking speed is reached and confirm the movement segment grays out without exceeding max speed.
+9. Click `Done` and confirm the turn ends.
+10. Import or simulate a character with Extra Attack and confirm the Actions segment and Attack option reflect multiple attacks.
+11. At mobile width, confirm the header buttons and progress bar wrap without text overlap.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 365 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/`, `/data/classes.json`, and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Add a small Playwright/browser smoke test around the import modal and progress bar interactions, then refine mobile spacing from real screenshots if needed.
+
+## Previous Session: Player Combat Assistant PDF Character Sheet Import
 
 ### Implemented
 

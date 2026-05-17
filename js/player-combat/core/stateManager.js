@@ -145,7 +145,9 @@ export function createStateManager({ storage, eventBus }) {
 
   function useMovement(amount) {
     const state = getCombatState();
-    const movementUsed = Math.max(0, (state?.turn.movementUsed ?? 0) + Number(amount || 0));
+    const character = getActiveCharacter();
+    const speed = Number(character?.combat?.speed?.walk ?? 0);
+    const movementUsed = clamp((state?.turn.movementUsed ?? 0) + Number(amount || 0), 0, speed);
     updateTurn({ movementUsed }, `Movement set to ${movementUsed} ft.`);
   }
 

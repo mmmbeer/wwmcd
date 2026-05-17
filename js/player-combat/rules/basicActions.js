@@ -1,7 +1,12 @@
+import { getAttackCount } from "./attackCountRules.js";
+
 export function getBasicActions(character) {
   const speed = Number(character?.combat?.speed?.walk ?? 0);
+  const attacks = getAttackCount(character);
   return [
-    basic("basic_attack", "Attack", "Make one weapon or unarmed attack.", { action: true }, true),
+    basic("basic_attack", "Attack", attacks > 1 ? `Make up to ${attacks} attacks with the Attack action.` : "Make one weapon or unarmed attack.", { action: true }, true, {
+      meta: attacks > 1 ? [`${attacks} attacks with this action`] : []
+    }),
     basic("basic_dash", "Dash", `Gain extra movement equal to your speed (${speed} ft).`, { action: true }, true),
     basic("basic_disengage", "Disengage", "Your movement does not provoke opportunity attacks this turn.", { action: true }),
     basic("basic_dodge", "Dodge", "Attackers have disadvantage and you gain advantage on Dexterity saves.", { action: true }, true),
@@ -16,6 +21,7 @@ export function getBasicActions(character) {
         { id: "investigation", label: "Roll Investigation", formula: abilityCheck(character, "int"), type: "check" }
       ]
     }),
+    basic("basic_object_interaction", "Object Interaction", "Draw, stow, open, close, pick up, or hand off one simple object.", { object: true }),
     basic("basic_use_object", "Use an Object", "Interact with a second object or use an item that needs your action.", { action: true, object: true })
   ];
 }
