@@ -5,6 +5,7 @@ import { loadReferenceData } from "./data/referenceDataService.js";
 import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCharacterSummaryPanel } from "./ui/characterSummaryPanel.js";
 import { renderCombatStatePanel } from "./ui/combatStatePanel.js";
+import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
 import { createToast } from "./ui/toast.js";
@@ -21,6 +22,7 @@ export async function createPlayerCombatApp() {
     importLauncher: document.querySelector("#import-launcher"),
     summaryPanel: document.querySelector("#character-summary-panel"),
     turnPanel: document.querySelector("#turn-economy-panel"),
+    statusBar: document.querySelector("#combat-status-bar"),
     combatPanel: document.querySelector("#combat-state-panel"),
     tabs: document.querySelector("#action-tabs")
   };
@@ -30,6 +32,7 @@ export async function createPlayerCombatApp() {
     renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast });
     renderCharacterSummaryPanel(roots.summaryPanel, snapshot);
     renderTurnEconomyPanel(roots.turnPanel, snapshot, stateManager);
+    renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
     renderCombatStatePanel(roots.combatPanel, snapshot, { stateManager, modalApi });
     renderActionTabs(roots.tabs, snapshot, { stateManager });
   });

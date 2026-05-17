@@ -1,6 +1,62 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Header, Import Modal, and Turn Progress Bar
+## Current Session: Player Combat Assistant Compact Combat Status Bar
+
+### Implemented
+
+- Added a compact combat status bar immediately below the turn progress bar.
+- The new bar shows:
+  - Current HP as an editable input with imported max HP displayed beside it.
+  - Temporary HP as an editable input.
+  - Current AC.
+  - Walking speed.
+  - Active conditions as removable badges.
+  - A `+` condition button.
+- Added a condition picker modal from the `+` button:
+  - Uses loaded reference-data conditions when available.
+  - Falls back to common SRD condition names if reference data has not loaded yet.
+  - Adds conditions without duplicates.
+- Condition badges include an `x` button that removes the condition directly from combat state.
+- HP, temp HP, and condition changes continue to update only `combatState.current` through the existing state manager and storage path.
+
+### Files Changed
+
+- `index.html`
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/combatStatusBar.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The compact status bar displays walking speed only; alternate movement modes are not shown there.
+- AC is displayed as read-only in the compact bar; the detailed Combat State panel still edits AC.
+- The condition picker is a single-select modal, not a multi-select editor.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/`.
+2. Import a character and confirm a status bar appears directly below the turn progress bar.
+3. Edit HP and temp HP in the compact bar, refresh, and confirm values persist.
+4. Confirm AC and walking speed display correctly.
+5. Click `+`, select a condition, and confirm it appears as a badge.
+6. Add the same condition twice and confirm it is not duplicated.
+7. Click a badge `x` and confirm the condition is removed.
+8. At mobile width, confirm HP/temp inputs, AC/speed, and condition badges wrap without overlap.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 365 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/`, `/data/classes.json`, and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Consider collapsing or simplifying duplicate HP/temp/condition controls in the detailed Combat State panel now that the compact bar covers the most common at-table edits.
+
+## Previous Session: Player Combat Assistant Header, Import Modal, and Turn Progress Bar
 
 ### Implemented
 
