@@ -9,22 +9,24 @@ export function getWeaponActions(character, referenceData) {
 }
 
 function createWeaponOption(character, weapon, referenceWeapons, index) {
-  const reference = referenceWeapons.get(normalizeName(weapon.name)) ?? {};
+  const reference = referenceWeapons.get(normalizeName(weapon.baseName ?? weapon.name)) ?? referenceWeapons.get(normalizeName(weapon.name)) ?? {};
   const properties = String(weapon.properties ?? weapon.propertiesText ?? reference.properties ?? "");
   const damageText = readDamage(weapon) ?? reference.damage ?? "";
   const damage = parseDamage(damageText);
-  const ability = chooseAbility(character, properties, reference.category);
+  const category = weapon.category ?? weapon.type ?? reference.category;
+  const ability = chooseAbility(character, properties, category);
   const abilityMod = abilityModifier(character, ability);
   const attackBonus = abilityMod + Number(character?.combat?.proficiencyBonus ?? 2);
   const damageFormula = damage.formula ? `${damage.formula}${signed(abilityMod)}` : null;
+  const rangeType = rangeTypeFor(properties, category, reference.rangeType);
 
   return {
     id: `weapon_${normalizeName(weapon.name).replace(/[^a-z0-9]+/g, "_") || index}`,
     name: weapon.name ?? "Weapon Attack",
-    description: [reference.category, properties].filter(Boolean).join(" - ") || "Weapon attack.",
+    description: [category, properties].filter(Boolean).join(" - ") || "Weapon attack.",
     source: "weapon",
     group: "action",
-    tags: ["attack", "weapon", reference.rangeType ?? "melee"],
+    tags: ["attack", "weapon", rangeType],
     cost: { action: true },
     recommended: index === 0,
     rolls: [
@@ -39,6 +41,7 @@ function createWeaponOption(character, weapon, referenceWeapons, index) {
     ].filter(Boolean),
     meta: [
       `${signed(attackBonus)} to hit`,
+      `${ability.toUpperCase()} attack`,
       damageFormula ? `${damageFormula} ${damage.type}` : "Damage not found"
     ]
   };
@@ -78,15 +81,22 @@ function chooseAbility(character, properties, category) {
 }
 
 function readDamage(weapon) {
-  return weapon.damage?.diceString ?? weapon.damage?.dice ?? weapon.damageDice ?? weapon.damage ?? null;
+  const dice = weapon.damage?.diceString ?? weapon.damage?.dice ?? weapon.damageDice ?? weapon.damage ?? null;
+  const type = typeof weapon.damageType === "object" ? weapon.damageType.name : weapon.damageType;
+  return [dice, type].filter(Boolean).join(" ") || null;
 }
 
 function parseDamage(value) {
-  const match = String(value ?? "").match(/(\d+d\d+)\s*([a-z]+)?/i);
+  const match = String(value ?? "").match(/(\d+d\d+)(?:\s*\+\s*\d+)?\s*([a-z]+)?/i);
   return {
     formula: match?.[1] ?? null,
     type: match?.[2] ?? ""
   };
+}
+
+function rangeTypeFor(properties, category, fallback) {
+  if (/ammunition|range|ranged/i.test(`${properties} ${category}`)) return "ranged";
+  return fallback ?? "melee";
 }
 
 function abilityModifier(character, ability) {

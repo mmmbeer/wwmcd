@@ -16,20 +16,24 @@ export function getSpellActions(character, combatState, referenceData) {
 
 function createSpellOption(character, combatState, spell, reference, index) {
   const level = normalizeSpellLevel(spell.level ?? reference.level);
-  const castingTime = String(reference.casting_time ?? spell.castingTime ?? spell.activation?.activationType ?? "1 action");
+  const castingTime = String(spell.castingTime ?? reference.casting_time ?? spell.activation?.activationType ?? "1 action");
   const cost = costFromCastingTime(castingTime);
-  const description = String(reference.description ?? spell.description ?? "");
-  const attackBonus = spellAttackBonus(character);
-  const roll = spellRoll(character, description, attackBonus);
+  const description = String(spell.description ?? reference.description ?? "");
+  const attackBonus = spell.attackBonus ?? character?.spells?.attackBonus ?? spellAttackBonus(character);
+  const saveDc = spell.saveDc ?? character?.spells?.saveDc ?? null;
+  const roll = spellRoll(character, spell, description, attackBonus);
   const slotReason = slotUnavailableReason(character, combatState, level);
-  const concentration = /concentration/i.test(String(reference.duration ?? description));
+  const range = spell.range || reference.range;
+  const duration = spell.duration || reference.duration;
+  const concentration = Boolean(spell.concentration) || /concentration/i.test(String(duration ?? description));
+  const save = saveText(spell, description, saveDc);
 
   return {
     id: `spell_${normalizeName(spell.name).replace(/[^a-z0-9]+/g, "_") || index}`,
     name: spell.name ?? "Spell",
     description: [
       level === 0 ? "Cantrip" : `Level ${level}`,
-      reference.range ? `Range ${reference.range}` : null,
+      range ? `Range ${range}` : null,
       concentration ? "Concentration" : null
     ].filter(Boolean).join(" - "),
     source: "spell",
@@ -42,8 +46,10 @@ function createSpellOption(character, combatState, spell, reference, index) {
     unavailableReasons: slotReason ? [slotReason] : [],
     meta: [
       castingTime,
-      reference.duration ? `Duration ${reference.duration}` : null,
-      slotReason ? "No slot available" : null
+      duration ? `Duration ${duration}` : null,
+      save,
+      roll?.type === "attack" ? `${signed(attackBonus)} spell attack` : null,
+      slotReason
     ].filter(Boolean),
     spell: {
       level,
@@ -60,11 +66,11 @@ function costFromCastingTime(castingTime) {
   return {};
 }
 
-function spellRoll(character, description, attackBonus) {
-  const damage = firstFormulaNear(description, /(takes?|deals?)\s+(\d+d\d+)/i);
-  const healing = firstFormulaNear(description, /(regains? hit points equal to|restore)\s+(\d+d\d+)/i);
+function spellRoll(character, spell, description, attackBonus) {
+  const damage = formulaFromDamage(spell.damage) ?? firstFormulaNear(description, /(takes?|deals?|take|deal)\s+(\d+d\d+)/i);
+  const healing = firstFormulaNear(description, /(regains? hit points equal to|regains?|restore|heals?)\s+(\d+d\d+)/i);
 
-  if (/spell attack/i.test(description)) {
+  if (spell.attackType || /spell attack/i.test(description)) {
     return { id: "spellAttack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" };
   }
 
@@ -84,6 +90,12 @@ function firstFormulaNear(description, pattern) {
   return match?.[2] ?? null;
 }
 
+function formulaFromDamage(damage) {
+  if (!damage) return null;
+  if (typeof damage === "string") return damage.match(/\d+d\d+/i)?.[0] ?? null;
+  return damage.diceString ?? damage.dice?.diceString ?? damage.dice ?? null;
+}
+
 function addCastingMod(character, description, formula) {
   if (!/spellcasting ability modifier/i.test(description)) return formula;
   return `${formula}${signed(spellAbilityModifier(character))}`;
@@ -91,10 +103,17 @@ function addCastingMod(character, description, formula) {
 
 function slotUnavailableReason(character, combatState, level) {
   if (level === 0) return null;
-  const max = Number(character?.resources?.spellSlots?.[level] ?? 0);
+  const slots = character?.resources?.spellSlots ?? {};
+  const max = spellSlotMax(slots[level]);
   const used = Number(combatState?.resourcesUsed?.spellSlots?.[level] ?? 0);
+  if (!Object.keys(slots).length) return "Spell slots were not imported.";
   if (!max) return `No level ${level} spell slots found.`;
   return used >= max ? `Level ${level} spell slots are spent.` : null;
+}
+
+function spellSlotMax(value) {
+  if (value && typeof value === "object") return Number(value.available ?? value.max ?? value.value ?? 0);
+  return Number(value ?? 0);
 }
 
 function spellAttackBonus(character) {
@@ -102,11 +121,24 @@ function spellAttackBonus(character) {
 }
 
 function spellAbilityModifier(character) {
+  const explicit = character?.spells?.spellcastingAbility;
+  if (explicit) return Math.floor((Number(character?.stats?.[explicit] ?? 10) - 10) / 2);
   const classNames = (character?.classes ?? []).map((entry) => String(entry.name).toLowerCase()).join(" ");
   const ability = /wizard|artificer/.test(classNames) ? "int"
     : /bard|paladin|sorcerer|warlock/.test(classNames) ? "cha"
       : "wis";
   return Math.floor((Number(character?.stats?.[ability] ?? 10) - 10) / 2);
+}
+
+function saveText(spell, description, saveDc) {
+  const ability = spell.saveAbility ?? inferSaveAbility(description);
+  if (!ability) return null;
+  return `${ability.toUpperCase()} save${saveDc ? ` DC ${saveDc}` : ""}`;
+}
+
+function inferSaveAbility(description) {
+  const match = description.match(/\b(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving throw/i);
+  return match ? match[1].slice(0, 3).toLowerCase() : null;
 }
 
 function normalizeSpellLevel(level) {

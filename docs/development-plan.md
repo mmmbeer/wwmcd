@@ -1,6 +1,82 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Phase 3 Option Layer
+## Current Session: Player Combat Assistant Import Reliability Pass
+
+### Implemented
+
+- Improved combat-focused D&D Beyond JSON normalization for common real export shapes without exposing raw D&D Beyond objects to UI modules.
+- Preserved the normalized character/combat-state split; current HP, turn usage, spent slots, and log entries remain combat state only.
+- Extended class normalization with spellcasting ability IDs when present.
+- Extended inventory normalization for D&D Beyond `definition` items, including equipped/carried flags, base names, type/filter type, quantity, weapon damage, damage type, and weapon properties.
+- Extended spell normalization across `spells.*` buckets and `classSpells[].spells`, including prepared/cantrip status, level, casting time from activation data, range, duration, concentration, save ability, casting ability, description, and damage.
+- Normalized spell slot arrays, pact magic arrays, and object-shaped slot maps into the existing numeric `{ level: max }` slot model.
+- Fixed numeric fallback handling so missing D&D Beyond fields no longer coerce `null` to `0` and accidentally erase defaults such as proficiency bonus.
+- Improved weapon card reliability:
+  - Uses normalized item fields before SRD fallback data.
+  - Matches SRD reference weapons by base name when available.
+  - Finesse weapons choose the better Strength/Dexterity modifier.
+  - Ranged/ammunition weapons use Dexterity.
+  - Melee weapons default to Strength.
+  - Damage type is preserved when imported separately from damage dice.
+- Improved spell card metadata:
+  - Uses normalized casting time, range, duration, concentration, attack bonus, save DC, and save ability when available.
+  - Falls back to SRD spell reference data when normalized fields are incomplete.
+  - Detects spell attacks, simple damage formulas, simple healing formulas, and common saving throw text.
+  - Shows clearer resource reasons for missing imported spell slot data or missing slots at a spell's level.
+- Added focused `node --test` coverage for D&D Beyond-style weapon/spell/slot normalization and card formula generation.
+
+### Files Changed
+
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/rules/weaponActions.js`
+- `js/player-combat/rules/spellActions.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The import pass remains intentionally combat-focused and does not attempt full 5e automation.
+- Weapon proficiency is still assumed for normalized weapon inventory.
+- Weapon formulas do not yet account for magic item bonuses, fighting styles, ammunition counts, thrown range, two-weapon fighting, versatile damage choice, or custom D&D Beyond modifiers.
+- Spell parsing is still simple text/field extraction; it does not handle upcasting, scaling cantrip dice by character level, material costs, class features, metamagic, ritual-only behavior, or all saving throw/damage edge cases.
+- Spell slot spending still consumes only the spell's base level.
+- Class features, race features, wild shape, VTT features, and multiplayer remain out of scope.
+
+### Data Assumptions
+
+- D&D Beyond inventory items usually provide a `definition` object with `name`, `filterType`, `type`, `damage`, `damageType`, and `properties`.
+- D&D Beyond spells may appear under `spells` buckets or `classSpells[].spells`; spell details usually live under each spell's `definition`.
+- D&D Beyond activation type `1` maps to action, `2` maps to bonus action, and `3`/`4` map to reaction.
+- Spell slots are expected as arrays of `{ level, available|max|value }`, `pactMagic` entries, or an object keyed by spell level.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/player-combat.html`.
+2. Import a D&D Beyond JSON character with at least one weapon and one prepared spell.
+3. Confirm weapon cards appear for imported weapon inventory.
+4. Confirm a finesse weapon uses Dexterity when Dexterity is higher than Strength.
+5. Confirm ranged/ammunition weapons use Dexterity and melee weapons default to Strength.
+6. Confirm weapon damage cards show dice plus the chosen ability modifier and damage type when imported.
+7. Confirm prepared spells and cantrips appear in the Spells tab.
+8. Confirm spell cards show casting time, range, duration, concentration, save text, attack bonus, damage, or healing where straightforward data exists.
+9. Cast a leveled spell and confirm a base-level spell slot is marked used.
+10. Import or simulate a spellcaster without slot data and confirm leveled spell cards explain that spell slots were not imported.
+11. Refresh the page and confirm imported characters and combat state still persist.
+12. At mobile width, confirm cards remain readable and controls remain touch-sized.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `characterNormalizer.js` at 301 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/player-combat.html` and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Add focused resource controls and the next layer of condition/resource warnings, then consider small override files for high-value spell and equipment exceptions rather than broad natural-language parsing.
+
+## Previous Session: Player Combat Assistant Phase 3 Option Layer
 
 ### Implemented
 

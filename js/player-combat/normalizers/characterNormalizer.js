@@ -17,7 +17,7 @@ export function normalizeCharacter(raw) {
   const level = classes.reduce((sum, entry) => sum + entry.level, 0) || numberAt(root, ["level", "identity.level"], 0);
   const stats = extractStats(root, warnings);
   const combat = extractCombat(root, stats, level);
-  const spells = extractSpells(root);
+  const spells = extractSpells(root, classes, stats, combat.proficiencyBonus);
   const inventory = extractInventory(root);
   const features = extractFeatures(root);
 
@@ -61,6 +61,7 @@ function extractClasses(root) {
     name: stringAt(entry, ["definition.name", "classDefinition.name", "name"], "Unknown class"),
     subclass: extractSubclass(entry),
     level: numberAt(entry, ["level", "classLevel"], 0),
+    spellCastingAbilityId: first(entry, ["definition.spellCastingAbilityId", "classDefinition.spellCastingAbilityId", "spellCastingAbilityId"]),
     features: arrayAt(entry, ["features", "classFeatures"])
   })).filter((entry) => entry.name || entry.level);
 }
@@ -132,22 +133,45 @@ function extractSpeed(root) {
 function extractSpellSlots(root) {
   const slots = first(root, ["spellSlots", "spells.slots"]) ?? {};
   if (Array.isArray(slots)) {
-    return Object.fromEntries(slots.map((slot) => [slot.level ?? slot.spellLevel, slot.available ?? slot.max ?? 0]));
+    return Object.fromEntries(slots
+      .map((slot) => [slot.level ?? slot.spellLevel, slot.available ?? slot.max ?? slot.value ?? 0])
+      .filter(([level]) => level !== undefined && level !== null));
   }
-  return slots;
+  const pactSlots = arrayAt(root, ["pactMagic"]);
+  if (pactSlots.length) {
+    return Object.fromEntries(pactSlots.map((slot) => [slot.level ?? slot.spellLevel, slot.available ?? slot.max ?? 0]));
+  }
+  return slots && typeof slots === "object" ? normalizeSpellSlotMap(slots) : {};
 }
 
-function extractSpells(root) {
-  const known = normalizeNamedList(arrayAt(root, ["spells.known", "spells.leveled", "classSpells"]));
+function extractSpells(root, classes, stats, proficiencyBonus) {
+  const spellEntries = [
+    ...Object.values(first(root, ["spells"]) ?? {}).flat().filter((entry) => entry && typeof entry === "object"),
+    ...arrayAt(root, ["classSpells"]).flatMap((entry) => (entry?.spells ?? []).map((spell) => ({
+      ...spell,
+      spellCastingAbilityId: spell?.spellCastingAbilityId ?? entry?.spellCastingAbilityId ?? entry?.characterClass?.spellCastingAbilityId
+    }))),
+    ...arrayAt(root, ["classSpells"]).filter((entry) => entry?.definition || entry?.name)
+  ];
+  const known = uniqueByName(spellEntries.map(normalizeSpell).filter((spell) => spell.name));
   const prepared = known.filter((spell) => spell.prepared);
-  const cantrips = known.filter((spell) => spell.level === 0 || spell.level === "cantrip");
-  return { known, prepared, cantrips };
+  const cantrips = known.filter((spell) => spell.level === 0);
+  const spellcastingAbility = extractSpellcastingAbility(root, classes, known);
+  const modifier = spellcastingAbility ? Math.floor((Number(stats[spellcastingAbility] ?? 10) - 10) / 2) : null;
+  return {
+    known,
+    prepared,
+    cantrips,
+    spellcastingAbility,
+    attackBonus: modifier === null ? null : modifier + Number(proficiencyBonus ?? 2),
+    saveDc: modifier === null ? null : 8 + Number(proficiencyBonus ?? 2) + modifier
+  };
 }
 
 function extractInventory(root) {
-  const items = normalizeNamedList(arrayAt(root, ["inventory", "inventory.carried", "items"]));
+  const items = arrayAt(root, ["inventory", "inventory.carried", "items"]).map(normalizeInventoryItem).filter((item) => item.name);
   return {
-    weapons: items.filter((item) => /weapon/i.test(item.type ?? item.filterType ?? "")),
+    weapons: items.filter((item) => isWeapon(item)),
     armor: items.filter((item) => /armor|shield/i.test(item.type ?? item.filterType ?? "")),
     consumables: items.filter((item) => /potion|scroll|consumable/i.test(`${item.name} ${item.type ?? ""}`)),
     magicItems: items.filter((item) => item.magic || /magic/i.test(item.type ?? "")),
@@ -171,6 +195,108 @@ function normalizeNamedList(items) {
   });
 }
 
+function normalizeInventoryItem(item) {
+  const definition = item?.definition ?? item;
+  const damage = first(definition, ["damage", "damage.diceString", "damage.dice", "damageDice"]);
+  const damageType = typeof definition?.damageType === "object" ? definition.damageType.name : definition?.damageType;
+  const properties = arrayAt(definition, ["properties"])
+    .map((property) => property?.name ?? property)
+    .filter(Boolean)
+    .join(", ");
+  return {
+    ...definition,
+    name: definition?.name ?? item?.name ?? "Unnamed",
+    baseName: definition?.name ?? item?.baseName ?? item?.name ?? "",
+    type: definition?.type ?? definition?.filterType ?? item?.type ?? "",
+    filterType: definition?.filterType ?? item?.filterType ?? "",
+    category: definition?.category ?? definition?.type ?? "",
+    equipped: Boolean(item?.equipped),
+    carried: item?.equipped || item?.isCarried !== false,
+    quantity: numberValue(item?.quantity ?? item?.stackSize, 1),
+    damage,
+    damageType,
+    properties: properties || definition?.propertiesText || item?.propertiesText || ""
+  };
+}
+
+function normalizeSpell(spell) {
+  const definition = spell?.definition ?? spell;
+  const level = normalizeSpellLevel(definition?.level ?? spell?.level);
+  const range = formatRange(spell?.range ?? definition?.range);
+  const saveAbility = STAT_ID_TO_ABILITY[definition?.saveDcAbilityId ?? spell?.saveDcAbilityId] ?? null;
+  return {
+    name: definition?.name ?? spell?.name ?? "",
+    level,
+    prepared: Boolean(spell?.prepared || spell?.alwaysPrepared || level === 0),
+    known: Boolean(spell?.countsAsKnownSpell ?? true),
+    castingTime: activationToCastingTime(spell?.activation ?? definition?.activation) ?? definition?.castingTime ?? spell?.castingTime,
+    range,
+    duration: definition?.duration ?? spell?.duration ?? "",
+    concentration: Boolean(definition?.concentration ?? spell?.concentration),
+    requiresSave: Boolean(definition?.requiresSavingThrow ?? spell?.requiresSavingThrow ?? saveAbility),
+    saveAbility,
+    castingAbility: STAT_ID_TO_ABILITY[spell?.spellCastingAbilityId ?? definition?.spellCastingAbilityId] ?? "",
+    description: definition?.description ?? definition?.snippet ?? spell?.description ?? "",
+    damage: definition?.damage ?? spell?.damage ?? null
+  };
+}
+
+function extractSpellcastingAbility(root, classes, spells) {
+  const explicit = [
+    first(root, ["spellcastingAbilityId"]),
+    ...classes.map((entry) => first(entry, ["spellCastingAbilityId", "definition.spellCastingAbilityId"])),
+    ...spells.map((spell) => spell.castingAbility).filter(Boolean)
+  ];
+  const mapped = explicit.map((value) => STAT_ID_TO_ABILITY[value] ?? value).find((value) => ABILITIES.includes(value));
+  if (mapped) return mapped;
+  const classNames = classes.map((entry) => String(entry.name).toLowerCase()).join(" ");
+  if (/wizard|artificer/.test(classNames)) return "int";
+  if (/bard|paladin|sorcerer|warlock/.test(classNames)) return "cha";
+  if (/cleric|druid|ranger/.test(classNames)) return "wis";
+  return null;
+}
+
+function activationToCastingTime(activation) {
+  const type = activation?.activationType;
+  if (type === 1) return "1 action";
+  if (type === 2) return "1 bonus action";
+  if (type === 3 || type === 4) return "1 reaction";
+  return null;
+}
+
+function normalizeSpellLevel(level) {
+  if (String(level).toLowerCase() === "cantrip") return 0;
+  return numberValue(level, 0);
+}
+
+function normalizeSpellSlotMap(slots) {
+  return Object.fromEntries(Object.entries(slots).map(([level, value]) => [
+    level,
+    typeof value === "object" ? numberValue(value.available ?? value.max ?? value.value, 0) : numberValue(value, 0)
+  ]));
+}
+
+function uniqueByName(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = String(item.name ?? "").toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isWeapon(item) {
+  return /weapon/i.test(`${item.type} ${item.filterType} ${item.category}`) || Boolean(item.damage);
+}
+
+function formatRange(range) {
+  if (!range || typeof range === "string") return range || "";
+  const distance = range.rangeValue ?? range.distance;
+  const aoe = range.aoeValue ? `${range.aoeValue} ft ${range.aoeType ?? "area"}` : "";
+  return [distance ? `${distance} ft` : "", aoe].filter(Boolean).join(", ");
+}
+
 function first(obj, paths) {
   for (const path of paths) {
     const value = path.split(".").reduce((current, key) => current?.[key], obj);
@@ -189,6 +315,7 @@ function numberAt(obj, paths, fallback) {
 }
 
 function numberValue(value, fallback) {
+  if (value === null || value === undefined || value === "") return fallback;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
 }
