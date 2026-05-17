@@ -134,8 +134,12 @@ export function createStateManager({ storage, eventBus }) {
     if (option.cost?.object) turn.objectInteractionUsed = true;
 
     const resourcesUsed = spendResource(state.resourcesUsed, option.cost?.resource);
+    const current = option.spell?.concentration
+      ? { ...state.current, concentration: option.name }
+      : state.current;
     combatStates[activeCharacterId] = addLogEntry({
       ...state,
+      current,
       turn,
       resourcesUsed
     }, `${option.name} used.`);

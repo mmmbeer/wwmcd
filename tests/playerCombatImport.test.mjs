@@ -237,6 +237,29 @@ test("manual spell slot controls persist only in combat state", () => {
   assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 0);
 });
 
+test("casting a concentration spell tracks concentration in combat state", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "concentrator",
+    name: "Concentrator",
+    importedAt: "2026-05-17T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: { 1: 2 } }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.useCombatOption({
+    name: "Bless",
+    cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+    spell: { level: 1, concentration: true }
+  });
+
+  assert.equal(stateManager.getCombatState().current.concentration, "Bless");
+  assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 1);
+  assert.equal(stateManager.getActiveCharacter().resources.spellSlots[1], 2);
+});
+
 test("manual limited resource controls persist only in combat state", () => {
   const storage = createMemoryStorage();
   const eventBus = { emit() {} };

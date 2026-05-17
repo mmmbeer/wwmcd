@@ -3,10 +3,10 @@ import { createStateManager } from "./core/stateManager.js";
 import { createStorage } from "./core/storage.js";
 import { loadReferenceData } from "./data/referenceDataService.js";
 import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
-import { renderCharacterSummaryPanel } from "./ui/characterSummaryPanel.js";
 import { renderCombatStatePanel } from "./ui/combatStatePanel.js";
 import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
+import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
 import { createToast } from "./ui/toast.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
@@ -18,23 +18,26 @@ export async function createPlayerCombatApp() {
   const modalApi = createModal(document.querySelector("#modal-root"));
   const showToast = createToast(document.querySelector("#toast-region"));
   const roots = {
+    appTitle: document.querySelector("#app-title"),
+    headerCharacter: document.querySelector("#header-character"),
     headerActions: document.querySelector("#header-actions"),
     importLauncher: document.querySelector("#import-launcher"),
-    summaryPanel: document.querySelector("#character-summary-panel"),
     turnPanel: document.querySelector("#turn-economy-panel"),
+    spellcastingBar: document.querySelector("#spellcasting-bar"),
     statusBar: document.querySelector("#combat-status-bar"),
     combatPanel: document.querySelector("#combat-state-panel"),
     tabs: document.querySelector("#action-tabs")
   };
 
   eventBus.on("state:changed", (snapshot) => {
+    renderHeaderIdentity(roots, snapshot);
     renderHeaderActions(roots.headerActions, snapshot, { stateManager, modalApi, showToast });
     renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast });
-    renderCharacterSummaryPanel(roots.summaryPanel, snapshot);
     renderTurnEconomyPanel(roots.turnPanel, snapshot, stateManager);
+    renderSpellcastingBar(roots.spellcastingBar, snapshot);
     renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
     renderCombatStatePanel(roots.combatPanel, snapshot, { stateManager, modalApi });
-    renderActionTabs(roots.tabs, snapshot, { stateManager });
+    renderActionTabs(roots.tabs, snapshot, { stateManager, modalApi });
   });
 
   stateManager.initializeAppState();
@@ -50,6 +53,30 @@ export async function createPlayerCombatApp() {
   }
 
   return { stateManager };
+}
+
+function renderHeaderIdentity(roots, snapshot) {
+  const character = snapshot.activeCharacter;
+  roots.appTitle.textContent = character ? "WWMCD" : "what would my character do?";
+  roots.headerCharacter.innerHTML = character ? `
+    <strong>${escapeHeader(character.name)}</strong>
+    <span>${escapeHeader(characterLine(character))}</span>
+  ` : "";
+}
+
+function characterLine(character) {
+  const classes = (character.classes ?? []).map((entry) => `${entry.name} ${entry.level}`).join(" / ") || "Unknown class";
+  return `Level ${character.level || "?"} ${classes}`;
+}
+
+function escapeHeader(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
 }
 
 function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast }) {

@@ -1,6 +1,7 @@
 import { rollDamage, rollDice } from "../core/diceRoller.js";
 import { getCombatOptions } from "../rules/combatOptionsService.js";
 import { formatRollSummary, renderDiceResult } from "./diceResult.js";
+import { showConfirmModal } from "./modal.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const GROUPS = [
@@ -15,10 +16,11 @@ const GROUPS = [
 ];
 const GROUP_LABELS = Object.fromEntries(GROUPS);
 let selectedGroup = "recommended";
+let selectedSpellLevel = null;
 let lastRender = null;
 
-export function renderActionTabs(root, snapshot, { stateManager }) {
-  lastRender = () => renderActionTabs(root, snapshot, { stateManager });
+export function renderActionTabs(root, snapshot, { stateManager, modalApi }) {
+  lastRender = () => renderActionTabs(root, snapshot, { stateManager, modalApi });
   bindGroupSelection();
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
@@ -30,20 +32,22 @@ export function renderActionTabs(root, snapshot, { stateManager }) {
 
   const groups = getCombatOptions({ character, combatState, referenceData: snapshot.referenceData });
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
+  const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? []);
   root.innerHTML = `
     ${combatState.lastRoll ? `<div class="latest-roll">${renderDiceResult(combatState.lastRoll)}</div>` : ""}
     <div class="option-tabs">
       <div class="button-row">
         ${GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
       </div>
-      ${renderGroup(visibleGroup, GROUP_LABELS[visibleGroup], groups[visibleGroup] ?? [], combatState)}
+      ${renderGroup(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState)}
     </div>
   `;
 
   root.querySelectorAll("[data-tab-group]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedGroup = button.dataset.tabGroup;
-      renderActionTabs(root, snapshot, { stateManager });
+      selectedSpellLevel = null;
+      renderActionTabs(root, snapshot, { stateManager, modalApi });
     });
   });
 
@@ -54,7 +58,7 @@ export function renderActionTabs(root, snapshot, { stateManager }) {
   root.querySelectorAll("[data-use-option]").forEach((button) => {
     button.addEventListener("click", () => {
       const option = findOption(groups, button.dataset.useOption);
-      if (option) stateManager.useCombatOption(option);
+      if (option) useOption(option, combatState, stateManager, modalApi);
     });
   });
 }
@@ -64,9 +68,21 @@ function bindGroupSelection() {
   bindGroupSelection.bound = true;
   window.addEventListener("combat:select-option-group", (event) => {
     selectedGroup = event.detail?.group ?? selectedGroup;
+    selectedSpellLevel = event.detail?.spellLevel ?? null;
     lastRender?.();
     document.querySelector("#actions-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+}
+
+function filterOptions(group, options) {
+  if (group !== "spells" || selectedSpellLevel === null) return options;
+  return options.filter((option) => option.spell?.level === selectedSpellLevel);
+}
+
+function groupLabel(group) {
+  return group === "spells" && selectedSpellLevel !== null
+    ? `Spells: Level ${selectedSpellLevel}`
+    : GROUP_LABELS[group];
 }
 
 function renderGroup(key, label, options, combatState) {
@@ -152,6 +168,19 @@ function handleRoll(button, groups, stateManager) {
     : rollDice(roll.formula, { label: `${option.name} ${roll.label}`, type: roll.type });
 
   stateManager.logRoll(result, formatRollSummary(result));
+}
+
+function useOption(option, combatState, stateManager, modalApi) {
+  if (option.spell?.concentration && combatState.current?.concentration && combatState.current.concentration !== option.name) {
+    showConfirmModal(modalApi, {
+      title: "Replace Concentration?",
+      message: `Casting ${option.name} will end concentration on ${combatState.current.concentration}.`,
+      confirmLabel: "Cast Spell",
+      onConfirm: () => stateManager.useCombatOption(option)
+    });
+    return;
+  }
+  stateManager.useCombatOption(option);
 }
 
 function findOption(groups, id) {

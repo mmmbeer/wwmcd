@@ -1,6 +1,72 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Compact Combat Status Bar
+## Current Session: Player Combat Assistant Header Identity and Spellcasting Bar
+
+### Implemented
+
+- Moved the loaded character identity into the header:
+  - When no character is loaded, the app title remains `what would my character do?`.
+  - When a character is loaded, the app title collapses to `WWMCD`.
+  - Header now shows character name, level, and classes.
+- Removed the now-redundant character summary card from the main app layout.
+- Added a horizontal spellcasting bar below the turn progress bar for characters with spell slots:
+  - Shows `Concentration: [spell]`.
+  - Shows spell slot boxes by level, such as `Level 1: [ ] [ ] [ ]`.
+  - Used spell slots render with `X`.
+  - Fully spent levels are visually muted.
+  - Clicking a spell level opens the Spells action group filtered to that level.
+  - Clicking Concentration opens the full Spells group.
+- Casting a concentration spell now stores the spell name in `combatState.current.concentration`.
+- Casting a different concentration spell while already concentrating opens a custom confirmation modal before replacing concentration.
+- Removed the detailed Spell Slots card section from the Combat State panel; spell slot status is now shown in the spellcasting bar.
+- Added focused test coverage for concentration spell casting updating combat state.
+
+### Files Changed
+
+- `index.html`
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/combatStatePanel.js`
+- `js/player-combat/ui/spellcastingBar.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The spellcasting bar displays standard spell slots only; pact magic and item charges are not represented there yet.
+- Slot boxes are status indicators, not direct manual slot editors.
+- Concentration replacement confirmation only triggers for spells the rules layer marks as concentration.
+- The app does not yet offer a compact clear-concentration button in the spellcasting bar; concentration can still be edited from the detailed Combat State panel.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/`.
+2. Confirm the full app title appears before importing a character.
+3. Import a character and confirm the header title changes to `WWMCD`.
+4. Confirm the header shows character name, level, and class list.
+5. Confirm the old character summary card is no longer shown.
+6. Import a spellcaster with spell slots and confirm the spellcasting bar appears below the turn progress bar.
+7. Cast a leveled spell and confirm one slot box for that level changes to `X`.
+8. Spend all slots of a level and confirm spell options at that level are unavailable.
+9. Click a spell level in the bar and confirm the Spells group opens filtered to that level.
+10. Cast a concentration spell and confirm the Concentration area lights up with that spell name.
+11. While concentrating, cast another concentration spell and confirm the custom replacement modal appears before casting.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --check` for every `js/player-combat/**/*.js` file.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 365 lines.
+- Searched player app code for `alert(`, `prompt(`, and `confirm(`; no native dialogs are used.
+- Served the repo with `python -m http.server` and confirmed `/`, `/data/classes.json`, and `/data/spells.json` return HTTP 200.
+
+### Next Recommended Phase
+
+Add direct compact controls for clearing concentration and manually adjusting spell slots from the spellcasting bar if table use shows the detailed panel is too far away.
+
+## Previous Session: Player Combat Assistant Compact Combat Status Bar
 
 ### Implemented
 

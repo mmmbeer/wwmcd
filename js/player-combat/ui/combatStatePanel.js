@@ -29,8 +29,6 @@ export function renderCombatStatePanel(root, snapshot, { stateManager, modalApi 
     ${renderConditions(state.current.conditions)}
     <h3>Concentration</h3>
     <p class="inline-message">${escapeHtml(state.current.concentration || "None")}</p>
-    <h3>Spell Slots</h3>
-    ${renderSpellSlots(character.resources.spellSlots, state.resourcesUsed.spellSlots)}
     <h3>Limited Resources</h3>
     ${renderLimitedResources(character.resources, state.resourcesUsed.classResources)}
   `;
@@ -72,26 +70,6 @@ export function renderCombatStatePanel(root, snapshot, { stateManager, modalApi 
       const next = state.current.conditions.filter((name) => name !== button.dataset.removeCondition);
       updateCurrent(stateManager, { conditions: next });
     });
-  });
-
-  root.querySelectorAll("[data-slot-dec]").forEach((button) => {
-    button.addEventListener("click", () => stateManager.adjustSpellSlotUsed(button.dataset.slotDec, -1));
-  });
-
-  root.querySelectorAll("[data-slot-inc]").forEach((button) => {
-    button.addEventListener("click", () => stateManager.adjustSpellSlotUsed(button.dataset.slotInc, 1));
-  });
-
-  root.querySelectorAll("[data-slot-reset]").forEach((button) => {
-    button.addEventListener("click", () => stateManager.resetSpellSlots(button.dataset.slotReset));
-  });
-
-  root.querySelectorAll("[data-slot-used]").forEach((input) => {
-    input.addEventListener("change", () => stateManager.setSpellSlotUsed(input.dataset.slotUsed, input.value));
-  });
-
-  root.querySelector("[data-action='reset-slots']")?.addEventListener("click", () => {
-    stateManager.resetSpellSlots();
   });
 
   root.querySelectorAll("[data-resource-dec]").forEach((button) => {
@@ -148,36 +126,6 @@ function renderConditions(conditions) {
   `;
 }
 
-function renderSpellSlots(slots, usedSlots) {
-  const entries = Object.entries(slots ?? {});
-  if (!entries.length) return `<p class="inline-message">No spell slots found.</p>`;
-  return `
-    <div class="button-row">
-      <button class="btn btn-secondary" type="button" data-action="reset-slots">Reset Slots</button>
-    </div>
-    <div class="status-grid">
-      ${entries.map(([level, count]) => {
-        const max = spellSlotMax(count);
-        const used = Math.min(Number(usedSlots?.[level] ?? 0), max);
-        const remaining = Math.max(0, max - used);
-        return `
-        <div class="status-item">
-          <span class="status-label">Level ${escapeHtml(level)}</span>
-          <span class="status-value">${remaining} remaining</span>
-          <div class="slot-controls" aria-label="Level ${escapeHtml(level)} spell slot controls">
-            <button class="btn btn-secondary" type="button" data-slot-dec="${escapeHtml(level)}" aria-label="Decrease level ${escapeHtml(level)} used slots">-</button>
-            <input data-slot-used="${escapeHtml(level)}" type="number" inputmode="numeric" min="0" max="${max}" value="${used}" aria-label="Level ${escapeHtml(level)} used slots">
-            <button class="btn btn-secondary" type="button" data-slot-inc="${escapeHtml(level)}" aria-label="Increase level ${escapeHtml(level)} used slots">+</button>
-            <button class="btn btn-secondary" type="button" data-slot-reset="${escapeHtml(level)}">Reset</button>
-          </div>
-          <small>${used} / ${max} used</small>
-        </div>
-      `;
-      }).join("")}
-    </div>
-  `;
-}
-
 function renderLimitedResources(resources, usedResources) {
   const entries = uniqueResources([
     ...(resources?.classResources ?? []),
@@ -219,11 +167,6 @@ function uniqueResources(resources) {
     seen.add(key);
     return true;
   });
-}
-
-function spellSlotMax(value) {
-  const max = value && typeof value === "object" ? Number(value.available ?? value.max ?? value.value ?? 0) : Number(value ?? 0);
-  return Number.isFinite(max) ? max : 0;
 }
 
 function openConditionModal({ modalApi, reference, state, stateManager }) {

@@ -59,6 +59,24 @@ select {
   line-height: 1.1;
 }
 
+.header-character {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin-top: var(--space-1);
+}
+
+.header-character strong {
+  font-size: 1rem;
+}
+
+.header-character span {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .eyebrow {
   margin: 0 0 var(--space-1);
   font-size: 0.78rem;
@@ -156,6 +174,87 @@ select {
 .turn-done {
   background: var(--primary);
   color: #fff;
+}
+
+.spellcasting-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  background: #fbfcfa;
+  border-bottom: 1px solid var(--line);
+}
+
+.concentration-status,
+.spell-level-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.concentration-status {
+  max-width: 100%;
+  padding: 6px 10px;
+}
+
+.concentration-status span,
+.spell-level-status span:first-child {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.concentration-status strong {
+  overflow: hidden;
+  max-width: 220px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concentration-status.is-active {
+  border-color: var(--warning);
+  background: #fff3d7;
+  color: var(--warning);
+}
+
+.spell-level-status {
+  padding: 6px 8px;
+}
+
+.spell-level-status.is-spent {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.spell-slot-boxes {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.spell-slot-box {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--danger);
+  font-size: 0.74rem;
+  line-height: 1;
+}
+
+.spell-slot-box.is-used {
+  border-color: var(--danger);
+  background: #fae8e8;
+  font-weight: 900;
 }
 
 .combat-status-bar {
@@ -664,6 +763,10 @@ select {
 
   .header-actions {
     justify-content: flex-start;
+  }
+
+  .concentration-status strong {
+    max-width: 160px;
   }
 
   .turn-progress {
