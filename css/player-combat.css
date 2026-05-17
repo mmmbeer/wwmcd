@@ -308,6 +308,79 @@ select {
   background: var(--surface-muted);
 }
 
+.option-tabs,
+.option-group,
+.option-card-grid,
+.option-card,
+.option-meta,
+.dice-result {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.option-group {
+  padding-top: var(--space-2);
+}
+
+.option-card-grid {
+  grid-template-columns: 1fr;
+}
+
+.option-card {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.option-card.is-unavailable {
+  opacity: 0.78;
+}
+
+.option-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.option-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.option-meta {
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text);
+}
+
+.latest-roll:empty {
+  display: none;
+}
+
+.dice-result {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: #eaf5f0;
+}
+
+.dice-label,
+.dice-formula,
+.dice-result small {
+  color: var(--muted);
+}
+
+.dice-total {
+  grid-row: span 2;
+  font-size: 2rem;
+  line-height: 1;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -373,7 +446,12 @@ select {
   .economy-grid,
   .status-grid,
   .control-grid,
-  .tab-grid {
+  .tab-grid,
+  .option-card-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .option-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

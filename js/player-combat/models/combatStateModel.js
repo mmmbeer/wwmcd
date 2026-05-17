@@ -24,6 +24,7 @@ export function createCombatState(character) {
       classResources: {},
       itemCharges: {}
     },
+    lastRoll: null,
     log: []
   };
 }

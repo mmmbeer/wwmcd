@@ -7,7 +7,7 @@ import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCharacterSummaryPanel } from "./ui/characterSummaryPanel.js";
 import { renderCombatStatePanel } from "./ui/combatStatePanel.js";
 import { createModal } from "./ui/modal.js";
-import { renderActionTabs } from "./ui/tabs.js";
+import { renderActionTabs } from "./ui/actionTabs.js";
 import { createToast } from "./ui/toast.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
 
@@ -31,7 +31,7 @@ export async function createPlayerCombatApp() {
     renderCharacterSummaryPanel(roots.summaryPanel, snapshot);
     renderTurnEconomyPanel(roots.turnPanel, snapshot, stateManager);
     renderCombatStatePanel(roots.combatPanel, snapshot, { stateManager, modalApi });
-    renderActionTabs(roots.tabs, snapshot);
+    renderActionTabs(roots.tabs, snapshot, { stateManager });
   });
 
   renderCharacterImportPanel(roots.importPanel, { stateManager, showToast });

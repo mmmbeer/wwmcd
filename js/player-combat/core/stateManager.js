@@ -61,6 +61,22 @@ export function createStateManager({ storage, eventBus }) {
     emitChange();
   }
 
+  function logMessage(message) {
+    const state = getCombatState();
+    if (!state) return;
+    combatStates[activeCharacterId] = addLogEntry(state, message);
+    persistCombatStates();
+    emitChange();
+  }
+
+  function logRoll(result, message) {
+    const state = getCombatState();
+    if (!state) return;
+    combatStates[activeCharacterId] = addLogEntry({ ...state, lastRoll: result }, message);
+    persistCombatStates();
+    emitChange();
+  }
+
   function resetCombatState(characterId = activeCharacterId) {
     const character = characters.find((entry) => entry.id === characterId);
     if (!character) return;
@@ -104,6 +120,26 @@ export function createStateManager({ storage, eventBus }) {
 
   function useReaction() {
     updateTurn({ reactionUsed: true }, "Reaction used.");
+  }
+
+  function useCombatOption(option) {
+    const state = getCombatState();
+    if (!state) return;
+
+    const turn = { ...state.turn };
+    if (option.cost?.action) turn.actionUsed = true;
+    if (option.cost?.bonus) turn.bonusActionUsed = true;
+    if (option.cost?.reaction) turn.reactionUsed = true;
+    if (option.cost?.object) turn.objectInteractionUsed = true;
+
+    const resourcesUsed = spendResource(state.resourcesUsed, option.cost?.resource);
+    combatStates[activeCharacterId] = addLogEntry({
+      ...state,
+      turn,
+      resourcesUsed
+    }, `${option.name} used.`);
+    persistCombatStates();
+    emitChange();
   }
 
   function useMovement(amount) {
@@ -170,7 +206,10 @@ export function createStateManager({ storage, eventBus }) {
     useAction,
     useBonusAction,
     useReaction,
+    useCombatOption,
     useMovement,
+    logMessage,
+    logRoll,
     getSnapshot
   };
 }
@@ -181,6 +220,20 @@ function mergeState(state, patch) {
     ...patch,
     turn: { ...state.turn, ...(patch.turn ?? {}) },
     current: { ...state.current, ...(patch.current ?? {}) },
-    resourcesUsed: { ...state.resourcesUsed, ...(patch.resourcesUsed ?? {}) }
+    resourcesUsed: { ...state.resourcesUsed, ...(patch.resourcesUsed ?? {}) },
+    lastRoll: patch.lastRoll ?? state.lastRoll
+  };
+}
+
+function spendResource(resourcesUsed, resource) {
+  if (!resource) return resourcesUsed;
+  if (resource.type !== "spellSlot") return resourcesUsed;
+  const level = String(resource.level);
+  return {
+    ...resourcesUsed,
+    spellSlots: {
+      ...(resourcesUsed?.spellSlots ?? {}),
+      [level]: Number(resourcesUsed?.spellSlots?.[level] ?? 0) + 1
+    }
   };
 }
