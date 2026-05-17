@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Player Combat Assistant</title>
+    <link rel="stylesheet" href="./css/player-combat.css">
+  </head>
+  <body>
+    <div class="app-shell" id="player-combat-app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">D&D 5e</p>
+          <h1>Player Combat Assistant</h1>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="panel" aria-labelledby="reference-status-title">
+          <div class="panel-header">
+            <h2 id="reference-status-title">Reference Data</h2>
+            <span class="status-pill" id="reference-overall-status">Loading</span>
+          </div>
+          <div class="status-grid" id="reference-status-list"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="import-title">
+          <div class="panel-header">
+            <h2 id="import-title">Import Character</h2>
+          </div>
+          <div id="character-import-panel"></div>
+        </section>
+
+        <section class="summary-sticky" aria-label="Active combat summary">
+          <div id="character-summary-panel"></div>
+          <div id="turn-economy-panel"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="combat-state-title">
+          <div class="panel-header">
+            <h2 id="combat-state-title">Combat State</h2>
+          </div>
+          <div id="combat-state-panel"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="actions-title">
+          <div class="panel-header">
+            <h2 id="actions-title">Actions</h2>
+          </div>
+          <div id="action-tabs"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="modal-root"></div>
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <script type="module" src="./js/player-combat/bootstrap.js"></script>
+  </body>
+</html>
