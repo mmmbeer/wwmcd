@@ -31,6 +31,9 @@
 - Spell rows now expand on click and render a player-combat-owned spell detail card inspired by the SRD hover-card reference pattern.
 - Updated the Spells table first column from generic Type to casting economy: Action, Bonus, or Reaction.
 - Added test coverage confirming casting a leveled action spell spends a spell slot and marks the action used.
+- Fixed spell casting-time normalization for D&D Beyond-style activation objects and numeric activation codes so spells no longer fall through to `Special` when they are actions, bonus actions, or reactions.
+- Added Range and DC columns to the Spells table.
+- Confirmed cantrips still show a Cast button and consume the correct action economy without spending spell slots.
 - Kept the `Actions` tab focused on standard action choices:
   - Attack now opens the Attacks tab instead of immediately spending the action.
   - Cast a Spell now opens the Spells tab filtered to spells that take 1 action.
@@ -77,20 +80,22 @@
 6. Click Cast a Spell > Use and confirm the Spells tab opens filtered to action-cost spells.
 7. Click attack and damage icon buttons and confirm roll summaries appear as toast notifications.
 8. Click an attack row and confirm the hidden description row expands.
-9. Confirm the Spells table first column is `Action` and rows show Action, Bonus, or Reaction.
-10. Click a spell row and confirm the SRD-style spell detail card expands.
-11. Cast a leveled action spell and confirm one slot is checked off and Action is marked used.
-12. Use the Move row `+5 ft` button and confirm movement changes by 5 ft.
-13. Scroll the page and confirm the turn progress rail remains fixed at the top of the browser.
-14. Confirm the turn progress rail shows Dice Log immediately to the right of Done.
-15. Roll attack or damage, confirm the toast appears, then open Dice Log and confirm the roll appears there.
-16. Confirm the Combat State panel no longer appears on the page.
-17. Confirm the latest-roll dice result panel no longer appears above action tabs.
-18. Confirm the turn progress rail stays one horizontal row on phone width and the Movement card contains its `+` button.
-19. Toggle Concentration in the spellcasting bar and confirm it lights up, then click again and confirm it clears.
-20. Confirm spell slot buttons show only the level number and check marks for used slots.
-21. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
-22. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
+9. Confirm the Spells table first column is `Action` and rows show Action, Bonus, or Reaction instead of Special for normal casting times.
+10. Confirm the Spells table includes Range and DC columns.
+11. Click a spell row and confirm the SRD-style spell detail card expands.
+12. Cast a leveled action spell and confirm one slot is checked off and Action is marked used.
+13. Cast a cantrip and confirm it has a Cast button, marks the right action economy used, and does not spend a spell slot.
+14. Use the Move row `+5 ft` button and confirm movement changes by 5 ft.
+15. Scroll the page and confirm the turn progress rail remains fixed at the top of the browser.
+16. Confirm the turn progress rail shows Dice Log immediately to the right of Done.
+17. Roll attack or damage, confirm the toast appears, then open Dice Log and confirm the roll appears there.
+18. Confirm the Combat State panel no longer appears on the page.
+19. Confirm the latest-roll dice result panel no longer appears above action tabs.
+20. Confirm the turn progress rail stays one horizontal row on phone width and the Movement card contains its `+` button.
+21. Toggle Concentration in the spellcasting bar and confirm it lights up, then click again and confirm it clears.
+22. Confirm spell slot buttons show only the level number and check marks for used slots.
+23. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
+24. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
 
 ### Verification Completed
 

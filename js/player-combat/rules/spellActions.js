@@ -16,7 +16,7 @@ export function getSpellActions(character, combatState, referenceData) {
 
 function createSpellOption(character, combatState, spell, reference, index) {
   const level = normalizeSpellLevel(spell.level ?? reference.level);
-  const castingTime = String(spell.castingTime ?? reference.casting_time ?? spell.activation?.activationType ?? "1 action");
+  const castingTime = normalizeCastingTime(spell.castingTime ?? reference.casting_time ?? spell.activation ?? spell.activationType ?? "1 action");
   const cost = costFromCastingTime(castingTime);
   const description = String(spell.description ?? reference.description ?? "");
   const attackBonus = spell.attackBonus ?? character?.spells?.attackBonus ?? spellAttackBonus(character);
@@ -54,6 +54,9 @@ function createSpellOption(character, combatState, spell, reference, index) {
     spell: {
       level,
       concentration,
+      range,
+      saveDc,
+      saveAbility: spell.saveAbility ?? inferSaveAbility(description),
       reference: {
         name: reference.name ?? spell.name,
         type: reference.type,
@@ -67,6 +70,30 @@ function createSpellOption(character, combatState, spell, reference, index) {
       }
     }
   };
+}
+
+function normalizeCastingTime(value) {
+  if (value && typeof value === "object") {
+    return normalizeActivationType(value.activationType ?? value.type ?? value.id ?? value.value)
+      ?? value.name
+      ?? value.label
+      ?? "1 action";
+  }
+  return normalizeActivationType(value) ?? String(value ?? "1 action");
+}
+
+function normalizeActivationType(value) {
+  const numeric = Number(value);
+  if (numeric === 1) return "1 action";
+  if (numeric === 2) return "1 bonus action";
+  if (numeric === 3 || numeric === 4) return "1 reaction";
+
+  const text = String(value ?? "").toLowerCase();
+  if (!text) return null;
+  if (text === "action") return "1 action";
+  if (text === "bonus" || text === "bonus action") return "1 bonus action";
+  if (text === "reaction") return "1 reaction";
+  return null;
 }
 
 function costFromCastingTime(castingTime) {

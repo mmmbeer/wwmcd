@@ -154,7 +154,13 @@ test("weapon actions use finesse and spell actions expose attack metadata", () =
         saveAbility: "dex"
       }],
       known: [],
-      cantrips: []
+      cantrips: [{
+        name: "Shillelagh",
+        level: 0,
+        activation: { activationType: 2 },
+        range: "Touch",
+        description: "The wood of a club or quarterstaff you are holding is imbued with nature's power."
+      }]
     }
   };
   const combatState = { resourcesUsed: { spellSlots: {} } };
@@ -167,6 +173,12 @@ test("weapon actions use finesse and spell actions expose attack metadata", () =
   assert.ok(weapon.meta.includes("DEX attack"));
   assert.ok(spell.meta.includes("DEX save DC 15"));
   assert.equal(spell.rolls[0].formula, "3d6");
+  assert.equal(spell.cost.action, true);
+  assert.equal(spell.spell.range, undefined);
+
+  const cantrip = getSpellActions(character, combatState, null)[1];
+  assert.equal(cantrip.cost.bonus, true);
+  assert.equal(cantrip.spell.range, "Touch");
 });
 
 test("condition rules block movement and add simple roll warnings", () => {
@@ -259,6 +271,28 @@ test("casting a concentration spell tracks concentration in combat state", () =>
   assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 1);
   assert.equal(stateManager.getCombatState().turn.actionUsed, true);
   assert.equal(stateManager.getActiveCharacter().resources.spellSlots[1], 2);
+});
+
+test("casting cantrips uses action economy without spending slots", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "cantrip-caster",
+    name: "Cantrip Caster",
+    importedAt: "2026-05-17T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: { 1: 1 } }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.useCombatOption({
+    name: "Fire Bolt",
+    cost: { action: true, resource: null },
+    spell: { level: 0, concentration: false }
+  });
+
+  assert.equal(stateManager.getCombatState().turn.actionUsed, true);
+  assert.deepEqual(stateManager.getCombatState().resourcesUsed.spellSlots, {});
 });
 
 test("manual limited resource controls persist only in combat state", () => {

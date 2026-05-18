@@ -263,6 +263,8 @@ function renderSpellTable(options) {
           <tr>
             <th scope="col">Action</th>
             <th scope="col">Spell</th>
+            <th scope="col">Range</th>
+            <th scope="col">DC</th>
             <th scope="col">Description</th>
             <th scope="col">Action Buttons</th>
           </tr>
@@ -282,6 +284,8 @@ function renderSpellRows(option) {
     <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
       <td>${renderCastingCostBadge(option)}</td>
       <th scope="row">${escapeHtml(option.name)}</th>
+      <td>${escapeHtml(option.spell?.range ?? "")}</td>
+      <td>${escapeHtml(spellDcLabel(option))}</td>
       <td>
         <p>${escapeHtml(option.description || "")}</p>
         ${renderMeta(option)}
@@ -292,7 +296,7 @@ function renderSpellRows(option) {
     </tr>
     <tr class="option-detail-row spell-detail-row" id="${detailId}" hidden>
       <td></td>
-      <td colspan="3">
+      <td colspan="5">
         ${renderSpellDetailCard(option)}
       </td>
     </tr>
@@ -422,6 +426,13 @@ function castingCostLabel(option) {
   if (option.cost?.reaction) return "Reaction";
   if (option.cost?.action) return "Action";
   return "Special";
+}
+
+function spellDcLabel(option) {
+  const dc = option.spell?.saveDc;
+  const ability = option.spell?.saveAbility;
+  if (!dc && !ability) return "";
+  return [ability ? ability.toUpperCase() : null, dc ? `DC ${dc}` : null].filter(Boolean).join(" ");
 }
 
 function useLabel(option) {
