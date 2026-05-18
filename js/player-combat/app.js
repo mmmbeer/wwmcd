@@ -37,7 +37,7 @@ export async function createPlayerCombatApp() {
     renderSpellcastingBar(roots.spellcastingBar, snapshot);
     renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
     renderCombatStatePanel(roots.combatPanel, snapshot, { stateManager, modalApi });
-    renderActionTabs(roots.tabs, snapshot, { stateManager, modalApi });
+    renderActionTabs(roots.tabs, snapshot, { stateManager, modalApi, showToast });
   });
 
   stateManager.initializeAppState();

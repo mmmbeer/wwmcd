@@ -29,14 +29,15 @@ function movementOption(character, combatState) {
   return {
     id: "movement_walk",
     name: "Move",
-    description: `${remaining} of ${speed} ft remaining.`,
+    description: `${remaining} of ${speed} remaining.`,
     source: "basic",
     group: "movement",
     tags: ["movement"],
     cost: { movement: true },
     recommended: remaining > 0,
     rolls: [],
-    meta: [`${remaining} ft remaining`]
+    movement: { remaining, speed, step: 5 },
+    meta: []
   };
 }
 

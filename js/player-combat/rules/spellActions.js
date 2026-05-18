@@ -53,7 +53,17 @@ function createSpellOption(character, combatState, spell, reference, index) {
     ].filter(Boolean),
     spell: {
       level,
-      concentration
+      concentration,
+      reference: {
+        name: reference.name ?? spell.name,
+        type: reference.type,
+        casting_time: reference.casting_time ?? castingTime,
+        range,
+        components: reference.components,
+        duration,
+        description,
+        higher_levels: reference.higher_levels
+      }
     }
   };
 }

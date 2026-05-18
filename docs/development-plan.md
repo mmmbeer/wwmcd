@@ -6,6 +6,16 @@
 
 - Reworked combat option rendering to use a shared data-table structure for option groups.
 - Added an `Attacks` tab so weapon attacks, unarmed strike, grapple, and shove are separate from standard combat actions.
+- Moved option type badges into the first table column instead of placing them beneath option names.
+- Updated the movement row to show a compact `current of max remaining` description and a `+5 ft` action button.
+- Reworked the Attacks tab into attack-specific columns:
+  - Type badge.
+  - Attack name.
+  - Attack bonus with an icon roll button.
+  - Damage dice with an icon roll button and tooltip damage-type icon.
+  - Click-to-expand second row for attack descriptions, warnings, and unavailable reasons.
+- Roll buttons now show the roll summary through the existing toast system while still logging the roll.
+- Spell rows now expand on click and mount the existing `dm-roster/srd/spellHoverCard.js` SRD card structure for spell descriptions.
 - Kept the `Actions` tab focused on standard action choices:
   - Attack now opens the Attacks tab instead of immediately spending the action.
   - Cast a Spell now opens the Spells tab filtered to spells that take 1 action.
@@ -16,9 +26,11 @@
 ### Files Changed
 
 - `css/player-combat.css`
+- `js/player-combat/app.js`
 - `js/player-combat/rules/actionEconomyRules.js`
 - `js/player-combat/rules/basicActions.js`
 - `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/spellActions.js`
 - `js/player-combat/rules/weaponActions.js`
 - `js/player-combat/ui/actionTabs.js`
 - `docs/development-plan.md`
@@ -28,22 +40,29 @@
 - The Attacks tab includes simple unarmed, grapple, and shove rows, but it does not yet automate target size, contested checks, advantage, or monster-specific edge cases.
 - Cast a Spell filters by the rules layer's parsed casting-time cost; unusual imported casting-time text may still need normalization improvements.
 - Mobile widths use horizontal table scrolling to preserve the denser table structure.
+- Damage type icons use compact letter markers with native browser tooltips; a richer icon set can replace them if the app adopts one.
 
 ### Manual Test Checklist
 
 1. Serve the project from the repo root and open `/`.
 2. Import a character with at least one weapon and at least one spell.
-3. Open Actions and confirm options render in a table with columns for Action Name, Description, and Action Buttons.
+3. Open Actions and confirm options render in a table with Type, Action Name, Description, and Action Buttons columns.
 4. Click Attack > Use and confirm the Attacks tab opens.
-5. Confirm weapon attacks, Unarmed Strike, Grapple, and Shove render as table rows with roll/use buttons.
+5. Confirm weapon attacks, Unarmed Strike, Grapple, and Shove render with Type, Attack, Attack Bonus, and Damage Dice columns.
 6. Click Cast a Spell > Use and confirm the Spells tab opens filtered to action-cost spells.
-7. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
-8. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
+7. Click attack and damage icon buttons and confirm roll summaries appear as toast notifications.
+8. Click an attack row and confirm the hidden description row expands.
+9. Click a spell row and confirm the SRD-style spell detail card expands.
+10. Use the Move row `+5 ft` button and confirm movement changes by 5 ft.
+11. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
+12. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
 
 ### Verification Completed
 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\rules\basicActions.js`
+- `node --check js\player-combat\rules\combatOptionsService.js`
+- `node --check js\player-combat\rules\spellActions.js`
 - `node --check js\player-combat\rules\weaponActions.js`
 - `node --test tests\playerCombatImport.test.mjs`
 

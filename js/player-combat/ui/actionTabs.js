@@ -1,5 +1,6 @@
 import { rollDamage, rollDice } from "../core/diceRoller.js";
 import { getCombatOptions } from "../rules/combatOptionsService.js";
+import { createSpellHoverCard } from "../../../dm-roster/srd/spellHoverCard.js";
 import { formatRollSummary, renderDiceResult } from "./diceResult.js";
 import { showConfirmModal } from "./modal.js";
 import { escapeHtml } from "./renderUtils.js";
@@ -22,8 +23,8 @@ let selectedSpellLevel = null;
 let selectedSpellCost = null;
 let lastRender = null;
 
-export function renderActionTabs(root, snapshot, { stateManager, modalApi }) {
-  lastRender = () => renderActionTabs(root, snapshot, { stateManager, modalApi });
+export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast }) {
+  lastRender = () => renderActionTabs(root, snapshot, { stateManager, modalApi, showToast });
   bindGroupSelection();
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
@@ -51,29 +52,47 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi }) {
       selectedGroup = button.dataset.tabGroup;
       selectedSpellLevel = null;
       selectedSpellCost = null;
-      renderActionTabs(root, snapshot, { stateManager, modalApi });
+      renderActionTabs(root, snapshot, { stateManager, modalApi, showToast });
     });
   });
 
   root.querySelectorAll("[data-select-group]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
       selectedGroup = button.dataset.selectGroup;
       selectedSpellLevel = button.dataset.spellLevel ? Number(button.dataset.spellLevel) : null;
       selectedSpellCost = button.dataset.spellCost ?? null;
-      renderActionTabs(root, snapshot, { stateManager, modalApi });
+      renderActionTabs(root, snapshot, { stateManager, modalApi, showToast });
     });
   });
 
   root.querySelectorAll("[data-roll-option]").forEach((button) => {
-    button.addEventListener("click", () => handleRoll(button, groups, stateManager));
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleRoll(button, groups, stateManager, showToast);
+    });
   });
 
   root.querySelectorAll("[data-use-option]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
       const option = findOption(groups, button.dataset.useOption);
       if (option) useOption(option, combatState, stateManager, modalApi);
     });
   });
+
+  root.querySelectorAll("[data-use-movement]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      stateManager.useMovement(Number(button.dataset.useMovement || 5));
+    });
+  });
+
+  root.querySelectorAll("[data-expand-target]").forEach((row) => {
+    row.addEventListener("click", () => toggleExpandedRow(root, row));
+  });
+
+  mountSpellCards(root, visibleOptions);
 }
 
 function bindGroupSelection() {
@@ -117,17 +136,20 @@ function renderGroup(key, label, options, combatState) {
   return `
     <section class="option-group" aria-labelledby="option-${key}">
       <h3 id="option-${key}">${escapeHtml(label)}</h3>
-      ${options.length ? renderOptionTable(options) : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
+      ${options.length ? renderOptionTable(key, options) : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
     </section>
   `;
 }
 
-function renderOptionTable(options) {
+function renderOptionTable(group, options) {
+  if (group === "attacks") return renderAttackTable(options);
+  if (group === "spells") return renderSpellTable(options);
   return `
     <div class="option-table-wrap">
       <table class="option-table">
         <thead>
           <tr>
+            <th scope="col">Type</th>
             <th scope="col">Action Name</th>
             <th scope="col">Description</th>
             <th scope="col">Action Buttons</th>
@@ -145,10 +167,8 @@ function renderOptionRow(option) {
   const unavailable = option.available === false;
   return `
     <tr class="${unavailable ? "is-unavailable" : ""}">
-      <th scope="row">
-        <span>${escapeHtml(option.name)}</span>
-        <span class="badge">${escapeHtml(costLabel(option))}</span>
-      </th>
+      <td>${renderTypeBadge(option)}</td>
+      <th scope="row">${escapeHtml(option.name)}</th>
       <td>
         <p>${escapeHtml(option.description || "")}</p>
         ${renderMeta(option)}
@@ -161,6 +181,16 @@ function renderOptionRow(option) {
 }
 
 function renderOptionButtons(option, unavailable) {
+  if (option.cost?.movement) {
+    return `
+      <div class="button-row option-button-row">
+        <button class="btn btn-primary" type="button" data-use-movement="${escapeHtml(option.movement?.step ?? 5)}" ${unavailable ? "disabled" : ""}>
+          +${escapeHtml(option.movement?.step ?? 5)} ft
+        </button>
+      </div>
+    `;
+  }
+
   return `
     <div class="button-row option-button-row">
       ${(option.rolls ?? []).map((roll) => `
@@ -180,6 +210,145 @@ function renderOptionButtons(option, unavailable) {
       ` : ""}
     </div>
   `;
+}
+
+function renderAttackTable(options) {
+  return `
+    <div class="option-table-wrap">
+      <table class="option-table attack-table">
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Attack</th>
+            <th scope="col">Attack Bonus</th>
+            <th scope="col">Damage Dice</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${options.map(renderAttackRows).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAttackRows(option) {
+  const unavailable = option.available === false;
+  const attackRoll = option.rolls?.find((roll) => roll.type === "attack" || roll.id === "attack");
+  const damageRoll = option.rolls?.find((roll) => roll.type === "damage");
+  const detailId = `detail-${escapeHtml(option.id)}`;
+  return `
+    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
+      <td>${renderTypeBadge(option)}</td>
+      <th scope="row">${escapeHtml(option.name)}</th>
+      <td>${attackRoll ? `${escapeHtml(attackBonusLabel(attackRoll.formula))} ${renderRollIcon(option, attackRoll, unavailable)}` : ""}</td>
+      <td>${damageRoll ? `${escapeHtml(damageRoll.formula)} ${renderDamageTypeIcon(damageRoll.damageType)} ${renderRollIcon(option, damageRoll, unavailable)}` : ""}</td>
+    </tr>
+    <tr class="option-detail-row" id="${detailId}" hidden>
+      <td></td>
+      <td colspan="3">
+        <p>${escapeHtml(option.description || "")}</p>
+        ${renderMeta(option)}
+        ${renderWarnings(option.warnings)}
+        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
+      </td>
+    </tr>
+  `;
+}
+
+function renderSpellTable(options) {
+  return `
+    <div class="option-table-wrap">
+      <table class="option-table spell-table">
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Spell</th>
+            <th scope="col">Description</th>
+            <th scope="col">Action Buttons</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${options.map(renderSpellRows).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSpellRows(option) {
+  const unavailable = option.available === false;
+  const detailId = `detail-${escapeHtml(option.id)}`;
+  return `
+    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
+      <td>${renderTypeBadge(option)}</td>
+      <th scope="row">${escapeHtml(option.name)}</th>
+      <td>
+        <p>${escapeHtml(option.description || "")}</p>
+        ${renderMeta(option)}
+        ${renderWarnings(option.warnings)}
+        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
+      </td>
+      <td>${renderOptionButtons(option, unavailable)}</td>
+    </tr>
+    <tr class="option-detail-row spell-detail-row" id="${detailId}" hidden>
+      <td></td>
+      <td colspan="3">
+        <div data-spell-card="${escapeHtml(option.id)}"></div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderTypeBadge(option) {
+  return `<span class="badge">${escapeHtml(costLabel(option))}</span>`;
+}
+
+function renderRollIcon(option, roll, unavailable) {
+  return `
+    <button class="icon-btn" type="button" data-roll-option="${escapeHtml(option.id)}" data-roll-id="${escapeHtml(roll.id)}" title="${escapeHtml(roll.label)}" aria-label="${escapeHtml(`${option.name} ${roll.label}`)}" ${unavailable ? "disabled" : ""}>
+      <span aria-hidden="true">d20</span>
+    </button>
+  `;
+}
+
+function renderDamageTypeIcon(type) {
+  if (!type) return "";
+  return `<span class="damage-icon" title="${escapeHtml(titleCase(type))} damage" aria-label="${escapeHtml(titleCase(type))} damage">${escapeHtml(type.slice(0, 1).toUpperCase())}</span>`;
+}
+
+function attackBonusLabel(formula) {
+  const match = String(formula ?? "").match(/1d20([+-]\d+)?/i);
+  return match?.[1] ?? "+0";
+}
+
+function toggleExpandedRow(root, row) {
+  const target = root.querySelector(`#${CSS.escape(row.dataset.expandTarget)}`);
+  if (!target) return;
+  const expanded = row.getAttribute("aria-expanded") === "true";
+  row.setAttribute("aria-expanded", String(!expanded));
+  target.hidden = expanded;
+}
+
+function mountSpellCards(root, options) {
+  root.querySelectorAll("[data-spell-card]").forEach((slot) => {
+    const option = options.find((entry) => entry.id === slot.dataset.spellCard);
+    const reference = option?.spell?.reference;
+    if (!reference) return;
+    const card = createSpellHoverCard({
+      type: "spell",
+      name: option.name,
+      sourceVersion: "local",
+      content: reference
+    });
+    card.querySelector(".srd-hover-card__close")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const detailRow = slot.closest(".option-detail-row");
+      detailRow.hidden = true;
+      root.querySelector(`[data-expand-target="${CSS.escape(detailRow.id)}"]`)?.setAttribute("aria-expanded", "false");
+    });
+    slot.replaceChildren(card);
+  });
 }
 
 function renderMeta(option) {
@@ -215,7 +384,7 @@ function renderLogGroup(label, combatState) {
   `;
 }
 
-function handleRoll(button, groups, stateManager) {
+function handleRoll(button, groups, stateManager, showToast) {
   const option = findOption(groups, button.dataset.rollOption);
   const roll = option?.rolls?.find((entry) => entry.id === button.dataset.rollId);
   if (!option || !roll) return;
@@ -224,7 +393,9 @@ function handleRoll(button, groups, stateManager) {
     ? rollDamage({ formula: roll.formula, label: `${option.name} ${roll.label}` })
     : rollDice(roll.formula, { label: `${option.name} ${roll.label}`, type: roll.type });
 
-  stateManager.logRoll(result, formatRollSummary(result));
+  const summary = formatRollSummary(result);
+  stateManager.logRoll(result, summary);
+  showToast?.({ type: result.ok ? "info" : "error", message: summary });
 }
 
 function useOption(option, combatState, stateManager, modalApi) {
@@ -259,4 +430,8 @@ function useLabel(option) {
 
 function hasUseCost(option) {
   return option.cost?.action || option.cost?.bonus || option.cost?.reaction || option.cost?.object || option.cost?.resource;
+}
+
+function titleCase(value) {
+  return String(value ?? "").replace(/\b\w/g, (char) => char.toUpperCase());
 }
