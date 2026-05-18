@@ -1,6 +1,57 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Header Identity and Spellcasting Bar
+## Current Session: Player Combat Assistant Table-Based Action Layout
+
+### Implemented
+
+- Reworked combat option rendering to use a shared data-table structure for option groups.
+- Added an `Attacks` tab so weapon attacks, unarmed strike, grapple, and shove are separate from standard combat actions.
+- Kept the `Actions` tab focused on standard action choices:
+  - Attack now opens the Attacks tab instead of immediately spending the action.
+  - Cast a Spell now opens the Spells tab filtered to spells that take 1 action.
+  - Dash, Disengage, Dodge, Help, Hide, Ready, Search, Object Interaction, and Use an Object remain available as standard rows.
+- Added a Reaction tab so the existing turn progress reaction segment has a matching option group.
+- Added reusable table CSS that preserves existing buttons, badges, spacing, colors, and unavailable-state styling.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/basicActions.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/weaponActions.js`
+- `js/player-combat/ui/actionTabs.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The Attacks tab includes simple unarmed, grapple, and shove rows, but it does not yet automate target size, contested checks, advantage, or monster-specific edge cases.
+- Cast a Spell filters by the rules layer's parsed casting-time cost; unusual imported casting-time text may still need normalization improvements.
+- Mobile widths use horizontal table scrolling to preserve the denser table structure.
+
+### Manual Test Checklist
+
+1. Serve the project from the repo root and open `/`.
+2. Import a character with at least one weapon and at least one spell.
+3. Open Actions and confirm options render in a table with columns for Action Name, Description, and Action Buttons.
+4. Click Attack > Use and confirm the Attacks tab opens.
+5. Confirm weapon attacks, Unarmed Strike, Grapple, and Shove render as table rows with roll/use buttons.
+6. Click Cast a Spell > Use and confirm the Spells tab opens filtered to action-cost spells.
+7. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
+8. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\rules\basicActions.js`
+- `node --check js\player-combat\rules\weaponActions.js`
+- `node --test tests\playerCombatImport.test.mjs`
+
+### Next Recommended Phase
+
+Add browser smoke coverage for tab navigation and table rendering, then refine the Attacks tab with class-feature attack variants as those rules are implemented.
+
+## Previous Session: Player Combat Assistant Header Identity and Spellcasting Bar
 
 ### Implemented
 

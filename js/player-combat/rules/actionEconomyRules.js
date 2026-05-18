@@ -47,8 +47,10 @@ export function applyActionEconomyRules(options, character, combatState) {
 export function groupOptionsByTurnCost(options) {
   const groups = {
     recommended: options.filter((option) => option.recommended).slice(0, 6),
-    actions: options.filter((option) => option.cost?.action),
+    actions: options.filter((option) => option.cost?.action && option.source === "basic"),
+    attacks: options.filter((option) => option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed")),
     bonus: options.filter((option) => option.cost?.bonus),
+    reaction: options.filter((option) => option.cost?.reaction),
     movement: options.filter((option) => option.cost?.movement || option.group === "movement"),
     free: options.filter((option) => option.cost?.object && !option.cost?.action),
     spells: options.filter((option) => option.source === "spell"),

@@ -44,7 +44,9 @@ function emptyGroups() {
   return {
     recommended: [],
     actions: [],
+    attacks: [],
     bonus: [],
+    reaction: [],
     movement: [],
     free: [],
     spells: [],

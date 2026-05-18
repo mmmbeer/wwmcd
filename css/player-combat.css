@@ -633,6 +633,74 @@ select {
   color: var(--muted);
 }
 
+.option-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.option-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.option-table th,
+.option-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.option-table thead th {
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.option-table tbody tr:last-child th,
+.option-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.option-table tbody tr.is-unavailable {
+  opacity: 0.78;
+}
+
+.option-table tbody th {
+  width: 24%;
+}
+
+.option-table tbody th span:first-child {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.option-table td:nth-child(2) {
+  width: 48%;
+}
+
+.option-table td:nth-child(3) {
+  width: 28%;
+}
+
+.option-table p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.option-button-row {
+  justify-content: flex-start;
+}
+
+.option-button-row .btn {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
 .slot-controls {
   display: grid;
   grid-template-columns: auto minmax(54px, 1fr) auto auto;

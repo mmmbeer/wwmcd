@@ -2,10 +2,14 @@ import { normalizeName } from "../data/combatDataTransformer.js";
 
 export function getWeaponActions(character, referenceData) {
   const weapons = character?.inventory?.weapons ?? [];
-  if (!weapons.length) return [];
 
   const referenceWeapons = buildWeaponReference(referenceData?.data?.equipment);
-  return weapons.map((weapon, index) => createWeaponOption(character, weapon, referenceWeapons, index));
+  return [
+    ...weapons.map((weapon, index) => createWeaponOption(character, weapon, referenceWeapons, index)),
+    createUnarmedOption(character),
+    createGrappleOption(character),
+    createShoveOption(character)
+  ];
 }
 
 function createWeaponOption(character, weapon, referenceWeapons, index) {
@@ -44,6 +48,46 @@ function createWeaponOption(character, weapon, referenceWeapons, index) {
       `${ability.toUpperCase()} attack`,
       damageFormula ? `${damageFormula} ${damage.type}` : "Damage not found"
     ]
+  };
+}
+
+function createUnarmedOption(character) {
+  const strength = abilityModifier(character, "str");
+  return {
+    id: "attack_unarmed_strike",
+    name: "Unarmed Strike",
+    description: "Melee attack with a punch, kick, head-butt, or similar forceful blow.",
+    source: "weapon",
+    group: "attack",
+    tags: ["attack", "unarmed", "melee"],
+    cost: { action: true },
+    rolls: [
+      { id: "attack", label: "Roll Attack", formula: `1d20${signed(strength + Number(character?.combat?.proficiencyBonus ?? 2))}`, type: "attack" },
+      { id: "damage", label: "Roll Damage", formula: `${Math.max(1, 1 + strength)}`, type: "damage", damageType: "bludgeoning" }
+    ],
+    meta: [`${signed(strength + Number(character?.combat?.proficiencyBonus ?? 2))} to hit`, "STR attack", `${Math.max(1, 1 + strength)} bludgeoning`]
+  };
+}
+
+function createGrappleOption(character) {
+  return specialAttack(character, "attack_grapple", "Grapple", "Use one Attack action attack to try to grapple a creature.", "Athletics check");
+}
+
+function createShoveOption(character) {
+  return specialAttack(character, "attack_shove", "Shove", "Use one Attack action attack to knock a creature prone or push it 5 ft.", "Athletics check");
+}
+
+function specialAttack(character, id, name, description, label) {
+  return {
+    id,
+    name,
+    description,
+    source: "weapon",
+    group: "attack",
+    tags: ["attack", "special"],
+    cost: { action: true },
+    rolls: [{ id: "athletics", label: `Roll ${label}`, formula: `1d20${signed(abilityModifier(character, "str"))}`, type: "check" }],
+    meta: ["Replaces one attack from the Attack action"]
   };
 }
 

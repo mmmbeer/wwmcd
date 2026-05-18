@@ -5,7 +5,11 @@ export function getBasicActions(character) {
   const attacks = getAttackCount(character);
   return [
     basic("basic_attack", "Attack", attacks > 1 ? `Make up to ${attacks} attacks with the Attack action.` : "Make one weapon or unarmed attack.", { action: true }, true, {
+      navigateTo: { group: "attacks" },
       meta: attacks > 1 ? [`${attacks} attacks with this action`] : []
+    }),
+    basic("basic_cast_spell", "Cast a Spell", "Choose a spell with a casting time of 1 action.", { action: true }, false, {
+      navigateTo: { group: "spells", spellCost: "action" }
     }),
     basic("basic_dash", "Dash", `Gain extra movement equal to your speed (${speed} ft).`, { action: true }, true),
     basic("basic_disengage", "Disengage", "Your movement does not provoke opportunity attacks this turn.", { action: true }),

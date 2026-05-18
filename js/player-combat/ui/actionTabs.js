@@ -7,7 +7,9 @@ import { escapeHtml } from "./renderUtils.js";
 const GROUPS = [
   ["recommended", "Recommended"],
   ["actions", "Actions"],
+  ["attacks", "Attacks"],
   ["bonus", "Bonus"],
+  ["reaction", "Reaction"],
   ["movement", "Movement"],
   ["free", "Free Action"],
   ["spells", "Spells"],
@@ -17,6 +19,7 @@ const GROUPS = [
 const GROUP_LABELS = Object.fromEntries(GROUPS);
 let selectedGroup = "recommended";
 let selectedSpellLevel = null;
+let selectedSpellCost = null;
 let lastRender = null;
 
 export function renderActionTabs(root, snapshot, { stateManager, modalApi }) {
@@ -47,6 +50,16 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi }) {
     button.addEventListener("click", () => {
       selectedGroup = button.dataset.tabGroup;
       selectedSpellLevel = null;
+      selectedSpellCost = null;
+      renderActionTabs(root, snapshot, { stateManager, modalApi });
+    });
+  });
+
+  root.querySelectorAll("[data-select-group]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedGroup = button.dataset.selectGroup;
+      selectedSpellLevel = button.dataset.spellLevel ? Number(button.dataset.spellLevel) : null;
+      selectedSpellCost = button.dataset.spellCost ?? null;
       renderActionTabs(root, snapshot, { stateManager, modalApi });
     });
   });
@@ -69,20 +82,34 @@ function bindGroupSelection() {
   window.addEventListener("combat:select-option-group", (event) => {
     selectedGroup = event.detail?.group ?? selectedGroup;
     selectedSpellLevel = event.detail?.spellLevel ?? null;
+    selectedSpellCost = event.detail?.spellCost ?? null;
     lastRender?.();
     document.querySelector("#actions-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
 function filterOptions(group, options) {
-  if (group !== "spells" || selectedSpellLevel === null) return options;
-  return options.filter((option) => option.spell?.level === selectedSpellLevel);
+  if (group !== "spells") return options;
+  return options.filter((option) => {
+    const levelMatches = selectedSpellLevel === null || option.spell?.level === selectedSpellLevel;
+    const costMatches = !selectedSpellCost || option.cost?.[selectedSpellCost];
+    return levelMatches && costMatches;
+  });
 }
 
 function groupLabel(group) {
-  return group === "spells" && selectedSpellLevel !== null
-    ? `Spells: Level ${selectedSpellLevel}`
-    : GROUP_LABELS[group];
+  if (group !== "spells") return GROUP_LABELS[group];
+  if (selectedSpellLevel !== null) return `Spells: Level ${selectedSpellLevel}`;
+  if (selectedSpellCost) return `Spells: ${costFilterLabel(selectedSpellCost)}`;
+  return GROUP_LABELS[group];
+}
+
+function costFilterLabel(cost) {
+  return {
+    action: "Action",
+    bonus: "Bonus Action",
+    reaction: "Reaction"
+  }[cost] ?? cost;
 }
 
 function renderGroup(key, label, options, combatState) {
@@ -90,38 +117,68 @@ function renderGroup(key, label, options, combatState) {
   return `
     <section class="option-group" aria-labelledby="option-${key}">
       <h3 id="option-${key}">${escapeHtml(label)}</h3>
-      <div class="option-card-grid">
-        ${options.length ? options.map(renderOptionCard).join("") : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
-      </div>
+      ${options.length ? renderOptionTable(options) : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
     </section>
   `;
 }
 
-function renderOptionCard(option) {
+function renderOptionTable(options) {
+  return `
+    <div class="option-table-wrap">
+      <table class="option-table">
+        <thead>
+          <tr>
+            <th scope="col">Action Name</th>
+            <th scope="col">Description</th>
+            <th scope="col">Action Buttons</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${options.map(renderOptionRow).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderOptionRow(option) {
   const unavailable = option.available === false;
   return `
-    <article class="option-card ${unavailable ? "is-unavailable" : ""}">
-      <div class="option-card-header">
-        <strong>${escapeHtml(option.name)}</strong>
+    <tr class="${unavailable ? "is-unavailable" : ""}">
+      <th scope="row">
+        <span>${escapeHtml(option.name)}</span>
         <span class="badge">${escapeHtml(costLabel(option))}</span>
-      </div>
-      <p>${escapeHtml(option.description || "")}</p>
-      ${renderMeta(option)}
-      ${renderWarnings(option.warnings)}
-      ${unavailable ? renderReasons(option.unavailableReasons) : ""}
-      <div class="button-row">
-        ${(option.rolls ?? []).map((roll) => `
-          <button class="btn btn-secondary" type="button" data-roll-option="${escapeHtml(option.id)}" data-roll-id="${escapeHtml(roll.id)}" ${unavailable ? "disabled" : ""}>
-            ${escapeHtml(roll.label)}
-          </button>
-        `).join("")}
-        ${hasUseCost(option) ? `
-          <button class="btn btn-primary" type="button" data-use-option="${escapeHtml(option.id)}" ${unavailable ? "disabled" : ""}>
-            ${escapeHtml(useLabel(option))}
-          </button>
-        ` : ""}
-      </div>
-    </article>
+      </th>
+      <td>
+        <p>${escapeHtml(option.description || "")}</p>
+        ${renderMeta(option)}
+        ${renderWarnings(option.warnings)}
+        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
+      </td>
+      <td>${renderOptionButtons(option, unavailable)}</td>
+    </tr>
+  `;
+}
+
+function renderOptionButtons(option, unavailable) {
+  return `
+    <div class="button-row option-button-row">
+      ${(option.rolls ?? []).map((roll) => `
+        <button class="btn btn-secondary" type="button" data-roll-option="${escapeHtml(option.id)}" data-roll-id="${escapeHtml(roll.id)}" ${unavailable ? "disabled" : ""}>
+          ${escapeHtml(roll.label)}
+        </button>
+      `).join("")}
+      ${option.navigateTo ? `
+        <button class="btn btn-primary" type="button" data-select-group="${escapeHtml(option.navigateTo.group)}" ${option.navigateTo.spellCost ? `data-spell-cost="${escapeHtml(option.navigateTo.spellCost)}"` : ""} ${unavailable ? "disabled" : ""}>
+          Use
+        </button>
+      ` : ""}
+      ${!option.navigateTo && hasUseCost(option) ? `
+        <button class="btn btn-primary" type="button" data-use-option="${escapeHtml(option.id)}" ${unavailable ? "disabled" : ""}>
+          ${escapeHtml(useLabel(option))}
+        </button>
+      ` : ""}
+    </div>
   `;
 }
 
