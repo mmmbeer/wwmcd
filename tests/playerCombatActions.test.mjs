@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 
 const combatState = {
@@ -9,20 +10,49 @@ const combatState = {
   resourcesUsed: { spellSlots: {}, classResources: {} }
 };
 
-test("rogue level infers Cunning Action bonus options", () => {
+test("imported Cunning Action uses SRD text to add bonus options", () => {
   const groups = getCombatOptions({
     character: baseCharacter({
       classes: [{ name: "Rogue", level: 2 }],
-      features: { class: [], race: [], feats: [], other: [] }
+      features: { class: [{ name: "Cunning Action" }], race: [], feats: [], other: [] }
     }),
     combatState,
-    referenceData: null
+    referenceData: referenceDataWithFeatures({
+      classes: {
+        Rogue: {
+          "Class Features": {
+            "Cunning Action": "Starting at 2nd level, you can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action."
+          }
+        }
+      }
+    })
   });
 
   assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Dash"));
   assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Disengage"));
   assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Hide"));
   assert.equal(groups.bonus.find((option) => option.name === "Cunning Action: Dash").cost.bonus, true);
+});
+
+test("class levels alone do not invent feature actions", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      classes: [{ name: "Rogue", level: 2 }],
+      features: { class: [], race: [], feats: [], other: [] }
+    }),
+    combatState,
+    referenceData: referenceDataWithFeatures({
+      classes: {
+        Rogue: {
+          "Class Features": {
+            "Cunning Action": "Starting at 2nd level, you can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action."
+          }
+        }
+      }
+    })
+  });
+
+  assert.equal(groups.bonus.some((option) => option.name.startsWith("Cunning Action")), false);
 });
 
 test("class, racial, and feat descriptions become action economy options", () => {
@@ -75,6 +105,33 @@ test("bonus and reaction spell activation objects sort into matching groups", ()
   assert.ok(groups.reaction.some((option) => option.name === "Shield"));
 });
 
+test("imported Extra Attack uses SRD text to affect attack count", () => {
+  const character = baseCharacter({
+    features: { class: [{ name: "Extra Attack" }], race: [], feats: [], other: [] }
+  });
+  const referenceData = referenceDataWithFeatures({
+    classes: {
+      Fighter: {
+        "Class Features": {
+          "Extra Attack": {
+            content: "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+          }
+        }
+      }
+    }
+  });
+
+  assert.equal(getAttackCount(character, referenceData), 2);
+});
+
+test("higher Extra Attack imports affect attack count by feature name", () => {
+  const character = baseCharacter({
+    features: { class: [{ name: "Extra Attack (2)" }], race: [], feats: [], other: [] }
+  });
+
+  assert.equal(getAttackCount(character, null), 3);
+});
+
 function baseCharacter(overrides = {}) {
   return {
     classes: [],
@@ -85,5 +142,14 @@ function baseCharacter(overrides = {}) {
     spells: { prepared: [], known: [], cantrips: [] },
     features: { class: [], race: [], feats: [], other: [] },
     ...overrides
+  };
+}
+
+function referenceDataWithFeatures(data) {
+  return {
+    data,
+    indexes: {
+      featIndexByName: new Map((data.feats ?? []).map((entry) => [String(entry.name).toLowerCase(), entry]))
+    }
   };
 }

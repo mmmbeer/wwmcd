@@ -4,46 +4,55 @@
 
 ### Implemented
 
-- Added a focused feature-action rules module that audits normalized class features, racial traits, feats, other features, and class-level inferred core features for action economy options.
-- Added named handling for common 5e features that need explicit player-facing options:
-  - Rogue Cunning Action now adds bonus-action Dash, Disengage, and Hide.
-  - Monk Step of the Wind, Patient Defense, Flurry of Blows, Deflect Missiles, and Slow Fall.
-  - Barbarian Rage, Bardic Inspiration, Fighter Second Wind, Druid Wild Shape/Revert, Breath Weapon, Fey Step, Uncanny Dodge, Cutting Words, Protection, and Defensive Duelist.
+- Added a focused feature-data enrichment module that treats imported character features as the source of truth.
+- Class, race, feat, and other imported feature names are now enriched from SRD/reference data when the import only provides the feature name.
+- Added generic action economy classification from feature text:
+  - Features that say they use an action, bonus action, or reaction are placed into the matching option group.
+  - Features that grant standard actions such as Dash, Disengage, Hide, Dodge, Search, Help, or Use an Object create specific options for those actions.
+  - Rogue Cunning Action now appears from imported `Cunning Action` plus SRD text, not from Rogue level alone.
 - Added conservative description scanning for imported class/race/feat text that says a feature uses an action, bonus action, or reaction.
 - Feature text that clearly contains more than one action economy hook now emits separate options, so feats with both a bonus action and reaction do not collapse into one category.
 - Wired feature-derived options into the existing combat option pipeline and action economy availability checks.
+- Extra Attack now derives attack count from imported feature names and enriched SRD text, including higher `Extra Attack (2)`/`(3)` feature names when imported.
 - Expanded spell casting-time normalization for additional D&D Beyond-style activation object shapes so bonus-action and reaction spells sort into the Bonus and Reaction tabs more reliably.
-- Added focused tests for inferred Rogue Cunning Action, class/race/feat action extraction, multi-hook feat text, and object-shaped spell activation sorting.
+- Added focused tests for imported Rogue Cunning Action with SRD enrichment, non-inference from class level alone, class/race/feat action extraction, multi-hook feat text, Extra Attack classification, and object-shaped spell activation sorting.
 
 ### Files Changed
 
 - `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/attackCountRules.js`
 - `js/player-combat/rules/combatOptionsService.js`
 - `js/player-combat/rules/featureActions.js`
+- `js/player-combat/rules/featureData.js`
 - `js/player-combat/rules/spellActions.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
 - `tests/playerCombatActions.test.mjs`
+- `tests/playerCombatImport.test.mjs`
 - `docs/development-plan.md`
 
 ### Known Limitations
 
 - Feature extraction is intentionally conservative. It surfaces clear action economy hooks, but it does not fully automate prerequisites, target validation, subclass choices, advantage/disadvantage, or resource spending for every feature.
-- Class-level inference covers high-value core features only. Imported feature names/descriptions still provide the best coverage for subclass, race, and feat details.
-- Generic text scanning may produce reminder-style options when a feature description is clear, but named handlers are still preferred for features that need multiple distinct choices.
+- The app no longer invents feature actions from class level alone. If an import omits a granted feature entirely, that feature will not appear until normalization/import coverage supplies it.
+- Generic text scanning may produce reminder-style options when a feature description is clear, but ambiguous feature effects may still need override metadata later.
 - Spell sorting depends on imported spell casting-time or activation metadata, with SRD reference fallback when a spell name can be matched.
 
 ### Manual Test Checklist
 
-1. Import or simulate a level 2+ Rogue and confirm Bonus includes Cunning Action: Dash, Disengage, and Hide.
+1. Import or simulate a character whose imported class features include `Cunning Action` and confirm Bonus includes Cunning Action: Dash, Disengage, and Hide.
 2. Use one Cunning Action option and confirm the bonus action is marked used and other bonus options become unavailable.
-3. Import a character with a racial bonus-action feature such as Fey Step and confirm it appears in Bonus.
+3. Import or simulate a level 2+ Rogue without an imported `Cunning Action` feature and confirm the app does not invent Cunning Action from level alone.
 4. Import a character with a reaction feature or feat such as Uncanny Dodge or Defensive Duelist and confirm it appears in Reaction.
-5. Import a spellcaster with Healing Word or Misty Step and confirm the spell appears in both Spells and Bonus.
-6. Import a spellcaster with Shield or another reaction spell and confirm the spell appears in both Spells and Reaction.
-7. At phone width, confirm the Bonus and Reaction tables remain readable and action buttons do not overlap.
+5. Import a character with an imported `Extra Attack` feature and confirm the Action progress and attack descriptions reflect multiple attacks.
+6. Import a spellcaster with Healing Word or Misty Step and confirm the spell appears in both Spells and Bonus.
+7. Import a spellcaster with Shield or another reaction spell and confirm the spell appears in both Spells and Reaction.
+8. At phone width, confirm the Bonus and Reaction tables remain readable and action buttons do not overlap.
 
 ### Verification Completed
 
 - `node --check js\player-combat\rules\featureActions.js`
+- `node --check js\player-combat\rules\featureData.js`
+- `node --check js\player-combat\rules\attackCountRules.js`
 - `node --check js\player-combat\rules\combatOptionsService.js`
 - `node --check js\player-combat\rules\spellActions.js`
 - `node --test tests\playerCombatActions.test.mjs`

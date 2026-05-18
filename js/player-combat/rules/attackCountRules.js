@@ -1,25 +1,19 @@
-export function getAttackCount(character) {
-  const fighterLevel = classLevel(character, "fighter");
-  if (fighterLevel >= 20) return 4;
-  if (fighterLevel >= 11) return 3;
-  if (hasExtraAttack(character)) return 2;
+import { collectCharacterFeatures, featureText } from "./featureData.js";
+
+export function getAttackCount(character, referenceData) {
+  return getAttackCountFromFeatures(character, referenceData);
+}
+
+export function getAttackCountFromFeatures(character, referenceData) {
+  return collectCharacterFeatures(character, referenceData)
+    .filter((entry) => /^extra attack\b/i.test(entry.name))
+    .reduce((count, entry) => Math.max(count, attacksFromFeature(entry)), 1);
+}
+
+function attacksFromFeature(entry) {
+  const text = featureText(entry);
+  if (/\bfour times\b|\bfour attacks\b|\battack four\b/i.test(text) || /\(3\)/.test(entry.name)) return 4;
+  if (/\bthree times\b|\bthree attacks\b|\battack three\b/i.test(text) || /\(2\)/.test(entry.name)) return 3;
+  if (/\btwice\b|\btwo attacks\b|\battack two\b/i.test(text) || /^extra attack\b/i.test(entry.name)) return 2;
   return 1;
-}
-
-function hasExtraAttack(character) {
-  return featureNames(character).some((name) => /^extra attack\b/i.test(name));
-}
-
-function featureNames(character) {
-  return [
-    ...(character?.features?.class ?? []),
-    ...(character?.features?.other ?? []),
-    ...(character?.classes ?? []).flatMap((entry) => entry.features ?? [])
-  ].map((feature) => String(feature?.name ?? feature ?? ""));
-}
-
-function classLevel(character, className) {
-  return (character?.classes ?? [])
-    .filter((entry) => String(entry.name ?? "").toLowerCase() === className)
-    .reduce((total, entry) => total + Number(entry.level ?? 0), 0);
 }

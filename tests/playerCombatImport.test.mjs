@@ -219,7 +219,7 @@ test("combat options expose free actions and inferred extra attacks", () => {
 
   const groups = getCombatOptions({ character, combatState, referenceData: null });
 
-  assert.equal(getAttackCount(character), 3);
+  assert.equal(getAttackCount(character), 2);
   assert.equal(groups.actions.some((option) => option.id === "basic_attack"), false);
   assert.ok(groups.attacks.some((option) => option.id === "attack_unarmed_strike"));
   assert.ok(groups.free.some((option) => option.id === "basic_object_interaction"));

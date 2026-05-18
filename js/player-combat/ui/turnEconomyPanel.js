@@ -15,7 +15,7 @@ export function renderTurnEconomyPanel(root, snapshot, { stateManager, modalApi 
   const speed = Number(character.combat.speed.walk ?? 0);
   const movementUsed = Number(state.turn.movementUsed ?? 0);
   const movement = `${formatFeet(movementUsed)}/${formatFeet(speed)}`;
-  const actionsAvailable = getAttackCount(character);
+  const actionsAvailable = getAttackCount(character, snapshot.referenceData);
   root.innerHTML = `
     <nav class="turn-progress" aria-label="Turn progress">
       ${segment("actions", "Action", state.turn.actionUsed, actionsAvailable, state.turn.actionUsed ? actionsAvailable : 0)}
