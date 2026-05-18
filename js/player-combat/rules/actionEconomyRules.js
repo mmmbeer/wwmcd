@@ -47,7 +47,7 @@ export function applyActionEconomyRules(options, character, combatState) {
 export function groupOptionsByTurnCost(options) {
   const groups = {
     recommended: options.filter((option) => option.recommended).slice(0, 6),
-    actions: options.filter((option) => option.cost?.action && option.source === "basic"),
+    actions: options.filter((option) => option.cost?.action && (option.source === "basic" || option.source === "feature")),
     attacks: options.filter((option) => option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed")),
     bonus: options.filter((option) => option.cost?.bonus || option.spell?.castingCost === "bonus"),
     reaction: options.filter((option) => option.cost?.reaction || option.spell?.castingCost === "reaction"),

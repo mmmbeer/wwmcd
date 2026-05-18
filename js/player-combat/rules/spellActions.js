@@ -77,11 +77,14 @@ function createSpellOption(character, combatState, spell, reference, index) {
 function normalizeCastingTime(value) {
   if (value && typeof value === "object") {
     return normalizeActivationType(value.activationType)
+      ?? normalizeActivationType(value.activationTime)
       ?? normalizeActivationType(value.type)
       ?? normalizeActivationType(value.id)
       ?? normalizeActivationType(value.value)
+      ?? normalizeActivationType(value.unit)
       ?? normalizeActivationType(value.name)
       ?? normalizeActivationType(value.label)
+      ?? normalizeActivationType(value.cost)
       ?? value.name
       ?? value.label
       ?? "1 action";
@@ -92,11 +95,14 @@ function normalizeCastingTime(value) {
 function normalizeActivationType(value) {
   if (value && typeof value === "object") {
     return normalizeActivationType(value.activationType)
+      ?? normalizeActivationType(value.activationTime)
       ?? normalizeActivationType(value.type)
       ?? normalizeActivationType(value.id)
       ?? normalizeActivationType(value.value)
+      ?? normalizeActivationType(value.unit)
       ?? normalizeActivationType(value.name)
-      ?? normalizeActivationType(value.label);
+      ?? normalizeActivationType(value.label)
+      ?? normalizeActivationType(value.cost);
   }
 
   const numeric = Number(value);
@@ -106,6 +112,9 @@ function normalizeActivationType(value) {
 
   const text = String(value ?? "").toLowerCase();
   if (!text) return null;
+  if (/\bbonus(?:\s+action)?\b/.test(text)) return "1 bonus action";
+  if (/\breaction\b/.test(text)) return "1 reaction";
+  if (/\baction\b/.test(text)) return "1 action";
   if (text === "action") return "1 action";
   if (text === "bonus" || text === "bonus action") return "1 bonus action";
   if (text === "reaction") return "1 reaction";

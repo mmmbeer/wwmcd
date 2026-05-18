@@ -4,6 +4,7 @@ import {
   groupOptionsByTurnCost
 } from "./actionEconomyRules.js";
 import { getBasicActions } from "./basicActions.js";
+import { getFeatureActions } from "./featureActions.js";
 import { getResourceActions } from "./resourceActions.js";
 import { getSpellActions } from "./spellActions.js";
 import { getWeaponActions } from "./weaponActions.js";
@@ -16,6 +17,7 @@ export function getCombatOptions({ character, combatState, referenceData }) {
     ...getBasicActions(character),
     ...getWeaponActions(character, referenceData),
     ...getSpellActions(character, combatState, referenceData),
+    ...getFeatureActions(character, combatState, referenceData),
     ...getResourceActions(character, combatState)
   ];
 
