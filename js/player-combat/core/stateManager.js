@@ -73,7 +73,7 @@ export function createStateManager({ storage, eventBus }) {
   function logRoll(result, message) {
     const state = getCombatState();
     if (!state) return;
-    combatStates[activeCharacterId] = addLogEntry({ ...state, lastRoll: result }, message);
+    combatStates[activeCharacterId] = addLogEntry({ ...state, lastRoll: result }, message, { type: "roll", roll: result });
     persistCombatStates();
     emitChange();
   }

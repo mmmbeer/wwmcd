@@ -1,6 +1,6 @@
 import { rollDamage, rollDice } from "../core/diceRoller.js";
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { formatRollSummary, renderDiceResult } from "./diceResult.js";
+import { formatRollSummary } from "./diceResult.js";
 import { showConfirmModal } from "./modal.js";
 import { escapeHtml } from "./renderUtils.js";
 import { renderSpellDetailCard } from "./spellDetailCard.js";
@@ -38,7 +38,6 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? []);
   root.innerHTML = `
-    ${combatState.lastRoll ? `<div class="latest-roll">${renderDiceResult(combatState.lastRoll)}</div>` : ""}
     <div class="option-tabs">
       <div class="button-row">
         ${GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
@@ -262,7 +261,7 @@ function renderSpellTable(options) {
       <table class="option-table spell-table">
         <thead>
           <tr>
-            <th scope="col">Type</th>
+            <th scope="col">Action</th>
             <th scope="col">Spell</th>
             <th scope="col">Description</th>
             <th scope="col">Action Buttons</th>
@@ -281,7 +280,7 @@ function renderSpellRows(option) {
   const detailId = `detail-${escapeHtml(option.id)}`;
   return `
     <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
-      <td>${renderTypeBadge(option)}</td>
+      <td>${renderCastingCostBadge(option)}</td>
       <th scope="row">${escapeHtml(option.name)}</th>
       <td>
         <p>${escapeHtml(option.description || "")}</p>
@@ -298,6 +297,10 @@ function renderSpellRows(option) {
       </td>
     </tr>
   `;
+}
+
+function renderCastingCostBadge(option) {
+  return `<span class="badge">${escapeHtml(castingCostLabel(option))}</span>`;
 }
 
 function renderTypeBadge(option) {
@@ -412,6 +415,13 @@ function costLabel(option) {
   if (option.cost?.action) return "Action";
   if (option.cost?.object) return "Free";
   return option.resource ?? "Option";
+}
+
+function castingCostLabel(option) {
+  if (option.cost?.bonus) return "Bonus";
+  if (option.cost?.reaction) return "Reaction";
+  if (option.cost?.action) return "Action";
+  return "Special";
 }
 
 function useLabel(option) {

@@ -39,14 +39,15 @@ export function resetTurn(turn = {}) {
   };
 }
 
-export function addLogEntry(state, message) {
+export function addLogEntry(state, message, details = {}) {
   return {
     ...state,
     log: [
       {
         at: new Date().toISOString(),
         round: state.round,
-        message
+        message,
+        ...details
       },
       ...(state.log ?? [])
     ].slice(0, 40)

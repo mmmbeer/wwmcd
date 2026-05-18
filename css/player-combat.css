@@ -115,7 +115,7 @@ body.has-turn-progress .app-shell {
   right: 0;
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(6, minmax(112px, 1fr));
+  grid-template-columns: repeat(5, minmax(104px, 1fr)) minmax(78px, 0.7fr) minmax(92px, 0.8fr);
   gap: var(--space-1);
   overflow-x: auto;
   padding: var(--space-2) var(--space-4);
@@ -126,7 +126,8 @@ body.has-turn-progress .app-shell {
 
 .turn-segment,
 .turn-move-add,
-.turn-done {
+.turn-done,
+.turn-log {
   min-width: 0;
   min-height: 40px;
   border: 1px solid var(--primary);
@@ -171,7 +172,8 @@ body.has-turn-progress .app-shell {
 }
 
 .turn-move-add,
-.turn-done {
+.turn-done,
+.turn-log {
   padding: 0 var(--space-3);
 }
 
@@ -187,6 +189,12 @@ body.has-turn-progress .app-shell {
 .turn-done {
   background: var(--primary);
   color: #fff;
+}
+
+.turn-log {
+  background: var(--surface-muted);
+  color: var(--text);
+  border-color: var(--line);
 }
 
 .spellcasting-bar {
@@ -608,8 +616,7 @@ body.has-turn-progress .app-shell {
 .option-group,
 .option-card-grid,
 .option-card,
-.option-meta,
-.dice-result {
+.option-meta {
   display: grid;
   gap: var(--space-3);
 }
@@ -871,29 +878,31 @@ body.has-turn-progress .app-shell {
   color: var(--text);
 }
 
-.latest-roll:empty {
-  display: none;
+.dice-log-list {
+  display: grid;
+  gap: var(--space-2);
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.dice-result {
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--primary);
+.dice-log-entry {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: #eaf5f0;
+  background: var(--surface-muted);
 }
 
-.dice-label,
-.dice-formula,
-.dice-result small {
+.dice-log-entry span {
+  font-weight: 800;
+}
+
+.dice-log-entry small {
   color: var(--muted);
-}
-
-.dice-total {
-  grid-row: span 2;
-  font-size: 2rem;
-  line-height: 1;
 }
 
 .modal-backdrop {

@@ -257,6 +257,7 @@ test("casting a concentration spell tracks concentration in combat state", () =>
 
   assert.equal(stateManager.getCombatState().current.concentration, "Bless");
   assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 1);
+  assert.equal(stateManager.getCombatState().turn.actionUsed, true);
   assert.equal(stateManager.getActiveCharacter().resources.spellSlots[1], 2);
 });
 
