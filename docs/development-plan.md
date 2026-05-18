@@ -5,6 +5,14 @@
 ### Implemented
 
 - Reworked combat option rendering to use a shared data-table structure for option groups.
+- Fixed the turn progress rail to the top of the browser while a character is loaded.
+- Simplified turn progress cards into one horizontal line: Action, Bonus Action, Reaction, Free, Movement, and Done.
+- Embedded the `+` movement control inside the Movement progress card.
+- Removed second-line detail text from turn progress cards and left a partial-progress display hook for multi-use action economy.
+- Simplified the spellcasting bar:
+  - Concentration is now a lit/unlit toggle instead of repeating the active spell name.
+  - Slot buttons show only the slot level number and used-slot check marks.
+  - Concentration toggle updates combat state directly instead of opening the Spells tab.
 - Added an `Attacks` tab so weapon attacks, unarmed strike, grapple, and shove are separate from standard combat actions.
 - Moved option type badges into the first table column instead of placing them beneath option names.
 - Updated the movement row to show a compact `current of max remaining` description and a `+5 ft` action button.
@@ -33,6 +41,8 @@
 - `js/player-combat/rules/spellActions.js`
 - `js/player-combat/rules/weaponActions.js`
 - `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/spellcastingBar.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
 - `docs/development-plan.md`
 
 ### Known Limitations
@@ -41,6 +51,7 @@
 - Cast a Spell filters by the rules layer's parsed casting-time cost; unusual imported casting-time text may still need normalization improvements.
 - Mobile widths use horizontal table scrolling to preserve the denser table structure.
 - Damage type icons use compact letter markers with native browser tooltips; a richer icon set can replace them if the app adopts one.
+- Multi-use action economy currently has a rendering hook for partial progress, but the state model still tracks action, bonus action, reaction, and free action as booleans.
 
 ### Manual Test Checklist
 
@@ -54,8 +65,12 @@
 8. Click an attack row and confirm the hidden description row expands.
 9. Click a spell row and confirm the SRD-style spell detail card expands.
 10. Use the Move row `+5 ft` button and confirm movement changes by 5 ft.
-11. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
-12. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
+11. Scroll the page and confirm the turn progress rail remains fixed at the top of the browser.
+12. Confirm the turn progress rail stays one horizontal row on phone width and the Movement card contains its `+` button.
+13. Toggle Concentration in the spellcasting bar and confirm it lights up, then click again and confirm it clears.
+14. Confirm spell slot buttons show only the level number and check marks for used slots.
+15. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
+16. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
 
 ### Verification Completed
 
@@ -64,6 +79,9 @@
 - `node --check js\player-combat\rules\combatOptionsService.js`
 - `node --check js\player-combat\rules\spellActions.js`
 - `node --check js\player-combat\rules\weaponActions.js`
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\ui\spellcastingBar.js`
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
 - `node --test tests\playerCombatImport.test.mjs`
 
 ### Next Recommended Phase

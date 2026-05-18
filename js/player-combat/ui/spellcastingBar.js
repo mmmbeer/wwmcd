@@ -1,6 +1,6 @@
 import { escapeHtml } from "./renderUtils.js";
 
-export function renderSpellcastingBar(root, snapshot) {
+export function renderSpellcastingBar(root, snapshot, stateManager) {
   const character = snapshot.activeCharacter;
   const state = snapshot.combatState;
   if (!root) return;
@@ -13,13 +13,20 @@ export function renderSpellcastingBar(root, snapshot) {
 
   root.innerHTML = `
     <section class="spellcasting-bar" aria-label="Spellcasting">
-      <button class="concentration-status ${state.current.concentration ? "is-active" : ""}" type="button" data-spell-level="all">
-        <span>Concentration:</span>
-        <strong>${escapeHtml(state.current.concentration || "None")}</strong>
+      <button class="concentration-status ${state.current.concentration ? "is-active" : ""}" type="button" data-concentration-toggle="true" aria-pressed="${state.current.concentration ? "true" : "false"}">
+        <span>Concentration</span>
       </button>
       ${slots.map(([level, value]) => renderLevel(level, value, state.resourcesUsed?.spellSlots?.[level])).join("")}
     </section>
   `;
+
+  root.querySelector("[data-concentration-toggle]")?.addEventListener("click", () => {
+    stateManager.updateCombatState({
+      current: {
+        concentration: state.current.concentration ? null : "Concentrating"
+      }
+    });
+  });
 
   root.querySelectorAll("[data-spell-level]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -36,7 +43,7 @@ function renderLevel(level, value, usedValue) {
   const used = Math.min(Number(usedValue ?? 0), max);
   return `
     <button class="spell-level-status ${used >= max ? "is-spent" : ""}" type="button" data-spell-level="${escapeHtml(level)}">
-      <span>Level ${escapeHtml(level)}:</span>
+      <span>${escapeHtml(level)}</span>
       <span class="spell-slot-boxes">${renderBoxes(max, used)}</span>
     </button>
   `;
@@ -44,7 +51,7 @@ function renderLevel(level, value, usedValue) {
 
 function renderBoxes(max, used) {
   return Array.from({ length: max }, (_, index) => (
-    `<span class="spell-slot-box ${index < used ? "is-used" : ""}" aria-hidden="true">${index < used ? "X" : ""}</span>`
+    `<span class="spell-slot-box ${index < used ? "is-used" : ""}" aria-hidden="true">${index < used ? "✓" : ""}</span>`
   )).join("");
 }
 

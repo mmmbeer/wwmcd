@@ -6,24 +6,25 @@ export function renderTurnEconomyPanel(root, snapshot, stateManager) {
   const state = snapshot.combatState;
 
   if (!character || !state) {
+    document.body.classList.remove("has-turn-progress");
     root.innerHTML = "";
     return;
   }
 
+  document.body.classList.add("has-turn-progress");
   const speed = Number(character.combat.speed.walk ?? 0);
   const movementUsed = Number(state.turn.movementUsed ?? 0);
-  const movement = `${formatFeet(movementUsed)} / ${formatFeet(speed)}`;
-  const attacks = getAttackCount(character);
+  const movement = `${formatFeet(movementUsed)}/${formatFeet(speed)}`;
+  const actionsAvailable = getAttackCount(character);
   root.innerHTML = `
     <nav class="turn-progress" aria-label="Turn progress">
-      ${segment("actions", "Actions", state.turn.actionUsed, attacks > 1 ? `${attacks} attacks` : "1 action")}
-      ${segment("bonus", "Bonus Action", state.turn.bonusActionUsed, "1 bonus")}
-      ${segment("reaction", "Reaction", state.turn.reactionUsed, "1 reaction")}
-      ${segment("free", "Free Action", state.turn.objectInteractionUsed, "object")}
+      ${segment("actions", "Action", state.turn.actionUsed, actionsAvailable, state.turn.actionUsed ? actionsAvailable : 0)}
+      ${segment("bonus", "Bonus Action", state.turn.bonusActionUsed)}
+      ${segment("reaction", "Reaction", state.turn.reactionUsed)}
+      ${segment("free", "Free", state.turn.objectInteractionUsed)}
       <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""}">
         <button class="turn-segment" type="button" data-group="movement">
-          <span>Movement</span>
-          <strong>${movement}</strong>
+          <span>Movement: ${movement}</span>
         </button>
         <button class="turn-move-add" type="button" data-move="5" aria-label="Add 5 feet of movement">+</button>
       </div>
@@ -40,11 +41,12 @@ export function renderTurnEconomyPanel(root, snapshot, stateManager) {
   });
 }
 
-function segment(group, label, spent, detail) {
+function segment(group, label, spent, total = 1, used = spent ? 1 : 0) {
+  const partial = total > 1 && used > 0 && used < total;
+  const progress = partial ? ` (${used}/${total})` : "";
   return `
-    <button class="turn-segment ${spent ? "is-spent" : ""}" type="button" data-group="${group}">
-      <span>${label}</span>
-      <strong>${spent ? "Used" : detail}</strong>
+    <button class="turn-segment ${spent ? "is-spent" : ""} ${partial ? "is-partial" : ""}" type="button" data-group="${group}">
+      <span>${label}${progress}</span>
     </button>
   `;
 }

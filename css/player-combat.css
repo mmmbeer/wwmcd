@@ -43,6 +43,10 @@ select {
   min-height: 100vh;
 }
 
+body.has-turn-progress .app-shell {
+  padding-top: 56px;
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -105,12 +109,15 @@ select {
 }
 
 .turn-progress {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(112px, 1fr));
   gap: var(--space-1);
+  overflow-x: auto;
   padding: var(--space-2) var(--space-4);
   background: var(--surface);
   border-bottom: 1px solid var(--line);
@@ -121,7 +128,7 @@ select {
 .turn-move-add,
 .turn-done {
   min-width: 0;
-  min-height: 46px;
+  min-height: 40px;
   border: 1px solid var(--primary);
   border-radius: var(--radius);
   background: #dff1e9;
@@ -131,31 +138,28 @@ select {
 }
 
 .turn-segment {
-  display: grid;
-  gap: 1px;
-  align-content: center;
-  padding: 5px 7px;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+  text-align: center;
 }
 
 .turn-segment span {
   overflow: hidden;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.turn-segment strong {
-  overflow: hidden;
-  font-size: 0.86rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.turn-segment.is-partial {
+  background: linear-gradient(90deg, #dff1e9 50%, var(--surface-muted) 50%);
 }
 
 .turn-movement {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
-  gap: var(--space-1);
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 0;
 }
 
 .turn-movement.is-spent .turn-segment,
@@ -169,6 +173,15 @@ select {
 .turn-move-add,
 .turn-done {
   padding: 0 var(--space-3);
+}
+
+.turn-movement .turn-segment {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.turn-move-add {
+  border-left: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 .turn-done {
@@ -209,13 +222,6 @@ select {
 .spell-level-status span:first-child {
   color: var(--muted);
   font-size: 0.8rem;
-}
-
-.concentration-status strong {
-  overflow: hidden;
-  max-width: 220px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .concentration-status.is-active {
@@ -965,14 +971,6 @@ select {
 
   .header-actions {
     justify-content: flex-start;
-  }
-
-  .concentration-status strong {
-    max-width: 160px;
-  }
-
-  .turn-progress {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .combat-status-bar {

@@ -34,7 +34,7 @@ export async function createPlayerCombatApp() {
     renderHeaderActions(roots.headerActions, snapshot, { stateManager, modalApi, showToast });
     renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast });
     renderTurnEconomyPanel(roots.turnPanel, snapshot, stateManager);
-    renderSpellcastingBar(roots.spellcastingBar, snapshot);
+    renderSpellcastingBar(roots.spellcastingBar, snapshot, stateManager);
     renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
     renderCombatStatePanel(roots.combatPanel, snapshot, { stateManager, modalApi });
     renderActionTabs(roots.tabs, snapshot, { stateManager, modalApi, showToast });
