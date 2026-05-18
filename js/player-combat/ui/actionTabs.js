@@ -1,9 +1,9 @@
 import { rollDamage, rollDice } from "../core/diceRoller.js";
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { createSpellHoverCard } from "../../../dm-roster/srd/spellHoverCard.js";
 import { formatRollSummary, renderDiceResult } from "./diceResult.js";
 import { showConfirmModal } from "./modal.js";
 import { escapeHtml } from "./renderUtils.js";
+import { renderSpellDetailCard } from "./spellDetailCard.js";
 
 const GROUPS = [
   ["recommended", "Recommended"],
@@ -92,7 +92,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     row.addEventListener("click", () => toggleExpandedRow(root, row));
   });
 
-  mountSpellCards(root, visibleOptions);
+  bindSpellDetailCards(root);
 }
 
 function bindGroupSelection() {
@@ -294,7 +294,7 @@ function renderSpellRows(option) {
     <tr class="option-detail-row spell-detail-row" id="${detailId}" hidden>
       <td></td>
       <td colspan="3">
-        <div data-spell-card="${escapeHtml(option.id)}"></div>
+        ${renderSpellDetailCard(option)}
       </td>
     </tr>
   `;
@@ -330,24 +330,14 @@ function toggleExpandedRow(root, row) {
   target.hidden = expanded;
 }
 
-function mountSpellCards(root, options) {
-  root.querySelectorAll("[data-spell-card]").forEach((slot) => {
-    const option = options.find((entry) => entry.id === slot.dataset.spellCard);
-    const reference = option?.spell?.reference;
-    if (!reference) return;
-    const card = createSpellHoverCard({
-      type: "spell",
-      name: option.name,
-      sourceVersion: "local",
-      content: reference
-    });
-    card.querySelector(".srd-hover-card__close")?.addEventListener("click", (event) => {
+function bindSpellDetailCards(root) {
+  root.querySelectorAll(".spell-detail-row .srd-hover-card__close").forEach((button) => {
+    button.addEventListener("click", (event) => {
       event.stopPropagation();
-      const detailRow = slot.closest(".option-detail-row");
+      const detailRow = button.closest(".option-detail-row");
       detailRow.hidden = true;
       root.querySelector(`[data-expand-target="${CSS.escape(detailRow.id)}"]`)?.setAttribute("aria-expanded", "false");
     });
-    slot.replaceChildren(card);
   });
 }
 

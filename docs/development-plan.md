@@ -23,7 +23,7 @@
   - Damage dice with an icon roll button and tooltip damage-type icon.
   - Click-to-expand second row for attack descriptions, warnings, and unavailable reasons.
 - Roll buttons now show the roll summary through the existing toast system while still logging the roll.
-- Spell rows now expand on click and mount the existing `dm-roster/srd/spellHoverCard.js` SRD card structure for spell descriptions.
+- Spell rows now expand on click and render a player-combat-owned spell detail card inspired by the SRD hover-card reference pattern.
 - Kept the `Actions` tab focused on standard action choices:
   - Attack now opens the Attacks tab instead of immediately spending the action.
   - Cast a Spell now opens the Spells tab filtered to spells that take 1 action.
@@ -41,6 +41,7 @@
 - `js/player-combat/rules/spellActions.js`
 - `js/player-combat/rules/weaponActions.js`
 - `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/spellDetailCard.js`
 - `js/player-combat/ui/spellcastingBar.js`
 - `js/player-combat/ui/turnEconomyPanel.js`
 - `docs/development-plan.md`

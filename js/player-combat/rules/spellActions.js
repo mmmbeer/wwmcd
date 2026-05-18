@@ -57,6 +57,7 @@ function createSpellOption(character, combatState, spell, reference, index) {
       reference: {
         name: reference.name ?? spell.name,
         type: reference.type,
+        level,
         casting_time: reference.casting_time ?? castingTime,
         range,
         components: reference.components,
