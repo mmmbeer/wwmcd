@@ -54,6 +54,8 @@ function createSpellOption(character, combatState, spell, reference, index) {
     spell: {
       level,
       concentration,
+      castingTime,
+      castingCost: castingCostName(cost),
       range,
       saveDc,
       saveAbility: spell.saveAbility ?? inferSaveAbility(description),
@@ -74,7 +76,12 @@ function createSpellOption(character, combatState, spell, reference, index) {
 
 function normalizeCastingTime(value) {
   if (value && typeof value === "object") {
-    return normalizeActivationType(value.activationType ?? value.type ?? value.id ?? value.value)
+    return normalizeActivationType(value.activationType)
+      ?? normalizeActivationType(value.type)
+      ?? normalizeActivationType(value.id)
+      ?? normalizeActivationType(value.value)
+      ?? normalizeActivationType(value.name)
+      ?? normalizeActivationType(value.label)
       ?? value.name
       ?? value.label
       ?? "1 action";
@@ -83,6 +90,15 @@ function normalizeCastingTime(value) {
 }
 
 function normalizeActivationType(value) {
+  if (value && typeof value === "object") {
+    return normalizeActivationType(value.activationType)
+      ?? normalizeActivationType(value.type)
+      ?? normalizeActivationType(value.id)
+      ?? normalizeActivationType(value.value)
+      ?? normalizeActivationType(value.name)
+      ?? normalizeActivationType(value.label);
+  }
+
   const numeric = Number(value);
   if (numeric === 1) return "1 action";
   if (numeric === 2) return "1 bonus action";
@@ -97,11 +113,18 @@ function normalizeActivationType(value) {
 }
 
 function costFromCastingTime(castingTime) {
-  const value = castingTime.toLowerCase();
-  if (value.includes("bonus action")) return { bonus: true };
-  if (value.includes("reaction")) return { reaction: true };
-  if (value.includes("action")) return { action: true };
+  const value = String(castingTime ?? "").toLowerCase();
+  if (/\bbonus(?:\s+action)?\b/.test(value)) return { bonus: true };
+  if (/\breaction\b/.test(value)) return { reaction: true };
+  if (/\baction\b/.test(value)) return { action: true };
   return {};
+}
+
+function castingCostName(cost) {
+  if (cost.bonus) return "bonus";
+  if (cost.reaction) return "reaction";
+  if (cost.action) return "action";
+  return "special";
 }
 
 function spellRoll(character, spell, description, attackBonus) {

@@ -44,7 +44,7 @@ select {
 }
 
 body.has-turn-progress .app-shell {
-  padding-top: 88px;
+  padding-top: 130px;
 }
 
 .app-header {
@@ -407,6 +407,15 @@ body.has-turn-progress .app-shell {
   font-size: 0.95rem;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .summary-sticky {
   position: sticky;
   top: 0;
@@ -621,8 +630,29 @@ body.has-turn-progress .app-shell {
   gap: var(--space-3);
 }
 
+.option-nav {
+  position: fixed;
+  top: 85px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 3px var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.option-nav .btn {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
 .option-group {
-  padding-top: var(--space-2);
+  padding-top: 0;
 }
 
 .option-card-grid {

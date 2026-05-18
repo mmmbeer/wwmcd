@@ -18,7 +18,12 @@
   - Concentration is now a lit/unlit toggle instead of repeating the active spell name.
   - Slot buttons show only the slot level number and used-slot check marks.
   - Concentration toggle updates combat state directly instead of opening the Spells tab.
+- Added a fixed action-category bar directly beneath the spellcasting bar:
+  - Includes Recommendation, Attacks, Actions, Spells, Bonus, Free, and Reaction.
+  - Replaces the action panel's embedded button row.
+  - The action panel heading is visually hidden instead of shown as chrome.
 - Added an `Attacks` tab so weapon attacks, unarmed strike, grapple, and shove are separate from standard combat actions.
+- Removed the synthetic Attack and Cast a Spell rows from the Actions group because those workflows are covered by the Attacks and Spells tabs.
 - Moved option type badges into the first table column instead of placing them beneath option names.
 - Updated the movement row to show a compact `current of max remaining` description and a `+5 ft` action button.
 - Reworked the Attacks tab into attack-specific columns:
@@ -33,11 +38,10 @@
 - Added test coverage confirming casting a leveled action spell spends a spell slot and marks the action used.
 - Fixed spell casting-time normalization for D&D Beyond-style activation objects and numeric activation codes so spells no longer fall through to `Special` when they are actions, bonus actions, or reactions.
 - Added Range and DC columns to the Spells table.
+- Removed the Description column from the Spells table; clicking a spell row expands the player-combat spell detail card with the full SRD/imported spell description.
+- Bonus-action and reaction spells now also appear in the Bonus and Reaction tabs.
 - Confirmed cantrips still show a Cast button and consume the correct action economy without spending spell slots.
-- Kept the `Actions` tab focused on standard action choices:
-  - Attack now opens the Attacks tab instead of immediately spending the action.
-  - Cast a Spell now opens the Spells tab filtered to spells that take 1 action.
-  - Dash, Disengage, Dodge, Help, Hide, Ready, Search, Object Interaction, and Use an Object remain available as standard rows.
+- Kept the `Actions` tab focused on standard non-attack, non-spell choices: Dash, Disengage, Dodge, Help, Hide, Ready, Search, Object Interaction, and Use an Object.
 - Added a Reaction tab so the existing turn progress reaction segment has a matching option group.
 - Added reusable table CSS that preserves existing buttons, badges, spacing, colors, and unavailable-state styling.
 
@@ -75,27 +79,29 @@
 1. Serve the project from the repo root and open `/`.
 2. Import a character with at least one weapon and at least one spell.
 3. Open Actions and confirm options render in a table with Type, Action Name, Description, and Action Buttons columns.
-4. Click Attack > Use and confirm the Attacks tab opens.
-5. Confirm weapon attacks, Unarmed Strike, Grapple, and Shove render with Type, Attack, Attack Bonus, and Damage Dice columns.
-6. Click Cast a Spell > Use and confirm the Spells tab opens filtered to action-cost spells.
-7. Click attack and damage icon buttons and confirm roll summaries appear as toast notifications.
-8. Click an attack row and confirm the hidden description row expands.
-9. Confirm the Spells table first column is `Action` and rows show Action, Bonus, or Reaction instead of Special for normal casting times.
-10. Confirm the Spells table includes Range and DC columns.
-11. Click a spell row and confirm the SRD-style spell detail card expands.
-12. Cast a leveled action spell and confirm one slot is checked off and Action is marked used.
-13. Cast a cantrip and confirm it has a Cast button, marks the right action economy used, and does not spend a spell slot.
-14. Use the Move row `+5 ft` button and confirm movement changes by 5 ft.
-15. Scroll the page and confirm the turn progress rail remains fixed at the top of the browser.
-16. Confirm the turn progress rail shows Dice Log immediately to the right of Done.
-17. Roll attack or damage, confirm the toast appears, then open Dice Log and confirm the roll appears there.
-18. Confirm the Combat State panel no longer appears on the page.
-19. Confirm the latest-roll dice result panel no longer appears above action tabs.
-20. Confirm the turn progress rail stays one horizontal row on phone width and the Movement card contains its `+` button.
-21. Toggle Concentration in the spellcasting bar and confirm it lights up, then click again and confirm it clears.
-22. Confirm spell slot buttons show only the level number and check marks for used slots.
-23. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
-24. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
+4. Confirm the fixed action-category bar appears beneath the spellcasting bar with Recommendation, Attacks, Actions, Spells, Bonus, Free, and Reaction.
+5. Confirm the action panel has no visible panel header or embedded button row.
+6. Confirm Actions does not include Attack or Cast a Spell rows.
+7. Confirm weapon attacks, Unarmed Strike, Grapple, and Shove render with Type, Attack, Attack Bonus, and Damage Dice columns.
+8. Click attack and damage icon buttons and confirm roll summaries appear as toast notifications.
+9. Click an attack row and confirm the hidden description row expands.
+10. Confirm the Spells table first column is `Action` and rows show Action, Bonus, or Reaction instead of Special for normal casting times.
+11. Confirm the Spells table includes Range and DC columns and no Description column.
+12. Click a spell row and confirm the spell detail card expands with the full spell description.
+13. Confirm bonus-action and reaction spells appear in the Bonus and Reaction tabs.
+14. Cast a leveled action spell and confirm one slot is checked off and Action is marked used.
+15. Cast a cantrip and confirm it has a Cast button, marks the right action economy used, and does not spend a spell slot.
+16. Use the Move row `+5 ft` button and confirm movement changes by 5 ft.
+17. Scroll the page and confirm the turn progress rail remains fixed at the top of the browser.
+18. Confirm the turn progress rail shows Dice Log immediately to the right of Done.
+19. Roll attack or damage, confirm the toast appears, then open Dice Log and confirm the roll appears there.
+20. Confirm the Combat State panel no longer appears on the page.
+21. Confirm the latest-roll dice result panel no longer appears above action tabs.
+22. Confirm the turn progress rail stays one horizontal row on phone width and the Movement card contains its `+` button.
+23. Toggle Concentration in the spellcasting bar and confirm it lights up, then click again and confirm it clears.
+24. Confirm spell slot buttons show only the level number and check marks for used slots.
+25. Use Dash or Dodge and confirm the row spends the action and unavailable reasons appear.
+26. At phone width, confirm the table remains usable with horizontal scrolling and no overlapping text.
 
 ### Verification Completed
 

@@ -5,19 +5,21 @@ import { showConfirmModal } from "./modal.js";
 import { escapeHtml } from "./renderUtils.js";
 import { renderSpellDetailCard } from "./spellDetailCard.js";
 
-const GROUPS = [
-  ["recommended", "Recommended"],
-  ["actions", "Actions"],
+const NAV_GROUPS = [
+  ["recommended", "Recommendation"],
   ["attacks", "Attacks"],
-  ["bonus", "Bonus"],
-  ["reaction", "Reaction"],
-  ["movement", "Movement"],
-  ["free", "Free Action"],
+  ["actions", "Actions"],
   ["spells", "Spells"],
-  ["resources", "Resources"],
-  ["log", "Log"]
+  ["bonus", "Bonus"],
+  ["free", "Free"],
+  ["reaction", "Reaction"]
 ];
-const GROUP_LABELS = Object.fromEntries(GROUPS);
+const GROUP_LABELS = {
+  ...Object.fromEntries(NAV_GROUPS),
+  movement: "Movement",
+  resources: "Resources",
+  log: "Log"
+};
 let selectedGroup = "recommended";
 let selectedSpellLevel = null;
 let selectedSpellCost = null;
@@ -38,10 +40,10 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? []);
   root.innerHTML = `
+    <nav class="option-nav" aria-label="Action categories">
+      ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
+    </nav>
     <div class="option-tabs">
-      <div class="button-row">
-        ${GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
-      </div>
       ${renderGroup(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState)}
     </div>
   `;
@@ -133,8 +135,7 @@ function costFilterLabel(cost) {
 function renderGroup(key, label, options, combatState) {
   if (key === "log") return renderLogGroup(label, combatState);
   return `
-    <section class="option-group" aria-labelledby="option-${key}">
-      <h3 id="option-${key}">${escapeHtml(label)}</h3>
+    <section class="option-group" aria-label="${escapeHtml(label)}">
       ${options.length ? renderOptionTable(key, options) : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
     </section>
   `;
@@ -265,7 +266,6 @@ function renderSpellTable(options) {
             <th scope="col">Spell</th>
             <th scope="col">Range</th>
             <th scope="col">DC</th>
-            <th scope="col">Description</th>
             <th scope="col">Action Buttons</th>
           </tr>
         </thead>
@@ -286,18 +286,14 @@ function renderSpellRows(option) {
       <th scope="row">${escapeHtml(option.name)}</th>
       <td>${escapeHtml(option.spell?.range ?? "")}</td>
       <td>${escapeHtml(spellDcLabel(option))}</td>
-      <td>
-        <p>${escapeHtml(option.description || "")}</p>
-        ${renderMeta(option)}
-        ${renderWarnings(option.warnings)}
-        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
-      </td>
       <td>${renderOptionButtons(option, unavailable)}</td>
     </tr>
     <tr class="option-detail-row spell-detail-row" id="${detailId}" hidden>
       <td></td>
-      <td colspan="5">
+      <td colspan="4">
         ${renderSpellDetailCard(option)}
+        ${renderWarnings(option.warnings)}
+        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
       </td>
     </tr>
   `;

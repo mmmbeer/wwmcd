@@ -218,11 +218,40 @@ test("combat options expose free actions and inferred extra attacks", () => {
   };
 
   const groups = getCombatOptions({ character, combatState, referenceData: null });
-  const attack = groups.actions.find((option) => option.id === "basic_attack");
 
   assert.equal(getAttackCount(character), 3);
-  assert.ok(attack.description.includes("3 attacks"));
+  assert.equal(groups.actions.some((option) => option.id === "basic_attack"), false);
+  assert.ok(groups.attacks.some((option) => option.id === "attack_unarmed_strike"));
   assert.ok(groups.free.some((option) => option.id === "basic_object_interaction"));
+});
+
+test("bonus and reaction spells appear in matching action economy groups", () => {
+  const character = {
+    combat: { proficiencyBonus: 2, speed: { walk: 30 } },
+    resources: { spellSlots: { 1: 2 } },
+    inventory: { weapons: [] },
+    spells: {
+      spellcastingAbility: "wis",
+      prepared: [
+        { name: "Healing Word", level: 1, castingTime: "1 bonus action", range: "60 feet" },
+        { name: "Shield", level: 1, activation: { activationType: { id: 3, name: "Reaction" } }, range: "Self" }
+      ],
+      known: [],
+      cantrips: []
+    }
+  };
+  const combatState = {
+    turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
+    current: { conditions: [] },
+    resourcesUsed: { spellSlots: {}, classResources: {} }
+  };
+
+  const groups = getCombatOptions({ character, combatState, referenceData: null });
+
+  assert.ok(groups.bonus.some((option) => option.name === "Healing Word"));
+  assert.ok(groups.reaction.some((option) => option.name === "Shield"));
+  assert.equal(groups.bonus.find((option) => option.name === "Healing Word").spell.castingCost, "bonus");
+  assert.equal(groups.reaction.find((option) => option.name === "Shield").spell.castingCost, "reaction");
 });
 
 test("manual spell slot controls persist only in combat state", () => {
