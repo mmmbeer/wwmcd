@@ -87,11 +87,7 @@ function buildNormalizerInput(fields, sourceName) {
     inventory: extractWeapons(fields),
     spellSlots: Object.fromEntries(spells.slots.map((slot) => [slot.level, slot.max])),
     spells: { pdf: spells.known },
-    features: {
-      classFeatures: splitNotes(firstField(fields, ["ClassFeatures", "ClassFeatures1"])),
-      racialTraits: splitNotes(firstField(fields, ["RacialTraits", "RacialTraits1"])),
-      feats: splitNotes(firstField(fields, ["Feats", "Feats1"]))
-    },
+    features: extractFeatures(fields),
     source: { type: "pdf", sourceName, importedAt: new Date().toISOString() }
   };
 }
@@ -282,6 +278,99 @@ function parseClasses(value) {
   return entries.length ? entries : [{ name: text, level: 0 }];
 }
 
+function extractFeatures(fields) {
+  const classFeatures = splitNotes(firstField(fields, ["ClassFeatures", "ClassFeatures1"]));
+  const racialTraits = splitNotes(firstField(fields, ["RacialTraits", "RacialTraits1"]));
+  const feats = splitNotes(firstField(fields, ["Feats", "Feats1"]));
+  const genericFeatures = parseFeatureBlocks([
+    numberedFields(fields, "FeaturesTraits").join("\n"),
+    numberedFields(fields, "Actions").join("\n")
+  ].filter(Boolean).join("\n"));
+
+  return {
+    classFeatures,
+    racialTraits,
+    feats,
+    other: genericFeatures
+  };
+}
+
+function parseFeatureBlocks(text) {
+  const lines = String(text ?? "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim());
+  const entries = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
+    const line = normalizeFeatureHeading(rawLine);
+    if (!line || isFeatureSectionHeading(line) || isFeatureDetailLine(line)) continue;
+
+    const description = collectFeatureDescription(lines, index + 1);
+    entries.push(description ? { name: line, description } : { name: line });
+  }
+
+  return uniqueFeatureEntries(entries);
+}
+
+function collectFeatureDescription(lines, start) {
+  const details = [];
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line || isFeatureSectionHeading(line)) break;
+    if (!isFeatureDetailLine(line)) break;
+    details.push(line.trim().replace(/^\s*(?:[-*]|\d+[.)])\s*/, ""));
+  }
+  return details.join(" ");
+}
+
+function normalizeFeatureHeading(line) {
+  return String(line ?? "")
+    .trim()
+    .replace(/^\*\s*/, "")
+    .replace(/^\d+\s*:\s*/, "")
+    .replace(/^=+\s*/, "")
+    .replace(/\s*=+$/, "")
+    .replace(/\s*\[[^\]]+\]\s*$/, "")
+    .replace(/\s+•.*$/, "")
+    .replace(/\s+["“].*$/, "")
+    .replace(/\s+\d+\s*(?:Action|Bonus Action|Reaction)$/i, "")
+    .trim();
+}
+
+function isFeatureSectionHeading(line) {
+  return /^=+\s*[^=]+\s*=+$/i.test(line)
+    || /^(?:[A-Z][A-Z\s]+ )?(?:FEATURES|TRAITS)$/i.test(normalizeFeatureHeading(line))
+    || /^(actions?|bonus actions?|reactions?|special|other|limited use|limited uses)$/i.test(normalizeFeatureHeading(line));
+}
+
+function isFeatureDetailLine(line) {
+  return /^\s/.test(line)
+    || /^\|/.test(line)
+    || /^[•-]\s/.test(line)
+    || /^\d+\s+\w/.test(line)
+    || /^(you|when|whenever|if|once|as |on |also|to |starting|beginning|after|before|while|until|this|the |a |an |speed )\b/i.test(line)
+    || /^\d+\s*(?:Action|Bonus Action|Reaction)$/i.test(line);
+}
+
+function uniqueFeatureEntries(entries) {
+  const seen = new Set();
+  return entries.filter((entry) => {
+    const key = normalizeFieldName(entry.name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function numberedFields(fields, prefix) {
+  return [...fields.entries()]
+    .filter(([name]) => new RegExp(`^${prefix}\\d+$`, "i").test(name))
+    .sort(([left], [right]) => Number(left.match(/\d+$/)?.[0] ?? 0) - Number(right.match(/\d+$/)?.[0] ?? 0))
+    .map(([, value]) => cleanValue(value))
+    .filter(Boolean);
+}
+
 function parseSpellHeaderLevel(value) {
   if (/cantrip/i.test(value)) return 0;
   const match = String(value ?? "").match(/(\d+)(?:st|nd|rd|th)?\s+level/i);
@@ -358,7 +447,23 @@ function splitNotes(value) {
 }
 
 function cleanValue(value) {
-  return String(value ?? "").replace(/\r/g, "\n").replace(/\s+\n/g, "\n").trim();
+  return decodePdfUnicodeText(String(value ?? "")).replace(/\r/g, "\n").replace(/\s+\n/g, "\n").trim();
+}
+
+function decodePdfUnicodeText(value) {
+  if (!value) return "";
+  if (value.startsWith("\u00FE\u00FF")) return decodeUtf16BeBytes(value, 2);
+  if ((value.match(/\u0000/g) ?? []).length > value.length / 4) return decodeUtf16BeBytes(value, 0);
+  return value;
+}
+
+function decodeUtf16BeBytes(value, start) {
+  let text = "";
+  for (let index = start; index + 1 < value.length; index += 2) {
+    const code = (value.charCodeAt(index) << 8) + value.charCodeAt(index + 1);
+    if (code) text += String.fromCharCode(code);
+  }
+  return text;
 }
 
 function normalizeFieldName(value) {

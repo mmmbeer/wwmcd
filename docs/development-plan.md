@@ -1,6 +1,54 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Reference Feature Action Parser
+## Current Session: Player Combat Assistant PDF Feature Import Mapping
+
+### Implemented
+
+- Fixed PDF import so applicable feature/action data from D&D Beyond-style fillable sheets is actually normalized into the character model.
+- Added support for D&D Beyond PDF fields named `FeaturesTraits1..N` and `Actions1..N`.
+- Added PDF Unicode text decoding for UTF-16 form-field values so extracted feature names are readable instead of null-byte text.
+- Parsed sectioned PDF feature blocks into normalized feature entries with names and descriptions.
+- Stored combined PDF feature/action blocks under `features.other` so imported features can match class, race, feat, or custom feature action metadata.
+- Updated parsed feature action matching so generic imported features can resolve against class, race, or feat reference entries.
+- Expanded granted-action parsing for D&D Beyond wording such as `following actions as a Bonus Action: Dash, Disengage, or Hide`.
+- Verified an example PDF sheet now creates applicable options such as Cunning Action, Steady Aim, and Uncanny Dodge.
+
+### Files Changed
+
+- `js/player-combat/importers/ddbPdfImporterAdapter.js`
+- `js/player-combat/data/featureActionParser.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- PDF feature parsing is still best-effort and depends on fillable form fields; scanned or flattened sheets remain unsupported.
+- Some D&D Beyond feature descriptions can wrap awkwardly across lines, so long descriptions may be imperfect even when the feature name is captured.
+- Imported PDF feature blocks are treated as generic features, then matched by name and parsed text. They are not yet filtered by exact class/subclass/race source.
+- Feature resources and limited-use counts embedded in PDF action text are not yet converted into spendable resources.
+
+### Manual Test Checklist
+
+1. Upload `docs/example-sheets/mwokasch_134724530.pdf`.
+2. Confirm the imported character has feature-derived Bonus options including Cunning Action: Dash, Cunning Action: Disengage, Cunning Action: Hide, and Steady Aim.
+3. Confirm the imported character has a Reaction option for Uncanny Dodge.
+4. Upload `docs/example-sheets/mwokasch_159359372.pdf` and confirm Combat Wild Shape appears as a Bonus option.
+5. Upload `docs/example-sheets/mwokasch_33709378.pdf` and confirm Summon Wildfire Spirit and War Caster-derived actions appear where applicable.
+
+### Verification Completed
+
+- `node --check js\player-combat\importers\ddbPdfImporterAdapter.js`
+- `node --check js\player-combat\data\featureActionParser.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 456 lines.
+
+### Next Recommended Phase
+
+Add parsing for PDF limited-use/resource text so feature actions like Wild Shape, Bardic Inspiration, Ki options, and subclass resources can show remaining uses and spend the correct tracked resource.
+
+## Previous Session: Player Combat Assistant Reference Feature Action Parser
 
 ### Implemented
 

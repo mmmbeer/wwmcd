@@ -5,13 +5,13 @@ const COST_PATTERNS = [
 ];
 
 const GRANTED_ACTIONS = [
-  ["Dash", /\bdash\b(?=[^.]{0,50}\baction\b)|\btake the dash\b/i, ["movement"]],
-  ["Disengage", /\bdisengage\b(?=[^.]{0,50}\baction\b)|\btake the disengage\b/i, []],
-  ["Hide", /\bhide\b(?=[^.]{0,50}\baction\b)|\btake the hide\b/i, []],
-  ["Dodge", /\bdodge\b(?=[^.]{0,50}\baction\b)|\btake the dodge\b/i, []],
-  ["Use an Object", /\buse an object\b(?=[^.]{0,50}\baction\b)|\btake the use an object\b/i, []],
-  ["Search", /\bsearch\b(?=[^.]{0,50}\baction\b)|\btake the search\b/i, []],
-  ["Help", /\bhelp\b(?=[^.]{0,50}\baction\b)|\btake the help\b/i, []],
+  ["Dash", /\bdash\b(?=[^.]{0,50}\baction\b)|\btake the dash\b|\bdash\b/i, ["movement"]],
+  ["Disengage", /\bdisengage\b(?=[^.]{0,50}\baction\b)|\btake the disengage\b|\bdisengage\b/i, []],
+  ["Hide", /\bhide\b(?=[^.]{0,50}\baction\b)|\btake the hide\b|\bhide\b/i, []],
+  ["Dodge", /\bdodge\b(?=[^.]{0,50}\baction\b)|\btake the dodge\b|\bdodge\b/i, []],
+  ["Use an Object", /\buse an object\b(?=[^.]{0,50}\baction\b)|\btake the use an object\b|\buse an object\b/i, []],
+  ["Search", /\bsearch\b(?=[^.]{0,50}\baction\b)|\btake the search\b|\bsearch\b/i, []],
+  ["Help", /\bhelp\b(?=[^.]{0,50}\baction\b)|\btake the help\b|\bhelp\b/i, []],
   ["Attack", /\bmake (?:a|one|single|two)?\s*(?:melee |ranged |weapon |unarmed )?attack\b|\btake the attack action\b/i, ["attack"]]
 ];
 
@@ -151,7 +151,7 @@ function grantedActions(text) {
 }
 
 function grantedActionContext(text) {
-  return /\b(?:can be used only to|can use .* to|spend .* to|granted by|as part of|immediately after you take|when you use the attack action)\b/i.test(text);
+  return /\b(?:following actions as|can be used only to|can use .* to|spend .* to|granted by|as part of|immediately after you take|when you use the attack action)\b/i.test(text);
 }
 
 function targetOnlyContext(text) {
@@ -169,7 +169,7 @@ function createFeatureActionIndex(entries) {
 }
 
 function compatibleType(parsedType, featureType) {
-  return parsedType === "feat" && featureType === "feature";
+  return featureType === "feature";
 }
 
 function uniqueEntryPaths(entries) {

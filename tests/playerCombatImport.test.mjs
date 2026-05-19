@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { normalizeCharacter } from "../js/player-combat/normalizers/characterNormalizer.js";
 import { createStateManager } from "../js/player-combat/core/stateManager.js";
-import { importCharacterFromPdfText } from "../js/player-combat/importers/ddbPdfImporterAdapter.js";
+import { importCharacterFromPdfBuffer, importCharacterFromPdfText } from "../js/player-combat/importers/ddbPdfImporterAdapter.js";
+import { transformCombatData } from "../js/player-combat/data/combatDataTransformer.js";
 import { applyActionEconomyRules, getMovementRemaining } from "../js/player-combat/rules/actionEconomyRules.js";
 import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
@@ -118,6 +120,52 @@ test("imports fillable PDF form fields into the player normalizer shape", () => 
   assert.equal(character.spells.prepared[0].name, "Guiding Bolt");
   assert.equal(character.inventory.weapons[0].name, "Mace");
   assert.equal(character.inventory.weapons[0].damageType, "bludgeoning");
+});
+
+test("imports D&D Beyond PDF feature blocks into combat feature options", () => {
+  const pdf = [
+    "%PDF-1.7",
+    pdfField("CharacterName", "Feature Hero"),
+    pdfField("CLASS LEVEL", "Rogue 5"),
+    pdfField("RACE", "Eladrin"),
+    pdfField("STR", "10"),
+    pdfField("DEX", "18"),
+    pdfField("CON", "12"),
+    pdfField("INT", "10"),
+    pdfField("WIS", "12"),
+    pdfField("CHA", "14"),
+    pdfField("MaxHP", "38"),
+    pdfField("FeaturesTraits1", [
+      "=== ROGUE FEATURES ===",
+      "* Cunning Action • PHB 96",
+      "On your turn, you can take one of the following actions as a Bonus Action: Dash, Disengage, or Hide.",
+      "| 1 Bonus Action",
+      "* Uncanny Dodge • PHB 96",
+      "When an attacker you can see hits you with an attack, you can take a Reaction to halve the attack's damage.",
+      "| 1 Reaction"
+    ].join("\\n"))
+  ].join("\n");
+
+  const imported = importCharacterFromPdfText(pdf, { sourceName: "features.pdf" });
+  const { character } = normalizeCharacter(imported.raw);
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: minimalReferenceData() });
+
+  assert.ok(character.features.other.some((feature) => feature.name === "Cunning Action"));
+  assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Dash"));
+  assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Disengage"));
+  assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Hide"));
+  assert.ok(groups.reaction.some((option) => option.name === "Uncanny Dodge"));
+});
+
+test("example PDF sheets add applicable imported feature actions", async () => {
+  const imported = await importCharacterFromPdfTextOrBuffer("docs/example-sheets/mwokasch_134724530.pdf");
+  const { character } = normalizeCharacter(imported.raw);
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: realReferenceData() });
+
+  assert.ok(character.features.other.some((feature) => feature.name === "Cunning Action"));
+  assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Dash"));
+  assert.ok(groups.bonus.some((option) => option.name === "Steady Aim"));
+  assert.ok(groups.reaction.some((option) => option.name === "Uncanny Dodge"));
 });
 
 test("rejects PDFs without fillable form fields", () => {
@@ -443,4 +491,33 @@ function createMemoryStorage() {
 
 function pdfField(name, value) {
   return `<< /T (${name}) /V (${value}) >>`;
+}
+
+async function importCharacterFromPdfTextOrBuffer(path) {
+  return importCharacterFromPdfBuffer(readFileSync(new URL(`../${path}`, import.meta.url)), { sourceName: path.split("/").pop() });
+}
+
+function baseCombatState() {
+  return {
+    turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
+    current: { conditions: [] },
+    resourcesUsed: { spellSlots: {}, classResources: {} }
+  };
+}
+
+function minimalReferenceData() {
+  return { indexes: { featureActionIndexByName: new Map() } };
+}
+
+function realReferenceData() {
+  const data = {
+    classes: readJson("data/classes.json"),
+    feats: readJson("data/feats.json"),
+    races: readJson("data/races.json")
+  };
+  return { data, ...transformCombatData(data) };
+}
+
+function readJson(path) {
+  return JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), "utf8").replace(/^\uFEFF/, ""));
 }
