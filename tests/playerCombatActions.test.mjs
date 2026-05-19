@@ -197,6 +197,68 @@ test("higher Extra Attack imports affect attack count by feature name", () => {
   assert.equal(getAttackCount(character, null), 3);
 });
 
+test("weapon attacks expose multiple attacks from Extra Attack features", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      features: { class: [{ name: "Extra Attack (2)" }], race: [], feats: [], other: [] },
+      inventory: {
+        weapons: [{
+          name: "Longsword",
+          type: "Martial Melee Weapon",
+          damage: { diceString: "1d8" },
+          damageType: "slashing"
+        }]
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  const longsword = groups.attacks.find((option) => option.name === "Longsword");
+
+  assert.equal(longsword.attack.count, 3);
+  assert.ok(longsword.meta.includes("3 attacks with the Attack action"));
+});
+
+test("monk martial arts waits for Attack action and flurry spends Ki", () => {
+  const character = baseCharacter({
+    classes: [{ name: "Monk", level: 3 }],
+    stats: { str: 10, dex: 16, con: 12, int: 10, wis: 14, cha: 8 },
+    resources: {
+      spellSlots: {},
+      classResources: [{ id: "resource-ki", name: "Ki", max: 3, reset: "Short Rest" }],
+      limitedUses: []
+    },
+    features: {
+      class: [{ name: "Martial Arts" }, { name: "Flurry of Blows" }],
+      race: [],
+      feats: [],
+      other: []
+    }
+  });
+  const beforeAttack = getCombatOptions({ character, combatState, referenceData: null });
+  const afterAttack = getCombatOptions({
+    character,
+    combatState: { ...combatState, turn: { ...combatState.turn, attackActionUsed: true } },
+    referenceData: null
+  });
+  const noKi = getCombatOptions({
+    character,
+    combatState: {
+      ...combatState,
+      turn: { ...combatState.turn, attackActionUsed: true },
+      resourcesUsed: { spellSlots: {}, classResources: { "resource-ki": 3 } }
+    },
+    referenceData: null
+  });
+
+  assert.equal(beforeAttack.bonus.find((option) => option.id === "monk_martial_arts_bonus_unarmed").available, false);
+  assert.equal(afterAttack.bonus.find((option) => option.id === "monk_martial_arts_bonus_unarmed").available, true);
+  assert.equal(afterAttack.bonus.find((option) => option.id === "monk_flurry_of_blows").cost.resource.id, "resource-ki");
+  assert.equal(afterAttack.bonus.find((option) => option.id === "monk_flurry_of_blows").available, true);
+  assert.equal(noKi.bonus.find((option) => option.id === "monk_flurry_of_blows").available, false);
+});
+
 function baseCharacter(overrides = {}) {
   return {
     classes: [],

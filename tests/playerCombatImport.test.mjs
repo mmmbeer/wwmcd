@@ -70,6 +70,28 @@ test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", 
   assert.equal(character.spells.cantrips[0].name, "Fire Bolt");
 });
 
+test("normalizer infers monk Ki when class resource data is missing", () => {
+  const { character, errors } = normalizeCharacter({
+    name: "Focus Monk",
+    classes: [{ level: 4, definition: { name: "Monk" } }],
+    stats: [
+      { id: 1, value: 10 },
+      { id: 2, value: 16 },
+      { id: 3, value: 14 },
+      { id: 4, value: 10 },
+      { id: 5, value: 14 },
+      { id: 6, value: 8 }
+    ],
+    baseHitPoints: 28
+  });
+
+  assert.deepEqual(errors, []);
+  assert.equal(character.resources.classResources[0].id, "resource-ki");
+  assert.equal(character.resources.classResources[0].name, "Ki");
+  assert.equal(character.resources.classResources[0].max, 4);
+  assert.equal(character.resources.classResources[0].reset, "Short Rest");
+});
+
 test("imports fillable PDF form fields into the player normalizer shape", () => {
   const pdf = [
     "%PDF-1.7",
@@ -403,6 +425,35 @@ test("casting cantrips uses action economy without spending slots", () => {
   assert.equal(stateManager.getCombatState().turn.actionUsed, true);
   assert.deepEqual(stateManager.getCombatState().resourcesUsed.spellSlots, {});
   assert.equal(stateManager.getCombatState().turn.leveledSpellCast, false);
+});
+
+test("using Flurry of Blows spends tracked Ki and bonus action", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "flurry-monk",
+    name: "Flurry Monk",
+    importedAt: "2026-05-19T00:00:00.000Z",
+    combat: { maxHp: 24, ac: 15, speed: { walk: 40 } },
+    resources: {
+      spellSlots: {},
+      classResources: [{ id: "resource-ki", name: "Ki", max: 3, reset: "Short Rest" }],
+      limitedUses: []
+    }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.useCombatOption({
+    id: "monk_flurry_of_blows",
+    name: "Flurry of Blows",
+    source: "feature",
+    tags: ["monk", "attack"],
+    cost: { bonus: true, resource: { type: "classResource", id: "resource-ki", amount: 1, name: "Ki" } }
+  });
+
+  assert.equal(stateManager.getCombatState().turn.bonusActionUsed, true);
+  assert.equal(stateManager.getCombatState().resourcesUsed.classResources["resource-ki"], 1);
+  assert.equal(stateManager.getActiveCharacter().resources.classResources[0].max, 3);
 });
 
 test("spell casting updates matching action economy for cantrips", () => {

@@ -20,6 +20,12 @@ export function normalizeCharacter(raw) {
   const spells = extractSpells(root, classes, stats, combat.proficiencyBonus);
   const inventory = extractInventory(root);
   const features = extractFeatures(root);
+  const resources = {
+    spellSlots: extractSpellSlots(root),
+    classResources: extractLimitedResources(root, ["classResources", "actions.classResources", "resources.classResources"], "class"),
+    limitedUses: extractLimitedResources(root, ["limitedUses", "features.limitedUses", "resources.limitedUses"], "feature")
+  };
+  addInferredMonkFocusResource(resources, classes);
 
   const character = {
     id: createId(name || "character"),
@@ -35,11 +41,7 @@ export function normalizeCharacter(raw) {
     classes,
     stats,
     combat,
-    resources: {
-      spellSlots: extractSpellSlots(root),
-      classResources: extractLimitedResources(root, ["classResources", "actions.classResources", "resources.classResources"], "class"),
-      limitedUses: extractLimitedResources(root, ["limitedUses", "features.limitedUses", "resources.limitedUses"], "feature")
-    },
+    resources,
     inventory,
     spells,
     features
@@ -216,6 +218,29 @@ function normalizeLimitedResource(item, index, defaultSource) {
     cost,
     note: resourceNote(definition, limitedUse)
   };
+}
+
+function addInferredMonkFocusResource(resources, classes) {
+  const monkLevel = classes
+    .filter((entry) => /monk/i.test(entry.name))
+    .reduce((sum, entry) => sum + Number(entry.level ?? 0), 0);
+  if (monkLevel < 2 || hasFocusResource(resources)) return;
+  resources.classResources.push({
+    id: stableResourceId("Ki", 0),
+    name: "Ki",
+    max: monkLevel,
+    reset: "Short Rest",
+    source: "class",
+    cost: 1,
+    note: "Inferred from Monk level."
+  });
+}
+
+function hasFocusResource(resources) {
+  return [
+    ...(resources.classResources ?? []),
+    ...(resources.limitedUses ?? [])
+  ].some((resource) => /\b(ki|focus|discipline)\b/i.test(resource.name));
 }
 
 function resourceMax(definition, limitedUse) {

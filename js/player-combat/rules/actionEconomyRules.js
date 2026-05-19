@@ -30,6 +30,9 @@ export function applyActionEconomyRules(options, character, combatState) {
       if (remaining <= 0) reasons.push("No movement remaining.");
     }
 
+    const resourceBlock = resourceBlockReason(option, character, combatState);
+    if (resourceBlock) reasons.push(resourceBlock);
+
     const actionBlock = actionBlockReason(option, combatState);
     if (actionBlock) reasons.push(actionBlock);
 
@@ -42,6 +45,18 @@ export function applyActionEconomyRules(options, character, combatState) {
       warnings: [...new Set(warnings)]
     };
   });
+}
+
+function resourceBlockReason(option, character, combatState) {
+  const resource = option.cost?.resource;
+  if (!resource || resource.type !== "classResource") return null;
+  const match = findClassResource(character, resource.id);
+  if (!match) return `${resource.name ?? "Resource"} is not tracked.`;
+  const max = Number(match.max ?? 0);
+  const used = Number(combatState?.resourcesUsed?.classResources?.[match.id] ?? 0);
+  const remaining = Math.max(0, max - used);
+  const amount = Number(resource.amount ?? 1);
+  return remaining >= amount ? null : `${match.name} has no uses remaining.`;
 }
 
 export function groupOptionsByTurnCost(options) {
@@ -69,4 +84,11 @@ export function getMovementRemaining(character, combatState) {
   if (hasMovementBlocker(combatState)) return 0;
   const speed = Number(character?.combat?.speed?.walk ?? 0);
   return Math.max(0, speed - Number(combatState?.turn?.movementUsed ?? 0));
+}
+
+function findClassResource(character, resourceId) {
+  return [
+    ...(character?.resources?.classResources ?? []),
+    ...(character?.resources?.limitedUses ?? [])
+  ].find((resource) => resource.id === resourceId);
 }

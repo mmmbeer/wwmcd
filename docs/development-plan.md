@@ -1,6 +1,67 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Spell Cast Rules and Concentration UI
+## Current Session: Player Combat Assistant Monk Attacks and Ki Tracking
+
+### Implemented
+
+- Weapon attack options now carry the computed number of attacks granted by `Extra Attack` and related imported feature text.
+- Attack rows show whether the Attack action grants one or multiple attacks.
+- Grapple and Shove now clarify that they replace one attack from the Attack action, including multi-attack cases.
+- Added focused Monk combat options:
+  - `Martial Arts: Unarmed Strike` appears as a bonus-action option after the Attack action has been taken.
+  - `Flurry of Blows` appears as a bonus-action option after the Attack action and spends 1 tracked Ki/Focus-style class resource.
+- Added `turn.attackActionUsed` to distinguish taking the Attack action from using any other action.
+- Added generic class-resource spending through `useCombatOption`, so feature options can spend tracked resources the same way spells spend slots.
+- Added class-resource availability checks so Ki-spending options become unavailable when no uses remain.
+- The normalizer now infers a Monk `Ki` resource for level 2+ Monks when imported class-resource data is missing.
+
+### Files Changed
+
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/models/combatStateModel.js`
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/monkActions.js`
+- `js/player-combat/rules/weaponActions.js`
+- `tests/playerCombatActions.test.mjs`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Martial Arts and Flurry of Blows depend on `turn.attackActionUsed`; the app does not yet verify that the Attack action specifically used an unarmed strike or monk weapon.
+- Flurry of Blows rolls show the reusable attack and damage buttons once; the UI does not yet duplicate the buttons into two separate strike rows.
+- Monk weapon qualification, armor/shield restrictions, magic bonuses, subclass riders, and 2024-specific naming beyond Ki/Focus-style resource matching remain future work.
+- One existing unrelated importer file is over the 500-line guideline and should be split in a future importer cleanup pass.
+
+### Manual Test Checklist
+
+1. Import or simulate a character with `Extra Attack` and confirm weapon, unarmed, grapple, and shove attack rows mention the number of attacks in the Attack action.
+2. Import or simulate a level 2+ Monk with no explicit resource data and confirm `Ki` appears in Limited Resources with max equal to Monk level.
+3. Before taking the Attack action, confirm `Martial Arts: Unarmed Strike` and `Flurry of Blows` are unavailable with a clear reason.
+4. Use a weapon or unarmed Attack action and confirm Monk bonus options become available when a bonus action remains.
+5. Use `Flurry of Blows` and confirm bonus action is spent and Ki used increases by 1.
+6. Spend all Ki and confirm `Flurry of Blows` is unavailable while non-Ki options remain unaffected.
+7. Take a short rest and confirm Ki resets if its reset text is `Short Rest`.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\monkActions.js`
+- `node --check js\player-combat\rules\weaponActions.js`
+- `node --check js\player-combat\rules\actionEconomyRules.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --check js\player-combat\normalizers\characterNormalizer.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+
+### Next Recommended Phase
+
+Add a compact attack-use UI that lets a player track individual attacks inside a single Attack action, including Flurry's two unarmed strikes and future features such as Action Surge or Haste.
+
+## Previous Session: Player Combat Assistant Spell Cast Rules and Concentration UI
 
 ### Implemented
 

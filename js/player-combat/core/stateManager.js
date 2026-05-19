@@ -132,6 +132,7 @@ export function createStateManager({ storage, eventBus }) {
     if (option.cost?.bonus) turn.bonusActionUsed = true;
     if (option.cost?.reaction) turn.reactionUsed = true;
     if (option.cost?.object) turn.objectInteractionUsed = true;
+    if (option.attack?.consumesAttackAction || (option.cost?.action && option.tags?.includes("attack"))) turn.attackActionUsed = true;
     if (option.id === "basic_ready") turn.readiedAction = true;
     if (option.id === "basic_use_readied_action") turn.readiedAction = false;
     if (option.source === "spell" && Number(option.spell?.level ?? 0) > 0) {
@@ -355,6 +356,15 @@ function mergeState(state, patch) {
 
 function spendResource(resourcesUsed, resource) {
   if (!resource) return resourcesUsed;
+  if (resource.type === "classResource") {
+    return {
+      ...resourcesUsed,
+      classResources: {
+        ...(resourcesUsed?.classResources ?? {}),
+        [resource.id]: Number(resourcesUsed?.classResources?.[resource.id] ?? 0) + Number(resource.amount ?? 1)
+      }
+    };
+  }
   if (resource.type !== "spellSlot") return resourcesUsed;
   const level = String(resource.level);
   return {

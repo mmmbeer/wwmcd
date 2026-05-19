@@ -5,6 +5,7 @@ import {
 } from "./actionEconomyRules.js";
 import { getBasicActions } from "./basicActions.js";
 import { getFeatureActions } from "./featureActions.js";
+import { getMonkActions } from "./monkActions.js";
 import { getResourceActions } from "./resourceActions.js";
 import { getSpellActions } from "./spellActions.js";
 import { getWeaponActions } from "./weaponActions.js";
@@ -18,6 +19,7 @@ export function getCombatOptions({ character, combatState, referenceData }) {
     ...getWeaponActions(character, referenceData),
     ...getSpellActions(character, combatState, referenceData),
     ...getFeatureActions(character, combatState, referenceData),
+    ...getMonkActions(character, combatState),
     ...getResourceActions(character, combatState)
   ];
 
