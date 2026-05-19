@@ -112,6 +112,9 @@ function normalizeActivationType(value) {
 
   const text = String(value ?? "").toLowerCase();
   if (!text) return null;
+  if (/^\s*\d+\s*a(?:\b|\s*\+)/i.test(text)) return "1 action";
+  if (/^\s*\d+\s*ba(?:\b|\s*\+)/i.test(text)) return "1 bonus action";
+  if (/^\s*\d+\s*r(?:\b|\s*\+)/i.test(text)) return "1 reaction";
   if (/\bbonus(?:\s+action)?\b/.test(text)) return "1 bonus action";
   if (/\breaction\b/.test(text)) return "1 reaction";
   if (/\baction\b/.test(text)) return "1 action";

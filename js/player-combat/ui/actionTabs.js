@@ -262,7 +262,8 @@ function renderSpellTable(options) {
       <table class="option-table spell-table">
         <thead>
           <tr>
-            <th scope="col">Action</th>
+            <th scope="col">Action Type</th>
+            <th class="spell-concentration-col" scope="col">C</th>
             <th scope="col">Spell</th>
             <th scope="col">Range</th>
             <th scope="col">DC</th>
@@ -283,12 +284,14 @@ function renderSpellRows(option) {
   return `
     <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
       <td>${renderCastingCostBadge(option)}</td>
+      <td>${renderConcentrationBadge(option)}</td>
       <th scope="row">${escapeHtml(option.name)}</th>
       <td>${escapeHtml(option.spell?.range ?? "")}</td>
       <td>${escapeHtml(spellDcLabel(option))}</td>
       <td>${renderOptionButtons(option, unavailable)}</td>
     </tr>
     <tr class="option-detail-row spell-detail-row" id="${detailId}" hidden>
+      <td></td>
       <td></td>
       <td colspan="4">
         ${renderSpellDetailCard(option)}
@@ -301,6 +304,11 @@ function renderSpellRows(option) {
 
 function renderCastingCostBadge(option) {
   return `<span class="badge">${escapeHtml(castingCostLabel(option))}</span>`;
+}
+
+function renderConcentrationBadge(option) {
+  if (!option.spell?.concentration) return "";
+  return `<span class="badge concentration-badge" title="Requires concentration" aria-label="Requires concentration">C</span>`;
 }
 
 function renderTypeBadge(option) {
@@ -392,16 +400,47 @@ function handleRoll(button, groups, stateManager, showToast) {
 }
 
 function useOption(option, combatState, stateManager, modalApi) {
-  if (option.spell?.concentration && combatState.current?.concentration && combatState.current.concentration !== option.name) {
+  if (blocksSecondLeveledSpell(option, combatState)) {
+    modalApi.showModal({
+      title: "Leveled Spell Already Cast",
+      body: `<p>${escapeHtml(secondLeveledSpellMessage(option, combatState))}</p>`,
+      actions: [{ label: "OK", variant: "primary" }]
+    });
+    return;
+  }
+
+  if (option.spell?.concentration && combatState.current?.concentration) {
     showConfirmModal(modalApi, {
       title: "Replace Concentration?",
-      message: `Casting ${option.name} will end concentration on ${combatState.current.concentration}.`,
+      message: concentrationWarningMessage(option, combatState),
       confirmLabel: "Cast Spell",
       onConfirm: () => stateManager.useCombatOption(option)
     });
     return;
   }
   stateManager.useCombatOption(option);
+}
+
+function blocksSecondLeveledSpell(option, combatState) {
+  return option.source === "spell"
+    && Number(option.spell?.level ?? 0) > 0
+    && combatState.turn?.leveledSpellCast;
+}
+
+function secondLeveledSpellMessage(option, combatState) {
+  const current = combatState.turn?.leveledSpellName;
+  return current
+    ? `You already cast ${current}, a leveled spell, this turn. You cannot cast ${option.name} as another leveled spell this turn.`
+    : `You already cast a leveled spell this turn. You cannot cast ${option.name} as another leveled spell this turn.`;
+}
+
+function concentrationWarningMessage(option, combatState) {
+  const current = combatState.current?.concentration;
+  const source = combatState.current?.concentrationSource;
+  const currentText = source === "spell" && current
+    ? `You are currently concentrating on ${current}.`
+    : "You are currently concentrating.";
+  return `${currentText} Casting ${option.name} will end that concentration.`;
 }
 
 function findOption(groups, id) {

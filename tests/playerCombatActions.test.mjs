@@ -120,6 +120,34 @@ test("parsed reference actions map imported features to UI options without targe
   assert.equal(groups.actions.some((option) => option.name === "Turn Undead: Dodge"), false);
 });
 
+test("default reaction options include opportunity attack and readied action when readied", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter(),
+    combatState: { ...combatState, turn: { ...combatState.turn, readiedAction: false } },
+    referenceData: null
+  });
+  const readiedGroups = getCombatOptions({
+    character: baseCharacter(),
+    combatState: { ...combatState, turn: { ...combatState.turn, readiedAction: true } },
+    referenceData: null
+  });
+
+  assert.ok(groups.reaction.some((option) => option.name === "Opportunity Attack"));
+  assert.equal(groups.reaction.some((option) => option.name === "Use Readied Action"), false);
+  assert.ok(readiedGroups.reaction.some((option) => option.name === "Use Readied Action"));
+});
+
+test("used reaction makes default reaction options unavailable", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter(),
+    combatState: { ...combatState, turn: { ...combatState.turn, reactionUsed: true, readiedAction: true } },
+    referenceData: null
+  });
+
+  assert.equal(groups.reaction.find((option) => option.name === "Opportunity Attack").available, false);
+  assert.equal(groups.reaction.find((option) => option.name === "Use Readied Action").available, false);
+});
+
 test("bonus and reaction spell activation objects sort into matching groups", () => {
   const groups = getCombatOptions({
     character: baseCharacter({

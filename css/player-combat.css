@@ -747,6 +747,29 @@ body.has-turn-progress .app-shell {
   white-space: nowrap;
 }
 
+.spell-table .spell-concentration-col,
+.spell-table td:nth-child(2) {
+  width: 44px;
+  text-align: center;
+}
+
+.spell-table tbody th {
+  width: 26%;
+}
+
+.spell-table td:nth-child(3),
+.spell-table td:nth-child(4),
+.spell-table td:nth-child(5) {
+  width: auto;
+}
+
+.concentration-badge {
+  justify-content: center;
+  min-width: 28px;
+  color: #7c4a03;
+  background: #fff3d7;
+}
+
 .option-table p {
   margin: 0;
   color: var(--muted);

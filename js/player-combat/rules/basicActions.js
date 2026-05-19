@@ -1,6 +1,6 @@
-export function getBasicActions(character) {
+export function getBasicActions(character, combatState) {
   const speed = Number(character?.combat?.speed?.walk ?? 0);
-  return [
+  const actions = [
     basic("basic_dash", "Dash", `Gain extra movement equal to your speed (${speed} ft).`, { action: true }, true),
     basic("basic_disengage", "Disengage", "Your movement does not provoke opportunity attacks this turn.", { action: true }),
     basic("basic_dodge", "Dodge", "Attackers have disadvantage and you gain advantage on Dexterity saves.", { action: true }, true),
@@ -18,6 +18,24 @@ export function getBasicActions(character) {
     basic("basic_object_interaction", "Object Interaction", "Draw, stow, open, close, pick up, or hand off one simple object.", { object: true }),
     basic("basic_use_object", "Use an Object", "Interact with a second object or use an item that needs your action.", { action: true, object: true })
   ];
+
+  actions.push(basic(
+    "basic_opportunity_attack",
+    "Opportunity Attack",
+    "Use your reaction to make one melee attack when a hostile creature you can see leaves your reach.",
+    { reaction: true }
+  ));
+
+  if (combatState?.turn?.readiedAction) {
+    actions.push(basic(
+      "basic_use_readied_action",
+      "Use Readied Action",
+      "Use your reaction to perform the action you readied when its trigger occurs.",
+      { reaction: true }
+    ));
+  }
+
+  return actions;
 }
 
 function basic(id, name, description, cost, recommended = false, extra = {}) {

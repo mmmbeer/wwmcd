@@ -105,7 +105,7 @@ export function createStateManager({ storage, eventBus }) {
       ...state,
       turnActive: false,
       round: state.round + 1,
-      turn: resetTurn({ reactionUsed: state.turn.reactionUsed })
+      turn: resetTurn({ reactionUsed: state.turn.reactionUsed, readiedAction: state.turn.readiedAction })
     }, "Turn ended.");
     persistCombatStates();
     emitChange();
@@ -132,10 +132,16 @@ export function createStateManager({ storage, eventBus }) {
     if (option.cost?.bonus) turn.bonusActionUsed = true;
     if (option.cost?.reaction) turn.reactionUsed = true;
     if (option.cost?.object) turn.objectInteractionUsed = true;
+    if (option.id === "basic_ready") turn.readiedAction = true;
+    if (option.id === "basic_use_readied_action") turn.readiedAction = false;
+    if (option.source === "spell" && Number(option.spell?.level ?? 0) > 0) {
+      turn.leveledSpellCast = true;
+      turn.leveledSpellName = option.name;
+    }
 
     const resourcesUsed = spendResource(state.resourcesUsed, option.cost?.resource);
     const current = option.spell?.concentration
-      ? { ...state.current, concentration: option.name }
+      ? { ...state.current, concentration: option.name, concentrationSource: "spell" }
       : state.current;
     combatStates[activeCharacterId] = addLogEntry({
       ...state,

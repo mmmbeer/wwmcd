@@ -7,6 +7,9 @@ export function createCombatState(character) {
       actionUsed: false,
       bonusActionUsed: false,
       reactionUsed: false,
+      readiedAction: false,
+      leveledSpellCast: false,
+      leveledSpellName: null,
       movementUsed: 0,
       objectInteractionUsed: false
     },
@@ -16,6 +19,7 @@ export function createCombatState(character) {
       ac: numberOr(character.combat?.ac, 10),
       conditions: [...(character.combat?.conditions ?? [])],
       concentration: character.combat?.concentration ?? null,
+      concentrationSource: null,
       activeEffects: [],
       currentForm: null
     },
@@ -34,6 +38,9 @@ export function resetTurn(turn = {}) {
     actionUsed: false,
     bonusActionUsed: false,
     reactionUsed: turn.reactionUsed ?? false,
+    readiedAction: turn.readiedAction ?? false,
+    leveledSpellCast: false,
+    leveledSpellName: null,
     movementUsed: 0,
     objectInteractionUsed: false
   };

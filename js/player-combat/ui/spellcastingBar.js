@@ -23,7 +23,8 @@ export function renderSpellcastingBar(root, snapshot, stateManager) {
   root.querySelector("[data-concentration-toggle]")?.addEventListener("click", () => {
     stateManager.updateCombatState({
       current: {
-        concentration: state.current.concentration ? null : "Concentrating"
+        concentration: state.current.concentration ? null : "Concentrating",
+        concentrationSource: state.current.concentration ? null : "manual"
       }
     });
   });

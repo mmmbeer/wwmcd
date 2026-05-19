@@ -302,6 +302,33 @@ test("bonus and reaction spells appear in matching action economy groups", () =>
   assert.equal(groups.reaction.find((option) => option.name === "Shield").spell.castingCost, "reaction");
 });
 
+test("compact PDF spell casting-time abbreviations map to action types", () => {
+  const character = {
+    combat: { proficiencyBonus: 2, speed: { walk: 30 } },
+    resources: { spellSlots: { 1: 3 } },
+    inventory: { weapons: [] },
+    spells: {
+      spellcastingAbility: "wis",
+      prepared: [
+        { name: "Faerie Fire", level: 1, castingTime: "1A", range: "60 ft." },
+        { name: "Healing Word", level: 1, castingTime: "1BA", range: "60 ft." },
+        { name: "Shield", level: 1, castingTime: "1R", range: "Self" },
+        { name: "Detect Magic", level: 1, castingTime: "1A + 10m", range: "Self" }
+      ],
+      known: [],
+      cantrips: []
+    }
+  };
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: null });
+
+  assert.equal(groups.spells.find((option) => option.name === "Faerie Fire").spell.castingCost, "action");
+  assert.equal(groups.spells.find((option) => option.name === "Healing Word").spell.castingCost, "bonus");
+  assert.equal(groups.spells.find((option) => option.name === "Shield").spell.castingCost, "reaction");
+  assert.equal(groups.spells.find((option) => option.name === "Detect Magic").spell.castingCost, "action");
+  assert.ok(groups.bonus.some((option) => option.name === "Healing Word"));
+  assert.ok(groups.reaction.some((option) => option.name === "Shield"));
+});
+
 test("manual spell slot controls persist only in combat state", () => {
   const storage = createMemoryStorage();
   const eventBus = { emit() {} };
@@ -340,13 +367,17 @@ test("casting a concentration spell tracks concentration in combat state", () =>
   stateManager.importCharacter(character);
   stateManager.useCombatOption({
     name: "Bless",
+    source: "spell",
     cost: { action: true, resource: { type: "spellSlot", level: 1 } },
     spell: { level: 1, concentration: true }
   });
 
   assert.equal(stateManager.getCombatState().current.concentration, "Bless");
+  assert.equal(stateManager.getCombatState().current.concentrationSource, "spell");
   assert.equal(stateManager.getCombatState().resourcesUsed.spellSlots[1], 1);
   assert.equal(stateManager.getCombatState().turn.actionUsed, true);
+  assert.equal(stateManager.getCombatState().turn.leveledSpellCast, true);
+  assert.equal(stateManager.getCombatState().turn.leveledSpellName, "Bless");
   assert.equal(stateManager.getActiveCharacter().resources.spellSlots[1], 2);
 });
 
@@ -364,12 +395,84 @@ test("casting cantrips uses action economy without spending slots", () => {
   stateManager.importCharacter(character);
   stateManager.useCombatOption({
     name: "Fire Bolt",
+    source: "spell",
     cost: { action: true, resource: null },
     spell: { level: 0, concentration: false }
   });
 
   assert.equal(stateManager.getCombatState().turn.actionUsed, true);
   assert.deepEqual(stateManager.getCombatState().resourcesUsed.spellSlots, {});
+  assert.equal(stateManager.getCombatState().turn.leveledSpellCast, false);
+});
+
+test("spell casting updates matching action economy for cantrips", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "cantrip-economy",
+    name: "Cantrip Economy",
+    importedAt: "2026-05-19T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: {} }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.useCombatOption({
+    name: "Shillelagh",
+    source: "spell",
+    cost: { bonus: true, resource: null },
+    spell: { level: 0, concentration: false }
+  });
+
+  assert.equal(stateManager.getCombatState().turn.bonusActionUsed, true);
+  assert.equal(stateManager.getCombatState().turn.actionUsed, false);
+  assert.equal(stateManager.getCombatState().turn.leveledSpellCast, false);
+
+  stateManager.startTurn();
+  stateManager.useCombatOption({
+    name: "Counterspell",
+    source: "spell",
+    cost: { reaction: true, resource: null },
+    spell: { level: 0, concentration: false }
+  });
+
+  assert.equal(stateManager.getCombatState().turn.reactionUsed, true);
+  assert.equal(stateManager.getCombatState().turn.leveledSpellCast, false);
+});
+
+test("ready action creates a readied reaction until used or next turn starts", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "ready-hero",
+    name: "Ready Hero",
+    importedAt: "2026-05-19T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: {}, classResources: [], limitedUses: [] },
+    inventory: { weapons: [] },
+    spells: { known: [], prepared: [], cantrips: [] },
+    features: { class: [], race: [], feats: [], other: [] }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.useCombatOption({ id: "basic_ready", name: "Ready", cost: { action: true } });
+
+  assert.equal(stateManager.getCombatState().turn.actionUsed, true);
+  assert.equal(stateManager.getCombatState().turn.readiedAction, true);
+
+  stateManager.endTurn();
+
+  assert.equal(stateManager.getCombatState().turn.readiedAction, true);
+
+  stateManager.useCombatOption({ id: "basic_use_readied_action", name: "Use Readied Action", cost: { reaction: true } });
+
+  assert.equal(stateManager.getCombatState().turn.reactionUsed, true);
+  assert.equal(stateManager.getCombatState().turn.readiedAction, false);
+
+  stateManager.useCombatOption({ id: "basic_ready", name: "Ready", cost: { action: true } });
+  stateManager.startTurn();
+
+  assert.equal(stateManager.getCombatState().turn.readiedAction, false);
 });
 
 test("manual limited resource controls persist only in combat state", () => {

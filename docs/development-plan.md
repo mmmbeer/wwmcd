@@ -1,6 +1,166 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant PDF Feature Import Mapping
+## Current Session: Player Combat Assistant Spell Cast Rules and Concentration UI
+
+### Implemented
+
+- Added a thin concentration column between spell action type and spell name in the Spells table.
+- Concentration spells now show a compact `C` badge with an accessible label and tooltip.
+- Casting a concentration spell automatically sets concentration active and stores that the concentration came from a spell.
+- Manually toggled concentration is still supported and is tracked separately from spell-set concentration.
+- If concentration is already active and the player casts a concentration spell, the existing custom modal warns before replacing concentration.
+- If concentration came from a spell cast, the warning names the current concentration spell.
+- Cantrips continue to get `Cast` buttons and now have test coverage confirming their action type is spent when cast.
+- Casting any spell now updates the matching action economy state through the existing cast path:
+  - Action spells mark action used.
+  - Bonus-action spells mark bonus action used.
+  - Reaction spells mark reaction used.
+- Casting a leveled spell records the spell name in turn state.
+- If the player attempts to cast another leveled spell in the same turn, a custom modal warns and the second leveled spell is not cast.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/models/combatStateModel.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/spellcastingBar.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The leveled-spell restriction is implemented as a simple one-leveled-spell-per-turn guard per request. It does not yet model every official exception or table-specific interpretation.
+- The concentration badge is intentionally compact; expanded spell details still carry the full duration/concentration text.
+- The second-leveled-spell warning is enforced from the UI cast path. Direct test/helper calls into `stateManager.useCombatOption` can still bypass UI warnings.
+
+### Manual Test Checklist
+
+1. Import a spellcaster with cantrips, leveled spells, and at least one concentration spell.
+2. Open the Spells tab and confirm the first columns are `Action Type`, `C`, and `Spell`.
+3. Confirm concentration spells show a small `C` badge and non-concentration spells leave the column blank.
+4. Cast a concentration spell and confirm the concentration status becomes active.
+5. Cast another concentration spell while concentrating and confirm the custom replacement modal names the current spell when it was set by spell casting.
+6. Cast an action cantrip and confirm the action state is spent.
+7. Cast a bonus-action cantrip and confirm the bonus action state is spent.
+8. Cast a leveled spell, then attempt another leveled spell in the same turn and confirm the custom warning appears and the second spell is not cast.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --check js\player-combat\models\combatStateModel.js`
+- `node --check js\player-combat\ui\spellcastingBar.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 456 lines.
+
+### Next Recommended Phase
+
+Add targeted browser smoke coverage for the Spells table to assert the concentration badge column and modal warning behavior against real DOM rendering.
+
+## Previous Session: Player Combat Assistant Spell Action Type Fix
+
+### Implemented
+
+- Fixed spell action-type detection for compact PDF/D&D Beyond casting-time abbreviations:
+  - `1A` now maps to Action.
+  - `1BA` now maps to Bonus.
+  - `1R` now maps to Reaction.
+  - Values such as `1A + 10m` now still map to Action.
+- Renamed the Spells table first column from `Action` to `Action Type` so it is clear the column shows the spell's casting action economy, not an action button.
+- Added regression coverage for compact spell casting-time values so imported PDF spells no longer fall through to `Special`.
+
+### Files Changed
+
+- `js/player-combat/rules/spellActions.js`
+- `js/player-combat/ui/actionTabs.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Unusual casting times that are not action, bonus action, or reaction still display as Special.
+- Ritual timing is still represented as Action when the imported value is like `1A + 10m`; the extra ritual time remains in the spell metadata rather than becoming a separate action type.
+
+### Manual Test Checklist
+
+1. Import a PDF sheet with spells using compact casting-time values such as `1A` and `1BA`.
+2. Open the Spells tab and confirm the first column is `Action Type`.
+3. Confirm normal action spells display Action, bonus-action spells display Bonus, and reaction spells display Reaction.
+4. Confirm bonus-action spells also appear in the Bonus tab and reaction spells also appear in the Reaction tab.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\spellActions.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 456 lines.
+
+### Next Recommended Phase
+
+Complete the rest of the spells-tab review once the second requested item is provided.
+
+## Previous Session: Player Combat Assistant Reaction Defaults and Readied Actions
+
+### Implemented
+
+- Added `Opportunity Attack` as a default Reaction option for all characters.
+- Added readied-action state tracking to combat state with `turn.readiedAction`.
+- Using the basic `Ready` action now marks the action used and records that a readied action is pending.
+- When a readied action is pending, the Reaction tab includes `Use Readied Action`.
+- `Use Readied Action` spends the reaction and clears the pending readied action.
+- Ending the turn preserves a pending readied action, so it remains available as a reaction after the player's turn.
+- Starting the next turn clears any unused pending readied action.
+- Reaction availability uses the existing action economy rules, so Opportunity Attack and Use Readied Action become unavailable once the reaction is spent.
+
+### Files Changed
+
+- `js/player-combat/rules/basicActions.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/models/combatStateModel.js`
+- `tests/playerCombatActions.test.mjs`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The app does not yet prompt for the readied trigger or readied response details.
+- `Use Readied Action` is a generic reaction entry; it does not replay the exact action, spell, or attack that was readied.
+- Concentration requirements for readying a spell are not automated yet.
+
+### Manual Test Checklist
+
+1. Import or load any character and confirm the Reaction tab includes `Opportunity Attack`.
+2. Use `Ready` from the Actions tab and confirm Action is marked used.
+3. Confirm the Reaction tab now includes `Use Readied Action`.
+4. End the turn and confirm `Use Readied Action` is still available if the reaction has not been spent.
+5. Use `Use Readied Action` and confirm Reaction is marked used and the readied action option disappears.
+6. Ready an action but do not use it, then start the next turn and confirm the pending readied action is cleared.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\basicActions.js`
+- `node --check js\player-combat\rules\combatOptionsService.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --check js\player-combat\models\combatStateModel.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `ddbPdfImporterAdapter.js` at 456 lines.
+
+### Next Recommended Phase
+
+Add a small Ready Action detail modal so a player can record the trigger and chosen response, then display that text on the `Use Readied Action` reaction row.
+
+## Previous Session: Player Combat Assistant PDF Feature Import Mapping
 
 ### Implemented
 
