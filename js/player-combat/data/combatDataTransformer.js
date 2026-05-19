@@ -1,3 +1,5 @@
+import { parseFeatureActionsFromReferenceData } from "./featureActionParser.js";
+
 const DATA_SETS = {
   classes: "classIndexByName",
   conditions: "conditionIndexByName",
@@ -19,7 +21,11 @@ export function transformCombatData(dataByName) {
     counts[name] = entries.length;
   }
 
-  return { indexes, counts };
+  const featureActions = parseFeatureActionsFromReferenceData(dataByName);
+  indexes.featureActionIndexByName = featureActions.featureActionIndexByName;
+  counts.featureActions = featureActions.featureActionEntries.length;
+
+  return { indexes, counts, featureActions: featureActions.featureActionEntries };
 }
 
 function toConditionEntries(data) {

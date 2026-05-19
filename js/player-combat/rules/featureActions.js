@@ -1,64 +1,46 @@
 import { normalizeName } from "../data/combatDataTransformer.js";
+import { findParsedFeatureActions, parseFeatureActionText } from "../data/featureActionParser.js";
 import { collectCharacterFeatures, featureText } from "./featureData.js";
-
-const BASIC_ACTIONS = [
-  ["Dash", /\bdash\b/i, ["movement"]],
-  ["Disengage", /\bdisengage\b/i, []],
-  ["Hide", /\bhide\b/i, []],
-  ["Dodge", /\bdodge\b/i, []],
-  ["Use an Object", /\buse an object\b/i, []],
-  ["Search", /\bsearch\b/i, []],
-  ["Help", /\bhelp\b/i, []]
-];
 
 export function getFeatureActions(character, combatState, referenceData) {
   const features = collectCharacterFeatures(character, referenceData);
-  const options = features.flatMap((entry) => optionsForFeature(entry, combatState));
+  const options = features.flatMap((entry) => optionsForFeature(entry, referenceData));
   return uniqueOptions(options);
 }
 
-function optionsForFeature(entry) {
+function optionsForFeature(entry, referenceData) {
   const text = featureText(entry);
-  if (!text) return [];
+  const parsedMatches = findParsedFeatureActions(referenceData?.indexes?.featureActionIndexByName, entry);
+  const parsedActions = parsedMatches.length
+    ? parsedMatches.map((match) => ({ ...match.action, description: match.description, sourcePath: match.path }))
+    : [parseFeatureActionText(text, entry.name)];
 
-  const costs = inferCosts(text);
+  return parsedActions.flatMap((action) => optionsForParsedAction(entry, action, text));
+}
+
+function optionsForParsedAction(entry, action, fallbackText) {
+  const costs = action.costs.map(costObject);
   if (!costs.length) return [];
 
-  const specificOptions = specificActionOptions(entry, text, costs);
-  if (specificOptions.length) return specificOptions;
+  if (action.grantedActions.length) {
+    return costs.flatMap(({ label, cost }) => action.grantedActions.map((granted) => withFeatureSource(feature(
+      `feature_${slug(entry.name)}_${label}_${slug(granted.name)}`,
+      `${entry.name}: ${granted.name}`,
+      `${costLabel(cost)} ${granted.name} enabled by ${entry.name}.`,
+      cost,
+      [entry.type, "feature", ...(granted.tags ?? [])].filter(Boolean),
+      { featureAction: actionMeta(action) }
+    ), entry)));
+  }
 
-  return costs.map(({ cost, label }) => withFeatureSource(feature(
+  return costs.map(({ label, cost }) => withFeatureSource(feature(
     `feature_${slug(entry.name)}_${label}`,
     entry.name,
-    summarize(text, entry.name),
+    action.summary || summarize(fallbackText, entry.name),
     cost,
-    [entry.type, "feature"].filter(Boolean)
+    [entry.type, "feature"].filter(Boolean),
+    { featureAction: actionMeta(action) }
   ), entry));
-}
-
-function specificActionOptions(entry, text, costs) {
-  const options = [];
-  for (const { cost, label } of costs) {
-    for (const [actionName, pattern, tags] of BASIC_ACTIONS) {
-      if (!pattern.test(text)) continue;
-      options.push(withFeatureSource(feature(
-        `feature_${slug(entry.name)}_${label}_${slug(actionName)}`,
-        `${entry.name}: ${actionName}`,
-        `${costLabel(cost)} ${actionName} enabled by ${entry.name}.`,
-        cost,
-        [entry.type, "feature", ...tags].filter(Boolean)
-      ), entry));
-    }
-  }
-  return options;
-}
-
-function inferCosts(text) {
-  return [
-    [/\bbonus action\b|\bas a bonus action\b|\bwith a bonus action\b|\(\s*bonus action\s*\)/i, "bonus", { bonus: true }],
-    [/\bas a reaction\b|\buse (?:a|your) reaction\b|\bwith your reaction\b|\bin reaction to\b|\(\s*reaction\s*\)/i, "reaction", { reaction: true }],
-    [/\bas an action\b|\buse (?:a|your) action\b|\byou can use your action\b|\brequires you to use your action\b/i, "action", { action: true }]
-  ].filter(([pattern]) => pattern.test(text)).map(([, label, cost]) => ({ label, cost }));
 }
 
 function withFeatureSource(option, entry) {
@@ -83,6 +65,25 @@ function feature(id, name, description, cost, tags, extra = {}) {
     recommended: false,
     rolls: [],
     ...extra
+  };
+}
+
+function costObject(label) {
+  return {
+    label,
+    cost: {
+      action: label === "action",
+      bonus: label === "bonus",
+      reaction: label === "reaction"
+    }
+  };
+}
+
+function actionMeta(action) {
+  return {
+    costs: action.costs,
+    grantedActions: action.grantedActions.map((entry) => entry.name),
+    sourcePath: action.sourcePath
   };
 }
 

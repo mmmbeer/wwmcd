@@ -1,6 +1,61 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Feature Action Audit
+## Current Session: Player Combat Assistant Reference Feature Action Parser
+
+### Implemented
+
+- Added a dedicated reference-data parser for action-bearing class features, feats, and racial traits from:
+  - `data/classes.json`
+  - `data/feats.json`
+  - `data/races.json`
+- The reference data transform now exposes:
+  - `featureActions`, a flat parsed list of features with action metadata.
+  - `indexes.featureActionIndexByName`, a lookup map for feature names.
+  - `counts.featureActions`, the number of parsed action-bearing reference features.
+- Parsed metadata captures action economy costs (`action`, `bonus`, `reaction`), granted standard actions such as Dash/Disengage/Hide, source type, source name, path, and a short summary.
+- Feature UI option generation now reads parsed reference metadata before falling back to parsing imported custom feature text.
+- Added suffix matching for reference names such as `Channel Divinity: Turn Undead` when a character import only lists `Turn Undead`.
+- Tightened granted-action parsing so target-only text such as Turn Undead's affected creature using Dash/Dodge does not create bogus player options.
+- Added focused tests using the real class, feat, and race JSON files.
+
+### Files Changed
+
+- `js/player-combat/data/combatDataTransformer.js`
+- `js/player-combat/data/featureActionParser.js`
+- `js/player-combat/rules/featureActions.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The parser classifies clear action economy hooks, but it does not yet enforce prerequisites, resource consumption, target validity, subclass selection, or feature-specific save/roll formulas.
+- The parser still depends on conservative text patterns. Unusual wording may need future override metadata.
+- Parsed feature actions only appear for features present on the imported character; class level alone still does not invent missing features.
+- Some feature names are duplicated across classes/subclasses. The current index preserves all matches and filters by feature type, but it does not yet filter by the character's specific class/subclass source.
+
+### Manual Test Checklist
+
+1. Import or simulate a character with `Cunning Action` and confirm Bonus includes Dash, Disengage, and Hide.
+2. Import or simulate a character with `Breath Weapon` and confirm it appears under Actions.
+3. Import or simulate a character with `Defensive Duelist` and confirm it appears under Reaction.
+4. Import or simulate a character with `Turn Undead` and confirm the player gets a Turn Undead action, not Turn Undead: Dash or Turn Undead: Dodge.
+5. At phone width, confirm parsed feature rows render in the same reusable option table layout as other actions.
+
+### Verification Completed
+
+- `node --check js\player-combat\data\featureActionParser.js`
+- `node --check js\player-combat\data\combatDataTransformer.js`
+- `node --check js\player-combat\rules\featureActions.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `actionTabs.js` at 398 lines.
+
+### Next Recommended Phase
+
+Add a small override file for parsed feature actions so high-value edge cases can be corrected without adding named special cases to the parser.
+
+## Previous Session: Player Combat Assistant Feature Action Audit
 
 ### Implemented
 

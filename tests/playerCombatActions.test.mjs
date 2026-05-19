@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { transformCombatData } from "../js/player-combat/data/combatDataTransformer.js";
 import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 
@@ -83,6 +85,41 @@ test("class, racial, and feat descriptions become action economy options", () =>
   assert.ok(groups.reaction.some((option) => option.name === "Chromatic Gift"));
 });
 
+test("reference data transform parses class, feat, and race action features", () => {
+  const referenceData = loadRealReferenceData();
+  const parsed = referenceData.featureActions;
+
+  assert.ok(parsed.some((entry) => entry.type === "class" && entry.name === "Rage" && entry.action.costs.includes("bonus")));
+  assert.ok(parsed.some((entry) => entry.type === "feat" && entry.name === "Defensive Duelist" && entry.action.costs.includes("reaction")));
+  assert.ok(parsed.some((entry) => entry.type === "race" && entry.name === "Breath Weapon" && entry.action.costs.includes("action")));
+
+  const cunningAction = referenceData.indexes.featureActionIndexByName.get("cunning action")?.[0];
+  assert.deepEqual(cunningAction.action.grantedActions.map((entry) => entry.name), ["Dash", "Disengage", "Hide"]);
+});
+
+test("parsed reference actions map imported features to UI options without target-only actions", () => {
+  const referenceData = loadRealReferenceData();
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      features: {
+        class: [{ name: "Cunning Action" }, { name: "Turn Undead" }],
+        race: [{ name: "Breath Weapon" }],
+        feats: [{ name: "Defensive Duelist" }],
+        other: []
+      }
+    }),
+    combatState,
+    referenceData
+  });
+
+  assert.ok(groups.bonus.some((option) => option.name === "Cunning Action: Dash"));
+  assert.ok(groups.actions.some((option) => option.name === "Breath Weapon"));
+  assert.ok(groups.reaction.some((option) => option.name === "Defensive Duelist"));
+  assert.ok(groups.actions.some((option) => option.name === "Turn Undead"));
+  assert.equal(groups.actions.some((option) => option.name === "Turn Undead: Dash"), false);
+  assert.equal(groups.actions.some((option) => option.name === "Turn Undead: Dodge"), false);
+});
+
 test("bonus and reaction spell activation objects sort into matching groups", () => {
   const groups = getCombatOptions({
     character: baseCharacter({
@@ -152,4 +189,20 @@ function referenceDataWithFeatures(data) {
       featIndexByName: new Map((data.feats ?? []).map((entry) => [String(entry.name).toLowerCase(), entry]))
     }
   };
+}
+
+function loadRealReferenceData() {
+  const data = {
+    classes: readJson("data/classes.json"),
+    feats: readJson("data/feats.json"),
+    races: readJson("data/races.json")
+  };
+  return {
+    data,
+    ...transformCombatData(data)
+  };
+}
+
+function readJson(path) {
+  return JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), "utf8").replace(/^\uFEFF/, ""));
 }
