@@ -390,6 +390,111 @@ test("feature speed modifiers affect movement remaining", () => {
   assert.equal(groups.movement.find((option) => option.name === "Move").movement.remaining, 40);
 });
 
+test("barbarian rage, reckless attack, and berserker frenzy expose stateful options", () => {
+  const character = baseCharacter({
+    classes: [{ name: "Barbarian", subclass: "Path of the Berserker", level: 3 }],
+    stats: { str: 16, dex: 12, con: 14, int: 8, wis: 10, cha: 10 },
+    resources: {
+      spellSlots: {},
+      classResources: [{ id: "resource-rage", name: "Rage", max: 3, reset: "Long Rest" }],
+      limitedUses: []
+    },
+    features: {
+      class: [{ name: "Rage" }, { name: "Reckless Attack" }, { name: "Frenzy" }],
+      race: [],
+      feats: [],
+      other: []
+    }
+  });
+  const beforeRage = getCombatOptions({ character, combatState, referenceData: null });
+  const raging = getCombatOptions({
+    character,
+    combatState: { ...combatState, current: { conditions: [], activeEffects: ["Rage"] } },
+    referenceData: null
+  });
+
+  assert.ok(beforeRage.bonus.some((option) => option.name === "Rage" && option.cost.resource.id === "resource-rage"));
+  assert.ok(beforeRage.free.some((option) => option.name === "Reckless Attack" && option.effect.turnFlag === "recklessAttackUsed"));
+  assert.equal(beforeRage.bonus.find((option) => option.name === "Frenzy: Bonus Attack").available, false);
+  assert.equal(raging.bonus.find((option) => option.name === "Frenzy: Bonus Attack").available, true);
+  assert.ok(raging.bonus.some((option) => option.name === "End Rage"));
+});
+
+test("monk reactions and stunning strike use level and focus resource", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      classes: [{ name: "Monk", level: 5 }],
+      stats: { str: 10, dex: 16, con: 12, int: 10, wis: 14, cha: 8 },
+      resources: {
+        spellSlots: {},
+        classResources: [{ id: "resource-ki", name: "Ki", max: 5, reset: "Short Rest" }],
+        limitedUses: []
+      },
+      features: {
+        class: [{ name: "Deflect Missiles" }, { name: "Slow Fall" }, { name: "Stunning Strike" }],
+        race: [],
+        feats: [],
+        other: []
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  assert.ok(groups.reaction.some((option) => option.name === "Deflect Missiles" && option.rolls[0].formula === "1d10+8"));
+  assert.ok(groups.reaction.some((option) => option.name === "Slow Fall" && option.meta.includes("Reduce falling damage by 25")));
+  assert.ok(groups.resources.some((option) => option.name === "Stunning Strike" && option.cost.resource.id === "resource-ki"));
+});
+
+test("rogue sneak attack and uncanny dodge have dedicated cards", () => {
+  const character = baseCharacter({
+    classes: [{ name: "Rogue", level: 5 }],
+    features: {
+      class: [{ name: "Sneak Attack" }, { name: "Uncanny Dodge" }],
+      race: [],
+      feats: [],
+      other: []
+    }
+  });
+  const groups = getCombatOptions({ character, combatState, referenceData: null });
+  const afterSneak = getCombatOptions({
+    character,
+    combatState: { ...combatState, turn: { ...combatState.turn, sneakAttackUsed: true } },
+    referenceData: null
+  });
+
+  assert.ok(groups.free.some((option) => option.name === "Sneak Attack" && option.rolls[0].formula === "3d6"));
+  assert.ok(groups.reaction.some((option) => option.name === "Uncanny Dodge"));
+  assert.equal(afterSneak.free.find((option) => option.name === "Sneak Attack").available, false);
+});
+
+test("war caster and expanded feat reminders expose reaction/save options", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      stats: { str: 16, dex: 12, con: 12, int: 10, wis: 14, cha: 8 },
+      inventory: {
+        weapons: [
+          { name: "Halberd", type: "Martial Melee Weapon", properties: "Heavy, Reach, Two-Handed", damage: { diceString: "1d10" }, damageType: "slashing" }
+        ],
+        armor: [{ name: "Shield", type: "Shield", equipped: true }]
+      },
+      features: {
+        class: [],
+        race: [],
+        feats: [{ name: "War Caster" }, { name: "Polearm Master" }, { name: "Great Weapon Master" }, { name: "Shield Master" }],
+        other: []
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  assert.ok(groups.reaction.some((option) => option.name === "War Caster: Opportunity Spell"));
+  assert.ok(groups.reaction.some((option) => option.name === "Polearm Master: Enter Reach"));
+  assert.ok(groups.actions.some((option) => option.name === "Great Weapon Master: Heavy Attack" && option.rolls[0].formula === "1d20+0"));
+  assert.ok(groups.free.some((option) => option.name === "Shield Master: Dexterity Save"));
+});
+
 function baseCharacter(overrides = {}) {
   return {
     classes: [],

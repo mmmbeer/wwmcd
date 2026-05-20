@@ -11,6 +11,7 @@ Current implemented coverage:
 - `js/player-combat/rules/attackCountRules.js` implements Extra Attack counts for weapon, unarmed, grapple, and shove options.
 - `js/player-combat/rules/monkActions.js` implements Martial Arts and Flurry of Blows with Attack-action prerequisites and Ki/Focus spending.
 - `js/player-combat/rules/highImpactFeatureActions.js` implements dedicated cards for Action Surge, Wild Shape, Divine Smite, Patient Defense, Step of the Wind, Polearm Master, Shield Master, Great Weapon Master, and Telekinetic.
+- `js/player-combat/rules/advancedFeatureActions.js` implements dedicated cards for Rage, End Rage, Reckless Attack, Berserker Frenzy, Deflect Missiles, Slow Fall, Stunning Strike, Sneak Attack, Uncanny Dodge, War Caster opportunity spells, Great Weapon Master heavy attack mode, Polearm Master enter-reach reactions, and Shield Master Dexterity save reminders.
 - `js/player-combat/rules/movementRules.js` applies common speed modifiers from Fast Movement, Unarmored Movement, Mobile, Squat Nimbleness, and Fleet of Foot.
 - Spell actions are handled from imported character spell data rather than from class Spellcasting feature text.
 
@@ -23,11 +24,12 @@ Known coverage limitation:
 
 | Feature | Source | Description | Implementation plan |
 | --- | --- | --- | --- |
-| Reckless Attack | Barbarian | Before the first attack on your turn, choose advantage on Strength melee weapon attacks, with attacks against you gaining advantage until your next turn. | Add an attack modifier toggle in a barbarian feature rule. Apply advantage metadata to eligible melee weapon attacks and log the defensive drawback as an active turn state. |
+| Rage | Barbarian | Bonus action enters rage, adding damage and defensive benefits. | Partially implemented: resource-aware bonus action sets active Rage when uses are tracked and warns when uses are missing. Damage/resistance automation remains future work. |
+| Reckless Attack | Barbarian | Before the first attack on your turn, choose advantage on Strength melee weapon attacks, with attacks against you gaining advantage until your next turn. | Partially implemented: dedicated free card marks the turn and documents the defensive drawback. Inline weapon advantage remains future work. |
 | Fast Movement | Barbarian | Speed increases by 10 feet while not wearing heavy armor. | Implemented: movement rules add the speed bonus when heavy armor is not equipped. |
 | Feral Instinct | Barbarian | Advantage on initiative and can act while surprised if rage is entered first. | Add initiative/reminder support and a first-turn surprised-state rule that surfaces Rage as the required first action while surprised. |
 | Brutal Critical | Barbarian | Adds extra weapon damage dice on melee critical hits, scaling by level. | Add critical-hit damage metadata to melee weapon options and include the extra dice in critical roll output. |
-| Frenzy | Barbarian, Path of the Berserker | While frenzied, make one melee weapon attack as a bonus action on turns after rage starts. | Replace the generic parsed card with a stateful Rage/Frenzy rule: require active rage and not the rage-start turn, then render a bonus melee attack option. |
+| Frenzy | Barbarian, Path of the Berserker | While frenzied, make one melee weapon attack as a bonus action on turns after rage starts. | Partially implemented: dedicated bonus attack requires active Rage. Exhaustion and rage-start-turn tracking remain future work. |
 | Retaliation | Barbarian, Path of the Berserker | Reaction melee weapon attack when a nearby creature damages you. | Add a triggered reaction attack option with melee weapon rolls and reaction consumption. |
 | Bardic Inspiration | Bard | Bonus action grants an inspiration die to another creature. | Add resource-aware Bardic Inspiration action with die scaling and uses tied to imported class resources. |
 | Superior Inspiration | Bard | Regain one Bardic Inspiration on initiative if none remain. | Add initiative resource recovery rule and combat-start prompt/log entry. |
@@ -45,9 +47,9 @@ Known coverage limitation:
 | Survivor | Fighter, Champion | Regain hit points at the start of each turn while below half HP. | Add start-turn healing prompt/rule with HP threshold check. |
 | Patient Defense | Monk | Spend 1 Ki to Dodge as a bonus action. | Implemented: dedicated Ki/Focus bonus action. |
 | Step of the Wind | Monk | Spend 1 Ki to Dash or Disengage as a bonus action; jump distance doubles. | Implemented: dedicated Ki/Focus Dash and Disengage bonus actions. |
-| Deflect Missiles | Monk | Reaction reduces ranged weapon damage; if reduced to 0, may spend Ki to make a ranged attack. | Add reaction reduction roll and optional Ki spend attack follow-up. |
-| Slow Fall | Monk | Reaction reduces falling damage by five times monk level. | Add reaction card with calculated reduction amount. |
-| Stunning Strike | Monk | Spend 1 Ki after a melee weapon hit to force a Con save or stun. | Add on-hit rider on melee weapon/unarmed attacks with Ki/Focus cost and save DC. |
+| Deflect Missiles | Monk | Reaction reduces ranged weapon damage; if reduced to 0, may spend Ki to make a ranged attack. | Partially implemented: reaction card rolls damage reduction and notes the Ki throw-back option. Throw-back attack automation remains future work. |
+| Slow Fall | Monk | Reaction reduces falling damage by five times monk level. | Implemented: reaction card shows calculated damage reduction. |
+| Stunning Strike | Monk | Spend 1 Ki after a melee weapon hit to force a Con save or stun. | Partially implemented: resource-aware on-hit card with save DC. Inline attack rider remains future work. |
 | Unarmored Movement | Monk | Speed increases while unarmored and later allows special movement. | Partially implemented: walking speed bonus is applied while unarmored/unshielded. Special movement remains future work. |
 | Open Hand Technique | Monk, Way of the Open Hand | Flurry of Blows hits can knock prone, push, or block reactions. | Add Flurry-specific rider choices when the subclass feature is present. |
 | Wholeness of Body | Monk, Way of the Open Hand | Action heals three times monk level once per long rest. | Add resource-aware healing action. |
@@ -64,8 +66,8 @@ Known coverage limitation:
 | Multiattack | Ranger, Hunter | Volley or Whirlwind Attack creates special multi-target action attacks. | Add special action attack cards that use equipped weapon rolls. |
 | Superior Hunter's Defense | Ranger, Hunter | Evasion, Stand Against the Tide, or Uncanny Dodge alters saves/reactions. | Add selected-option reaction and save rider support. |
 | Vanish | Ranger | Hide as a bonus action. | Keep parsed bonus option, but add a dedicated Hide option so it is grouped and labelled consistently with Cunning Action. |
-| Sneak Attack | Rogue | Once per turn, add scaling damage to an eligible finesse/ranged weapon hit. | Add eligibility checks and once-per-turn damage rider to weapon attacks. |
-| Uncanny Dodge | Rogue | Reaction halves damage from a visible attacker's hit. | Add trigger-specific reaction card with damage-halving metadata. |
+| Sneak Attack | Rogue | Once per turn, add scaling damage to an eligible finesse/ranged weapon hit. | Partially implemented: dedicated once-per-turn damage card with scaling dice and eligibility reminders. Inline weapon eligibility remains future work. |
+| Uncanny Dodge | Rogue | Reaction halves damage from a visible attacker's hit. | Implemented: dedicated trigger-specific reaction card. |
 | Evasion | Monk/Rogue | Dexterity save effects deal no damage on success and half on failure. | Add saving-throw reminder/rider support for area-effect damage; this affects combat resolution rather than action availability. |
 | Fast Hands | Rogue, Thief | Cunning Action can also use Sleight of Hand, thieves' tools, or Use an Object. | Extend Cunning Action granted actions when Thief feature is present. |
 | Second-Story Work | Rogue, Thief | Climbing no longer costs extra movement and running jumps improve. | Add movement modifier/reminder metadata. |
@@ -108,17 +110,17 @@ Known coverage limitation:
 | Gift of the Chromatic Dragon | Bonus action weapon infusion and reaction resistance. | Add weapon damage rider state, reaction resistance card, and proficiency-bonus use tracking. |
 | Gift of the Gem Dragon | Reaction damage and push after taking damage. | Add triggered limited-use reaction with save DC and damage roll. |
 | Gift of the Metallic Dragon | Cure Wounds cast and reaction AC bonus. | Add feat-granted spell fallback and resource-aware protective reaction. |
-| Great Weapon Master | Bonus attack after critical hit or reducing a creature to 0 HP; optional -5/+10 heavy weapon attack mode. | Add heavy weapon attack toggle and conditional bonus attack state. |
+| Great Weapon Master | Bonus attack after critical hit or reducing a creature to 0 HP; optional -5/+10 heavy weapon attack mode. | Partially implemented: conditional bonus attack reminder and dedicated heavy attack card with -5 attack roll. Inline +10 weapon damage remains future work. |
 | Mage Slayer | Reaction melee attack against nearby spellcaster and defensive spell-save reminders. | Add trigger-specific reaction attack with melee weapon rolls. |
 | Mobile | Speed increase, better Dash through difficult terrain, and no opportunity attacks from attacked targets. | Partially implemented: speed modifier is applied. Dash terrain and opportunity attack target state remain future work. |
 | Orcish Fury | Add weapon die damage and reaction attack after Relentless Endurance. | Add limited-use weapon damage rider and Half-Orc feature dependency for reaction trigger. |
 | Piercer | Reroll piercing damage die and add die on critical hits. | Add piercing weapon damage controls and critical-hit metadata. |
 | Poisoner | Apply poison as a bonus action and ignore poison resistance. | Add poison application state and attach poison damage/save metadata to weapon attacks. |
-| Polearm Master | Bonus haft attack and opportunity attack when creatures enter reach. | Partially implemented: qualifying polearms add a bonus haft attack with rolls. Expanded opportunity attack trigger remains future work. |
+| Polearm Master | Bonus haft attack and opportunity attack when creatures enter reach. | Partially implemented: qualifying polearms add a bonus haft attack with rolls and an enter-reach reaction reminder. Full trigger tracking remains future work. |
 | Rune Shaper | Grants rune spells and limited free casts. | Add feat-granted spell fallback and long-rest resource tracking. |
 | Savage Attacker | Reroll melee weapon damage once per turn. | Add once-per-turn melee damage reroll control. |
 | Sentinel | Opportunity attacks stop movement, ignore Disengage, and reaction attack when nearby ally is attacked. | Add opportunity attack trigger metadata and ally-attack reaction card. |
-| Shield Master | Bonus action shove after Attack, shield bonus to Dex saves, and no-damage save rider. | Partially implemented: shield and Attack-action-gated bonus shove card. Saving throw automation remains future work. |
+| Shield Master | Bonus action shove after Attack, shield bonus to Dex saves, and no-damage save rider. | Partially implemented: shield and Attack-action-gated bonus shove card plus Dexterity save reminder. Saving throw automation remains future work. |
 | Skulker | Hide while lightly obscured and ranged misses do not reveal position. | Add Hide availability modifier and ranged attack miss reminder. |
 | Slasher | Reduce target speed on slashing hit and impose attack disadvantage on critical hit. | Add slashing weapon hit and critical-hit riders. |
 | Soul of the Storm Giant | Limited-use storm aura/reaction-style defensive effect. | Add triggered limited-use reaction once source text trigger is normalized. |
@@ -127,7 +129,7 @@ Known coverage limitation:
 | Tavern Brawler | Improvised weapon proficiency, d4 unarmed strike, and bonus action grapple after hit. | Add unarmed damage override and hit-triggered bonus grapple prerequisite. |
 | Telekinetic | Bonus action shove one creature. | Implemented: bonus action shove card with calculated save DC. |
 | Telepathic | Grants Detect Thoughts once per rest. | Add feat-granted spell fallback and limited-use tracking. |
-| War Caster | Cast a spell instead of an opportunity attack and advantage on concentration saves. | Add opportunity-spell reaction selector and concentration save advantage metadata. |
+| War Caster | Cast a spell instead of an opportunity attack and advantage on concentration saves. | Partially implemented: dedicated opportunity spell reaction card and concentration save reminder. Spell selection remains future work. |
 | Wood Elf Magic | Grants druid cantrip, Longstrider, and Pass without Trace. | Add feat-granted spell fallback and limited-use tracking. |
 
 ## Missing or Partial Race Features

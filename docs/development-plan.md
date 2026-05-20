@@ -1,6 +1,128 @@
 # Development Plan
 
-## Current Session: Highest-Impact Feature Gaps
+## Current Session: Advanced Action-Affecting Feature Rules
+
+### Implemented
+
+- Added `js/player-combat/rules/advancedFeatureActions.js` for the next batch of dedicated feature behavior.
+- Added Barbarian feature cards:
+  - `Rage` as a bonus-action active effect with tracked resource spending when a Rage resource exists.
+  - `End Rage` while Rage is active.
+  - `Reckless Attack` as a free turn marker with the defensive drawback documented.
+  - `Frenzy: Bonus Attack` for Berserker/Frenzy characters, gated by active Rage.
+- Added Monk feature cards:
+  - `Deflect Missiles` reaction with calculated reduction roll.
+  - `Slow Fall` reaction with calculated damage reduction.
+  - `Stunning Strike` on-hit Ki/Focus spend with calculated save DC.
+- Added Rogue feature cards:
+  - `Sneak Attack` once-per-turn damage card with scaling dice.
+  - Dedicated `Uncanny Dodge` reaction card.
+- Added feat feature cards:
+  - `War Caster: Opportunity Spell`.
+  - `Great Weapon Master: Heavy Attack` with the -5 attack roll.
+  - `Polearm Master: Enter Reach` reaction reminder.
+  - `Shield Master: Dexterity Save` reminder.
+- Extended `useCombatOption` to support generic active-effect, clear-effect, and turn-flag effects.
+- Updated Free grouping so no-cost feature cards render in the Free tab instead of only appearing in Recommended.
+- Prevented generic parsed feature actions from duplicating the new dedicated cards.
+
+### Files Changed
+
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/advancedFeatureActions.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/featureActions.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/feature-implementation-plan.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Rage damage, damage resistance, and Reckless Attack advantage are represented as feature state/reminder cards, not inline roll modifiers yet.
+- Frenzy does not yet track exhaustion or distinguish the turn Rage was entered.
+- Deflect Missiles does not yet automate the optional Ki throw-back attack after reducing damage to 0.
+- Sneak Attack and Stunning Strike are on-hit cards rather than inline weapon attack riders.
+- War Caster does not yet provide spell selection for the opportunity spell.
+- Great Weapon Master heavy attack applies the -5 attack roll but does not yet attach +10 damage to a specific weapon damage roll.
+
+### Manual Test Checklist
+
+1. Import or simulate a Barbarian with Rage, Reckless Attack, and Frenzy; confirm Rage appears as a bonus action, Reckless Attack appears under Free, and Frenzy is unavailable until Rage is active.
+2. Import or simulate a level 5 Monk with Ki; confirm Deflect Missiles, Slow Fall, and Stunning Strike show the correct reaction/resource behavior and calculated values.
+3. Import or simulate a level 5 Rogue; confirm Sneak Attack rolls 3d6 once per turn and Uncanny Dodge appears as a reaction.
+4. Import or simulate feats War Caster, Great Weapon Master, Polearm Master, and Shield Master; confirm their new reaction/free/action reminders and prerequisite checks appear.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\advancedFeatureActions.js`
+- `node --check js\player-combat\rules\combatOptionsService.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --check tests\playerCombatActions.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file is under 500 lines; largest file is `js/player-combat/ui/actionTabs.js` at 483 lines.
+
+### Next Recommended Phase
+
+Turn the new on-hit/reminder cards into inline attack and spell riders where useful: Rage damage, Reckless Attack advantage, Sneak Attack eligibility, Stunning Strike, Great Weapon Master +10 damage, and War Caster spell selection.
+
+## Previous Session: PDF Importer Refactor
+
+### Implemented
+
+- Split the oversized `ddbPdfImporterAdapter.js` into focused importer modules:
+  - `ddbPdfImporterAdapter.js` now only owns the public import API and high-level flow.
+  - `pdfTextExtractor.js` decodes PDF bytes and inflates FlateDecode streams.
+  - `pdfFormFieldExtractor.js` extracts fillable PDF `/T` and `/V` form-field values.
+  - `pdfFieldUtils.js` contains shared field lookup, cleanup, and field-name normalization helpers.
+  - `pdfFeatureExtractor.js` parses D&D Beyond-style feature/action blocks from extracted PDF fields.
+  - `pdfCharacterInputBuilder.js` maps extracted fields into the existing normalizer input shape.
+- Preserved existing PDF import behavior for fillable fields, weapon rows, spells, spell slots, and feature blocks.
+- Tightened PDF feature heading cleanup to strip source tags such as `PHB-2024 130` and `TCoE` so imported feature names still match rules data after the split.
+
+### Files Changed
+
+- `js/player-combat/importers/ddbPdfImporterAdapter.js`
+- `js/player-combat/importers/pdfCharacterInputBuilder.js`
+- `js/player-combat/importers/pdfFeatureExtractor.js`
+- `js/player-combat/importers/pdfFieldUtils.js`
+- `js/player-combat/importers/pdfFormFieldExtractor.js`
+- `js/player-combat/importers/pdfTextExtractor.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- PDF import remains best-effort and supports fillable form fields only; scanned or flattened sheets are still unsupported.
+- Feature parsing still depends on recognizable D&D Beyond/WotC field names and text layout.
+- Limited-use resources embedded in PDF action text are still not converted into spendable resources.
+
+### Manual Test Checklist
+
+1. Upload a fillable D&D Beyond or WotC character sheet PDF and confirm import succeeds with best-effort warnings.
+2. Confirm extracted weapons, spells, spell slots, class/race/feat text, and generic feature blocks still appear after normalization.
+3. Import an example rogue PDF and confirm Cunning Action, Steady Aim, and Uncanny Dodge produce combat options.
+4. Upload a flattened or scanned PDF and confirm the unsupported message appears inline.
+
+### Verification Completed
+
+- `node --check js\player-combat\importers\ddbPdfImporterAdapter.js`
+- `node --check js\player-combat\importers\pdfCharacterInputBuilder.js`
+- `node --check js\player-combat\importers\pdfFeatureExtractor.js`
+- `node --check js\player-combat\importers\pdfFormFieldExtractor.js`
+- `node --check js\player-combat\importers\pdfFieldUtils.js`
+- `node --check js\player-combat\importers\pdfTextExtractor.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file is under 500 lines; largest file is `js/player-combat/ui/actionTabs.js` at 483 lines.
+
+### Next Recommended Phase
+
+Continue moving the next set of action-affecting features from reminder cards into dedicated rules: Reckless Attack, Rage/Frenzy state, Deflect Missiles, Slow Fall, Stunning Strike, Sneak Attack, metamagic, and War Caster opportunity spell casting.
+
+## Previous Session: Highest-Impact Feature Gaps
 
 ### Implemented
 

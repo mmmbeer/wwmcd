@@ -79,7 +79,7 @@ export function groupOptionsByTurnCost(options) {
     bonus: options.filter((option) => option.cost?.bonus || option.spell?.castingCost === "bonus"),
     reaction: options.filter((option) => option.cost?.reaction || option.spell?.castingCost === "reaction"),
     movement: options.filter((option) => option.cost?.movement || option.group === "movement"),
-    free: options.filter((option) => option.cost?.object && !option.cost?.action),
+    free: options.filter((option) => option.group === "free" || (option.cost?.object && !option.cost?.action)),
     spells: options.filter((option) => option.source === "spell"),
     resources: options.filter((option) => option.resource || option.cost?.resource),
     log: []

@@ -140,17 +140,14 @@ export function createStateManager({ storage, eventBus }) {
       turn.actionUsed = false;
       turn.actionSurgeUsed = true;
     }
+    if (option.effect?.turnFlag) turn[option.effect.turnFlag] = true;
     if (option.source === "spell" && Number(option.spell?.level ?? 0) > 0) {
       turn.leveledSpellCast = true;
       turn.leveledSpellName = option.name;
     }
 
     const resourcesUsed = spendResource(state.resourcesUsed, option.cost?.resource);
-    const current = option.effect?.wildShape
-      ? { ...state.current, currentForm: "Wild Shape" }
-      : option.spell?.concentration
-      ? { ...state.current, concentration: option.name, concentrationSource: "spell" }
-      : state.current;
+    const current = applyOptionCurrentEffects(option, state.current);
     combatStates[activeCharacterId] = addLogEntry({
       ...state,
       current,
@@ -348,6 +345,28 @@ export function createStateManager({ storage, eventBus }) {
     logRoll,
     getSnapshot
   };
+}
+
+function applyOptionCurrentEffects(option, current) {
+  let next = option.effect?.wildShape
+    ? { ...current, currentForm: "Wild Shape" }
+    : option.spell?.concentration
+      ? { ...current, concentration: option.name, concentrationSource: "spell" }
+      : current;
+
+  if (option.effect?.activeEffect) {
+    next = {
+      ...next,
+      activeEffects: [...new Set([...(next.activeEffects ?? []), option.effect.activeEffect])]
+    };
+  }
+  if (option.effect?.clearEffect) {
+    next = {
+      ...next,
+      activeEffects: (next.activeEffects ?? []).filter((entry) => entry !== option.effect.clearEffect)
+    };
+  }
+  return next;
 }
 
 function mergeState(state, patch) {

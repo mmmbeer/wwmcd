@@ -4,6 +4,7 @@ import {
   groupOptionsByTurnCost
 } from "./actionEconomyRules.js";
 import { getBasicActions } from "./basicActions.js";
+import { getAdvancedFeatureActions } from "./advancedFeatureActions.js";
 import { getFeatureActions } from "./featureActions.js";
 import { getMonkActions } from "./monkActions.js";
 import { getHighImpactFeatureActions } from "./highImpactFeatureActions.js";
@@ -23,6 +24,7 @@ export function getCombatOptions({ character, combatState, referenceData }) {
     ...getFeatureActions(character, combatState, referenceData),
     ...getMonkActions(character, combatState),
     ...getHighImpactFeatureActions(character, combatState, referenceData),
+    ...getAdvancedFeatureActions(character, combatState, referenceData),
     ...getResourceActions(character, combatState)
   ];
 

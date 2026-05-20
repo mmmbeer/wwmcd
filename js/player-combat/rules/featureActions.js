@@ -11,7 +11,16 @@ const DEDICATED_FEATURE_RULES = new Set([
   "great weapon master",
   "polearm master",
   "shield master",
-  "telekinetic"
+  "telekinetic",
+  "rage",
+  "reckless attack",
+  "frenzy",
+  "deflect missiles",
+  "slow fall",
+  "stunning strike",
+  "sneak attack",
+  "uncanny dodge",
+  "war caster"
 ]);
 
 export function getFeatureActions(character, combatState, referenceData) {
