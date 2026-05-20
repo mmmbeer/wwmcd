@@ -72,6 +72,7 @@ function withFeatureSource(option, entry) {
     id: `${option.id}_${slug(entry.type)}_${slug(entry.name)}`,
     source: "feature",
     feature: { name: entry.name, type: entry.type },
+    longDescription: featureText(entry),
     meta: [titleCase(entry.type), ...(option.meta ?? [])].filter(Boolean)
   };
 }

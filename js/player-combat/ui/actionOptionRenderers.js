@@ -16,6 +16,11 @@ export function toggleExpandedRow(root, row) {
   const expanded = row.getAttribute("aria-expanded") === "true";
   row.setAttribute("aria-expanded", String(!expanded));
   target.hidden = expanded;
+  const button = row.querySelector(".row-expand-btn");
+  if (button) {
+    button.title = expanded ? "Show details" : "Hide details";
+    button.setAttribute("aria-label", expanded ? "Show details" : "Hide details");
+  }
 }
 
 export function bindSpellDetailCards(root) {
@@ -36,6 +41,7 @@ function renderOptionTable(group, options) {
       <table class="option-table">
         <thead>
           <tr>
+            <th class="expand-col" scope="col"></th>
             <th scope="col">Type</th>
             <th class="attack-mode-col" scope="col">M/R</th>
             <th scope="col">Name</th>
@@ -55,8 +61,10 @@ function renderOptionTable(group, options) {
 
 function renderOptionRow(option) {
   const unavailable = option.available === false;
+  const detailId = `detail-${escapeHtml(option.id)}`;
   return `
-    <tr class="${unavailable ? "is-unavailable" : ""}">
+    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
+      <td>${renderChevron(option)}</td>
       <td>${renderTypeBadge(option)}</td>
       <td>${renderAttackMode(option)}</td>
       <th scope="row">
@@ -73,6 +81,7 @@ function renderOptionRow(option) {
       </td>
       <td>${renderOptionButtons(option, unavailable)}</td>
     </tr>
+    ${renderDetailRow(option, unavailable, detailId)}
   `;
 }
 
@@ -114,6 +123,7 @@ function renderSpellTable(options) {
       <table class="option-table spell-table">
         <thead>
           <tr>
+            <th class="expand-col" scope="col"></th>
             <th scope="col">Action Type</th>
             <th class="spell-concentration-col" scope="col">C</th>
             <th class="attack-mode-col" scope="col">M/R</th>
@@ -136,6 +146,7 @@ function renderSpellRows(option) {
   const detailId = `detail-${escapeHtml(option.id)}`;
   return `
     <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
+      <td>${renderChevron(option)}</td>
       <td>${renderCastingCostBadge(option)}</td>
       <td>${renderConcentrationBadge(option)}</td>
       <td>${renderAttackMode(option)}</td>
@@ -144,16 +155,7 @@ function renderSpellRows(option) {
       <td>${escapeHtml(spellDcLabel(option))}</td>
       <td>${renderOptionButtons(option, unavailable)}</td>
     </tr>
-    <tr class="option-detail-row spell-detail-row" id="${detailId}" hidden>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td colspan="4">
-        ${renderSpellDetailCard(option)}
-        ${renderWarnings(option.warnings)}
-        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
-      </td>
-    </tr>
+    ${renderDetailRow(option, unavailable, detailId)}
   `;
 }
 
@@ -181,6 +183,14 @@ function renderConcentrationBadge(option) {
 
 function renderTypeBadge(option) {
   return `<span class="badge">${escapeHtml(costLabel(option))}</span>`;
+}
+
+function renderChevron(option) {
+  return `
+    <button class="row-expand-btn" type="button" title="Show details" aria-label="Show details for ${escapeHtml(option.name)}">
+      <span class="row-chevron" aria-hidden="true">v</span>
+    </button>
+  `;
 }
 
 function renderAttackMode(option) {
@@ -213,6 +223,84 @@ function renderDamageTypeIcon(type) {
 function renderMeta(option) {
   if (!option.meta?.length) return "";
   return `<ul class="option-meta">${option.meta.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderDetailRow(option, unavailable, detailId) {
+  return `
+    <tr class="option-detail-row ${option.source === "spell" ? "spell-detail-row" : ""}" id="${detailId}" hidden>
+      <td></td>
+      <td colspan="7">
+        ${renderDetailPanel(option, unavailable)}
+      </td>
+    </tr>
+  `;
+}
+
+function renderDetailPanel(option, unavailable) {
+  return `
+    <div class="option-detail-panel">
+      <div class="option-detail-heading">
+        <div>
+          <strong>${escapeHtml(option.name)}</strong>
+          <span>${escapeHtml(detailSubtitle(option))}</span>
+        </div>
+        <div class="detail-badge-row">
+          ${renderTypeBadge(option)}
+          ${renderAttackMode(option)}
+          ${option.spell?.concentration ? renderConcentrationBadge(option) : ""}
+        </div>
+      </div>
+      <div class="detail-grid">
+        ${detailFact("Range", optionRangeLabel(option))}
+        ${detailFact("Roll", primaryRollLabel(option))}
+        ${detailFact("Damage", damageRollLabel(option))}
+        ${detailFact("Save", spellDcLabel(option))}
+        ${detailFact("Resource", option.resource)}
+      </div>
+      <section class="detail-section">
+        <h4>Long Description</h4>
+        ${renderLongDescription(option)}
+      </section>
+      ${renderRollList(option, unavailable)}
+      ${option.meta?.length ? `<section class="detail-section"><h4>Notes</h4>${renderMeta(option)}</section>` : ""}
+      ${option.source === "spell" ? `<section class="detail-section"><h4>Spell Reference</h4>${renderSpellDetailCard(option)}</section>` : ""}
+      ${renderWarnings(option.warnings)}
+      ${unavailable ? renderReasons(option.unavailableReasons) : ""}
+    </div>
+  `;
+}
+
+function renderLongDescription(option) {
+  const text = longDescription(option);
+  if (!text) return `<p>No additional description is available for this option.</p>`;
+  return text.split(/\n{2,}/).map((paragraph) => `<p>${escapeHtml(paragraph.trim())}</p>`).join("");
+}
+
+function renderRollList(option, unavailable) {
+  const rolls = option.rolls ?? [];
+  if (!rolls.length) return "";
+  return `
+    <section class="detail-section">
+      <h4>Rolls</h4>
+      <div class="detail-roll-list">
+        ${rolls.map((roll) => `
+          <button class="btn btn-secondary" type="button" data-roll-option="${escapeHtml(option.id)}" data-roll-id="${escapeHtml(roll.id)}" ${unavailable ? "disabled" : ""}>
+            ${escapeHtml(roll.label)} <span>${escapeHtml(roll.formula)}</span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function detailFact(label, value) {
+  if (!value) return "";
+  return `
+    <div class="detail-fact">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
 }
 
 function renderAdditionalRollButtons(option, unavailable) {
@@ -261,6 +349,37 @@ function renderLogGroup(label, combatState) {
 function attackBonusLabel(formula) {
   const match = String(formula ?? "").match(/1d20([+-]\d+)?/i);
   return match?.[1] ?? "+0";
+}
+
+function detailSubtitle(option) {
+  return [
+    costLabel(option),
+    option.source ? titleCase(option.source) : null,
+    optionRangeLabel(option) ? `Range ${optionRangeLabel(option)}` : null
+  ].filter(Boolean).join(" - ");
+}
+
+function primaryRollLabel(option) {
+  const attackRoll = option.rolls?.find((roll) => roll.type === "attack" || roll.id === "attack");
+  const checkRoll = option.rolls?.find((roll) => roll.type === "check");
+  const roll = attackRoll ?? checkRoll;
+  if (!roll) return null;
+  return attackRoll ? attackBonusLabel(roll.formula) : roll.formula;
+}
+
+function damageRollLabel(option) {
+  const roll = option.rolls?.find((entry) => entry.type === "damage" && entry.id === "damage");
+  if (!roll) return null;
+  return [roll.formula, roll.damageType].filter(Boolean).join(" ");
+}
+
+function longDescription(option) {
+  if (option.spell?.reference?.description) return option.spell.reference.description;
+  return option.longDescription
+    ?? option.featureAction?.description
+    ?? option.description
+    ?? option.meta?.join("\n\n")
+    ?? "";
 }
 
 function costLabel(option) {

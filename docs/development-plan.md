@@ -1,6 +1,57 @@
 # Development Plan
 
-## Current Session: Consumable Resource Bar and Action Table Alignment
+## Current Session: Expandable Action Row Details
+
+### Implemented
+
+- Added a data-table UI rule for action option rows:
+  - Every option row now starts with a down-chevron expansion control.
+  - Clicking the row or the chevron opens a detail row below the compact data row.
+  - The detail row uses a consistent panel layout for features, spells, attacks, resources, and basic actions.
+- Built a shared long-form detail presentation:
+  - Header with option name, source/cost/range subtitle, and compact badges.
+  - Quick facts for range, roll, damage, save, and resource when available.
+  - A `Long Description` section for the full action/feature/spell text available to the option.
+  - A `Rolls` section with all roll buttons and formulas.
+  - A `Notes` section for rule metadata, warnings, and unavailable reasons.
+  - Spell rows keep their spell reference content, but inside the same detail panel structure as other rows.
+- Generic parsed feature actions now preserve their imported/reference feature text as `longDescription` so the expanded detail section can show the fuller source text instead of only the compact row summary.
+- Added a small slide/fade animation for expanded detail panels and a rotating chevron indicator.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/rules/featureActions.js`
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Dedicated hand-authored feature cards only have the descriptions and metadata currently encoded in their rule modules. Generic parsed feature cards can show fuller imported/reference text.
+- The slide-out animation is intentionally subtle because the content lives inside semantic table rows.
+
+### Manual Test Checklist
+
+1. Open Recommended, Actions, Attacks, Spells, Bonus, Free, and Reaction tabs and confirm every data row starts with a chevron.
+2. Click a row and then its chevron; confirm both toggle the same detail section.
+3. Confirm attack, feature, and spell detail panels share the same header, quick facts, Long Description, Rolls, and Notes layout.
+4. Confirm row action buttons still roll/use/cast without toggling the detail row.
+5. Confirm spell details still include spell reference content inside the shared detail panel.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionOptionRenderers.js`
+- `node --check js\player-combat\rules\featureActions.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file is under 500 lines; largest file is `js/player-combat/normalizers/characterNormalizer.js` at 451 lines.
+
+### Next Recommended Phase
+
+Add a browser smoke test for row expansion and action-button click isolation so future table changes preserve the chevron/detail behavior.
+
+## Previous Session: Consumable Resource Bar and Action Table Alignment
 
 ### Implemented
 
