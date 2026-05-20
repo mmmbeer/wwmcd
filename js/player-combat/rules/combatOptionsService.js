@@ -19,7 +19,7 @@ export function getCombatOptions({ character, combatState, referenceData }) {
   const options = [
     movementOption(character, combatState, referenceData),
     ...getBasicActions(character, combatState),
-    ...getWeaponActions(character, referenceData),
+    ...getWeaponActions(character, combatState, referenceData),
     ...getSpellActions(character, combatState, referenceData),
     ...getFeatureActions(character, combatState, referenceData),
     ...getMonkActions(character, combatState),

@@ -172,6 +172,7 @@ function renderOptionRow(option) {
       <td>
         <p>${escapeHtml(option.description || "")}</p>
         ${renderMeta(option)}
+        ${renderAdditionalRollButtons(option, unavailable)}
         ${renderWarnings(option.warnings)}
         ${unavailable ? renderReasons(option.unavailableReasons) : ""}
       </td>
@@ -355,6 +356,21 @@ function bindSpellDetailCards(root) {
 function renderMeta(option) {
   if (!option.meta?.length) return "";
   return `<ul class="option-meta">${option.meta.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderAdditionalRollButtons(option, unavailable) {
+  const primaryIds = new Set(["attack", "damage", "athletics"]);
+  const rolls = (option.rolls ?? []).filter((roll) => !primaryIds.has(roll.id));
+  if (!rolls.length) return "";
+  return `
+    <div class="button-row option-button-row">
+      ${rolls.map((roll) => `
+        <button class="btn btn-secondary" type="button" data-roll-option="${escapeHtml(option.id)}" data-roll-id="${escapeHtml(roll.id)}" ${unavailable ? "disabled" : ""}>
+          ${escapeHtml(roll.label)}
+        </button>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderReasons(reasons = []) {

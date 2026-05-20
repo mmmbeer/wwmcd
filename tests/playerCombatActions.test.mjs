@@ -495,6 +495,117 @@ test("war caster and expanded feat reminders expose reaction/save options", () =
   assert.ok(groups.free.some((option) => option.name === "Shield Master: Dexterity Save"));
 });
 
+test("rage and reckless attack become inline Strength melee weapon riders", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      classes: [{ name: "Barbarian", level: 9 }],
+      stats: { str: 18, dex: 12, con: 14, int: 8, wis: 10, cha: 10 },
+      inventory: {
+        weapons: [{ name: "Longsword", type: "Martial Melee Weapon", damage: { diceString: "1d8" }, damageType: "slashing" }]
+      },
+      features: { class: [{ name: "Rage" }, { name: "Reckless Attack" }], race: [], feats: [], other: [] }
+    }),
+    combatState: {
+      ...combatState,
+      turn: { ...combatState.turn, recklessAttackUsed: true },
+      current: { conditions: [], activeEffects: ["Rage"] }
+    },
+    referenceData: null
+  });
+
+  const longsword = groups.attacks.find((option) => option.name === "Longsword");
+
+  assert.ok(longsword.meta.includes("Rage: +3 damage on Strength melee hits"));
+  assert.ok(longsword.meta.includes("Rage: resistance to bludgeoning, piercing, and slashing damage"));
+  assert.ok(longsword.meta.includes("Reckless Attack: roll this Strength melee attack with advantage"));
+  assert.ok(longsword.warnings.includes("Reckless Attack: attacks against you have advantage until your next turn."));
+});
+
+test("sneak attack rider attaches damage only to eligible unused weapon attacks", () => {
+  const character = baseCharacter({
+    classes: [{ name: "Rogue", level: 5 }],
+    inventory: {
+      weapons: [
+        { name: "Rapier", type: "Martial Melee Weapon", properties: "Finesse", damage: { diceString: "1d8" }, damageType: "piercing" },
+        { name: "Greatclub", type: "Simple Melee Weapon", damage: { diceString: "1d8" }, damageType: "bludgeoning" }
+      ]
+    },
+    features: { class: [{ name: "Sneak Attack" }], race: [], feats: [], other: [] }
+  });
+  const groups = getCombatOptions({ character, combatState, referenceData: null });
+  const afterSneak = getCombatOptions({
+    character,
+    combatState: { ...combatState, turn: { ...combatState.turn, sneakAttackUsed: true } },
+    referenceData: null
+  });
+
+  assert.equal(groups.attacks.find((option) => option.name === "Rapier").rolls.find((roll) => roll.id === "sneakAttackDamage").formula, "3d6");
+  assert.equal(groups.attacks.find((option) => option.name === "Greatclub").rolls.some((roll) => roll.id === "sneakAttackDamage"), false);
+  assert.equal(afterSneak.attacks.find((option) => option.name === "Rapier").rolls.some((roll) => roll.id === "sneakAttackDamage"), false);
+  assert.ok(afterSneak.attacks.find((option) => option.name === "Rapier").meta.includes("Sneak Attack: already used this turn"));
+});
+
+test("stunning strike and great weapon master attach inline weapon riders", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      classes: [{ name: "Monk", level: 5 }, { name: "Fighter", level: 1 }],
+      stats: { str: 16, dex: 14, con: 12, int: 10, wis: 16, cha: 8 },
+      resources: {
+        spellSlots: {},
+        classResources: [{ id: "resource-ki", name: "Ki", max: 5, reset: "Short Rest" }],
+        limitedUses: []
+      },
+      inventory: {
+        weapons: [{ name: "Halberd", type: "Martial Melee Weapon", properties: "Heavy, Reach, Two-Handed", damage: { diceString: "1d10" }, damageType: "slashing" }]
+      },
+      features: {
+        class: [{ name: "Stunning Strike" }],
+        race: [],
+        feats: [{ name: "Great Weapon Master" }],
+        other: []
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  const halberd = groups.attacks.find((option) => option.name === "Halberd");
+  const unarmed = groups.attacks.find((option) => option.name === "Unarmed Strike");
+
+  assert.ok(halberd.meta.includes("Stunning Strike: spend 1 Ki on hit"));
+  assert.ok(halberd.meta.includes("Target makes CON save DC 13"));
+  assert.equal(halberd.rolls.find((roll) => roll.id === "gwmAttack").formula, "1d20+0");
+  assert.equal(halberd.rolls.find((roll) => roll.id === "gwmDamageBonus").formula, "10");
+  assert.ok(unarmed.meta.includes("Stunning Strike: spend 1 Ki on hit"));
+});
+
+test("war caster lists eligible opportunity spells and marks spell cards", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      features: { class: [], race: [], feats: [{ name: "War Caster" }], other: [] },
+      spells: {
+        prepared: [
+          { name: "Shocking Grasp", level: 0, castingTime: "1 action", description: "Make a melee spell attack against a creature." },
+          { name: "Fireball", level: 3, castingTime: "1 action", range: "150 feet", description: "Each creature in a 20-foot-radius sphere makes a Dexterity saving throw." }
+        ],
+        known: [],
+        cantrips: []
+      },
+      resources: { spellSlots: { 3: 1 }, classResources: [], limitedUses: [] }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  const warCaster = groups.reaction.find((option) => option.name === "War Caster: Opportunity Spell");
+  const shockingGrasp = groups.spells.find((option) => option.name === "Shocking Grasp");
+  const fireball = groups.spells.find((option) => option.name === "Fireball");
+
+  assert.ok(warCaster.meta.includes("Eligible spells: Shocking Grasp"));
+  assert.ok(shockingGrasp.meta.includes("War Caster: eligible for opportunity spell reaction"));
+  assert.equal(fireball.meta.includes("War Caster: eligible for opportunity spell reaction"), false);
+});
+
 function baseCharacter(overrides = {}) {
   return {
     classes: [],

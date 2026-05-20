@@ -1,5 +1,6 @@
 import { findByName } from "../data/referenceDataService.js";
 import { normalizeName } from "../data/combatDataTransformer.js";
+import { applySpellFeatureRiders } from "./spellFeatureRiders.js";
 
 export function getSpellActions(character, combatState, referenceData) {
   const spells = uniqueSpells([
@@ -10,11 +11,11 @@ export function getSpellActions(character, combatState, referenceData) {
 
   return spells.slice(0, 40).map((spell, index) => {
     const reference = findByName(referenceData?.indexes?.spellIndexByName ?? new Map(), spell.name) ?? {};
-    return createSpellOption(character, combatState, spell, reference, index);
+    return createSpellOption(character, combatState, referenceData, spell, reference, index);
   });
 }
 
-function createSpellOption(character, combatState, spell, reference, index) {
+function createSpellOption(character, combatState, referenceData, spell, reference, index) {
   const level = normalizeSpellLevel(spell.level ?? reference.level);
   const castingTime = normalizeCastingTime(spell.castingTime ?? reference.casting_time ?? spell.activation ?? spell.activationType ?? "1 action");
   const cost = costFromCastingTime(castingTime);
@@ -28,7 +29,7 @@ function createSpellOption(character, combatState, spell, reference, index) {
   const concentration = Boolean(spell.concentration) || /concentration/i.test(String(duration ?? description));
   const save = saveText(spell, description, saveDc);
 
-  return {
+  const option = {
     id: `spell_${normalizeName(spell.name).replace(/[^a-z0-9]+/g, "_") || index}`,
     name: spell.name ?? "Spell",
     description: [
@@ -72,6 +73,7 @@ function createSpellOption(character, combatState, spell, reference, index) {
       }
     }
   };
+  return applySpellFeatureRiders(option, { character, combatState, referenceData });
 }
 
 function normalizeCastingTime(value) {

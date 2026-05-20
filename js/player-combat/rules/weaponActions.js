@@ -1,20 +1,21 @@
 import { normalizeName } from "../data/combatDataTransformer.js";
 import { getAttackCount } from "./attackCountRules.js";
+import { applyWeaponFeatureRiders } from "./weaponFeatureRiders.js";
 
-export function getWeaponActions(character, referenceData) {
+export function getWeaponActions(character, combatState, referenceData) {
   const weapons = character?.inventory?.weapons ?? [];
   const attackCount = getAttackCount(character, referenceData);
 
   const referenceWeapons = buildWeaponReference(referenceData?.data?.equipment);
   return [
-    ...weapons.map((weapon, index) => createWeaponOption(character, weapon, referenceWeapons, index, attackCount)),
-    createUnarmedOption(character, attackCount),
+    ...weapons.map((weapon, index) => createWeaponOption(character, combatState, referenceData, weapon, referenceWeapons, index, attackCount)),
+    createUnarmedOption(character, combatState, referenceData, attackCount),
     createGrappleOption(character, attackCount),
     createShoveOption(character, attackCount)
   ];
 }
 
-function createWeaponOption(character, weapon, referenceWeapons, index, attackCount) {
+function createWeaponOption(character, combatState, referenceData, weapon, referenceWeapons, index, attackCount) {
   const reference = referenceWeapons.get(normalizeName(weapon.baseName ?? weapon.name)) ?? referenceWeapons.get(normalizeName(weapon.name)) ?? {};
   const properties = String(weapon.properties ?? weapon.propertiesText ?? reference.properties ?? "");
   const damageText = readDamage(weapon) ?? reference.damage ?? "";
@@ -25,8 +26,17 @@ function createWeaponOption(character, weapon, referenceWeapons, index, attackCo
   const attackBonus = abilityMod + Number(character?.combat?.proficiencyBonus ?? 2);
   const damageFormula = damage.formula ? `${damage.formula}${signed(abilityMod)}` : null;
   const rangeType = rangeTypeFor(properties, category, reference.rangeType);
+  const weaponProfile = {
+    ability,
+    attackBonus,
+    melee: rangeType === "melee",
+    ranged: rangeType === "ranged",
+    finesse: /finesse/i.test(properties),
+    heavy: /heavy/i.test(properties),
+    unarmed: false
+  };
 
-  return {
+  const option = {
     id: `weapon_${normalizeName(weapon.name).replace(/[^a-z0-9]+/g, "_") || index}`,
     name: weapon.name ?? "Weapon Attack",
     description: [category, properties].filter(Boolean).join(" - ") || "Weapon attack.",
@@ -53,11 +63,13 @@ function createWeaponOption(character, weapon, referenceWeapons, index, attackCo
       damageFormula ? `${damageFormula} ${damage.type}` : "Damage not found"
     ]
   };
+  return applyWeaponFeatureRiders(option, { character, combatState, referenceData, weaponProfile });
 }
 
-function createUnarmedOption(character, attackCount = 1) {
+function createUnarmedOption(character, combatState, referenceData, attackCount = 1) {
   const strength = abilityModifier(character, "str");
-  return {
+  const attackBonus = strength + Number(character?.combat?.proficiencyBonus ?? 2);
+  const option = {
     id: "attack_unarmed_strike",
     name: "Unarmed Strike",
     description: "Melee attack with a punch, kick, head-butt, or similar forceful blow.",
@@ -67,16 +79,22 @@ function createUnarmedOption(character, attackCount = 1) {
     cost: { action: true },
     attack: { count: attackCount, consumesAttackAction: true },
     rolls: [
-      { id: "attack", label: "Roll Attack", formula: `1d20${signed(strength + Number(character?.combat?.proficiencyBonus ?? 2))}`, type: "attack" },
+      { id: "attack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" },
       { id: "damage", label: "Roll Damage", formula: `${Math.max(1, 1 + strength)}`, type: "damage", damageType: "bludgeoning" }
     ],
     meta: [
-      `${signed(strength + Number(character?.combat?.proficiencyBonus ?? 2))} to hit`,
+      `${signed(attackBonus)} to hit`,
       "STR attack",
       attackCount > 1 ? `${attackCount} attacks with the Attack action` : "1 attack with the Attack action",
       `${Math.max(1, 1 + strength)} bludgeoning`
     ]
   };
+  return applyWeaponFeatureRiders(option, {
+    character,
+    combatState,
+    referenceData,
+    weaponProfile: { ability: "str", attackBonus, melee: true, ranged: false, finesse: false, heavy: false, unarmed: true }
+  });
 }
 
 function createGrappleOption(character, attackCount) {

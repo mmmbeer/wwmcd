@@ -1,6 +1,75 @@
 # Development Plan
 
-## Current Session: Advanced Action-Affecting Feature Rules
+## Current Session: Inline Weapon and Spell Feature Riders
+
+### Implemented
+
+- Added `js/player-combat/rules/weaponFeatureRiders.js` to attach feature metadata and rider rolls to base weapon/unarmed attack cards without duplicating the primary attack cards.
+- Added inline Rage support:
+  - Eligible active-Rage Strength melee weapon and unarmed attacks show Rage damage bonus metadata.
+  - Active Rage metadata also surfaces the bludgeoning, piercing, and slashing resistance reminder.
+- Added inline Reckless Attack support:
+  - When `turn.recklessAttackUsed` is set, eligible Strength melee weapon/unarmed attacks show advantage metadata.
+  - The defensive drawback remains visible as a warning on those attacks.
+- Added inline Sneak Attack support:
+  - Eligible finesse or ranged weapon attacks expose the scaling Sneak Attack damage roll.
+  - When `turn.sneakAttackUsed` is set, eligible attacks show the spent state instead of another rider damage roll.
+- Added inline Stunning Strike support:
+  - Melee weapon and unarmed attacks show the Ki/Focus spend reminder and calculated Constitution save DC.
+- Added inline Great Weapon Master support:
+  - Eligible heavy weapon attacks expose a -5 attack roll and +10 damage rider roll in attack details.
+- Added `js/player-combat/rules/spellFeatureRiders.js` for War Caster spell metadata:
+  - The War Caster reaction card lists likely eligible single-target action spells.
+  - Eligible spell cards are marked as usable for War Caster opportunity spell reactions.
+- Updated attack detail rows to render non-primary rider roll buttons, leaving the compact attack table unchanged.
+
+### Files Changed
+
+- `js/player-combat/rules/advancedFeatureActions.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/spellActions.js`
+- `js/player-combat/rules/spellFeatureRiders.js`
+- `js/player-combat/rules/weaponActions.js`
+- `js/player-combat/rules/weaponFeatureRiders.js`
+- `js/player-combat/ui/actionTabs.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/feature-implementation-plan.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Sneak Attack and Stunning Strike still use the existing dedicated cards for actual turn/resource spending; inline riders expose rolls and spend metadata but do not provide nested per-hit spend buttons yet.
+- Rage damage and Great Weapon Master damage are shown as rider metadata/extra rolls rather than mutating the base weapon damage formula.
+- Reckless Attack first-attack timing is not enforced.
+- War Caster spell eligibility is heuristic and may miss or include edge-case spells with complex target text.
+- `js/player-combat/ui/actionTabs.js` is now 499 lines; split it before adding more UI behavior.
+
+### Manual Test Checklist
+
+1. Import or simulate an active-Rage Barbarian with Reckless Attack enabled and confirm eligible Strength melee attacks show Rage damage, Rage resistance, advantage, and the defensive warning.
+2. Import or simulate a Rogue with finesse and non-finesse weapons; confirm only eligible weapons show Sneak Attack damage and that the rider disappears after `turn.sneakAttackUsed`.
+3. Import or simulate a Monk with Ki and Stunning Strike; confirm melee weapon and unarmed attacks show the Ki spend and Con save DC.
+4. Import or simulate a Great Weapon Master character with a heavy weapon; expand the attack detail and confirm the GWM attack and +10 damage rider buttons appear.
+5. Import or simulate a War Caster spellcaster with a single-target action spell and an area spell; confirm only the single-target spell is listed/marked.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\weaponFeatureRiders.js`
+- `node --check js\player-combat\rules\spellFeatureRiders.js`
+- `node --check js\player-combat\rules\weaponActions.js`
+- `node --check js\player-combat\rules\spellActions.js`
+- `node --check js\player-combat\rules\advancedFeatureActions.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file is under 500 lines; largest file is `js/player-combat/ui/actionTabs.js` at 499 lines.
+
+### Next Recommended Phase
+
+Split `actionTabs.js` before adding more UI, then add a general per-rider spend control so inline Sneak Attack, Stunning Strike, Divine Smite, and similar on-hit riders can spend resources or set turn flags directly from the attack card.
+
+## Previous Session: Advanced Action-Affecting Feature Rules
 
 ### Implemented
 

@@ -6,6 +6,7 @@ import {
   hasSubclass,
   signed
 } from "./featureRuleHelpers.js";
+import { getWarCasterOpportunitySpellNames } from "./spellFeatureRiders.js";
 
 export function getAdvancedFeatureActions(character, combatState, referenceData) {
   return [
@@ -143,11 +144,17 @@ function uncannyDodge(character, referenceData) {
 
 function warCasterOpportunitySpell(character, referenceData) {
   if (!hasFeature(character, "War Caster", referenceData)) return null;
+  const eligibleSpells = getWarCasterOpportunitySpellNames(character, referenceData);
   return option("feature_war_caster_opportunity_spell", "War Caster: Opportunity Spell", "Use your reaction to cast a single-target spell instead of an opportunity attack.", {
     group: "reaction",
     cost: { reaction: true },
     tags: ["feat", "spell"],
-    meta: ["Spell must target only the triggering creature", "Advantage on concentration saves"]
+    navigateTo: eligibleSpells.length ? { group: "spells" } : null,
+    meta: [
+      "Spell must target only the triggering creature",
+      eligibleSpells.length ? `Eligible spells: ${eligibleSpells.join(", ")}` : "No eligible single-target action spells found",
+      "Advantage on concentration saves"
+    ]
   });
 }
 
