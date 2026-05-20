@@ -1,5 +1,6 @@
 import { normalizeName } from "../data/combatDataTransformer.js";
 import { getAttackCount } from "./attackCountRules.js";
+import { collectCharacterFeatures, featureText } from "./featureData.js";
 import { applyWeaponFeatureRiders } from "./weaponFeatureRiders.js";
 
 export function getWeaponActions(character, combatState, referenceData) {
@@ -26,6 +27,7 @@ function createWeaponOption(character, combatState, referenceData, weapon, refer
   const attackBonus = abilityMod + Number(character?.combat?.proficiencyBonus ?? 2);
   const damageFormula = damage.formula ? `${damage.formula}${signed(abilityMod)}` : null;
   const rangeType = rangeTypeFor(properties, category, reference.rangeType);
+  const range = weaponRange(character, properties, category, rangeType, reference.range);
   const weaponProfile = {
     ability,
     attackBonus,
@@ -45,6 +47,7 @@ function createWeaponOption(character, combatState, referenceData, weapon, refer
     tags: ["attack", "weapon", rangeType],
     cost: { action: true },
     attack: { count: attackCount, consumesAttackAction: true },
+    range: { type: rangeType, label: range.label, normal: range.normal, long: range.long },
     recommended: index === 0,
     rolls: [
       { id: "attack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" },
@@ -59,6 +62,7 @@ function createWeaponOption(character, combatState, referenceData, weapon, refer
     meta: [
       `${signed(attackBonus)} to hit`,
       `${ability.toUpperCase()} attack`,
+      `${rangeType === "ranged" ? "Ranged" : "Melee"} ${range.label}`,
       attackCount > 1 ? `${attackCount} attacks with the Attack action` : "1 attack with the Attack action",
       damageFormula ? `${damageFormula} ${damage.type}` : "Damage not found"
     ]
@@ -78,6 +82,7 @@ function createUnarmedOption(character, combatState, referenceData, attackCount 
     tags: ["attack", "unarmed", "melee"],
     cost: { action: true },
     attack: { count: attackCount, consumesAttackAction: true },
+    range: { type: "melee", label: `${meleeReach(character, "")} ft`, normal: meleeReach(character, "") },
     rolls: [
       { id: "attack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" },
       { id: "damage", label: "Roll Damage", formula: `${Math.max(1, 1 + strength)}`, type: "damage", damageType: "bludgeoning" }
@@ -85,6 +90,7 @@ function createUnarmedOption(character, combatState, referenceData, attackCount 
     meta: [
       `${signed(attackBonus)} to hit`,
       "STR attack",
+      `Melee ${meleeReach(character, "")} ft`,
       attackCount > 1 ? `${attackCount} attacks with the Attack action` : "1 attack with the Attack action",
       `${Math.max(1, 1 + strength)} bludgeoning`
     ]
@@ -106,6 +112,7 @@ function createShoveOption(character, attackCount) {
 }
 
 function specialAttack(character, id, name, description, label, attackCount = 1) {
+  const reach = meleeReach(character, "");
   return {
     id,
     name,
@@ -115,6 +122,7 @@ function specialAttack(character, id, name, description, label, attackCount = 1)
     tags: ["attack", "special"],
     cost: { action: true },
     attack: { count: attackCount, consumesAttackAction: true },
+    range: { type: "melee", label: `${reach} ft`, normal: reach },
     rolls: [{ id: "athletics", label: `Roll ${label}`, formula: `1d20${signed(abilityModifier(character, "str"))}`, type: "check" }],
     meta: [
       attackCount > 1 ? `Replaces one of ${attackCount} attacks from the Attack action` : "Replaces one attack from the Attack action"
@@ -172,6 +180,35 @@ function parseDamage(value) {
 function rangeTypeFor(properties, category, fallback) {
   if (/ammunition|range|ranged/i.test(`${properties} ${category}`)) return "ranged";
   return fallback ?? "melee";
+}
+
+function weaponRange(character, properties, category, rangeType, fallback) {
+  const ranged = String(properties).match(/range\s+(\d+)\s*\/\s*(\d+)/i);
+  if (ranged) {
+    return {
+      label: `${ranged[1]}/${ranged[2]} ft`,
+      normal: Number(ranged[1]),
+      long: Number(ranged[2])
+    };
+  }
+  if (rangeType === "ranged" && fallback) {
+    return { label: String(fallback), normal: null, long: null };
+  }
+  const reach = meleeReach(character, properties);
+  return { label: `${reach} ft`, normal: reach, long: null };
+}
+
+function meleeReach(character, properties) {
+  return 5 + (/reach/i.test(properties) ? 5 : 0) + featureReachBonus(character);
+}
+
+function featureReachBonus(character) {
+  return collectCharacterFeatures(character, null).reduce((bonus, feature) => {
+    const text = `${feature.name} ${featureText(feature)}`;
+    if (/long-limbed/i.test(text)) return Math.max(bonus, 5);
+    const match = text.match(/(?:reach (?:increases|is increased) by|additional)\s+(\d+)\s+feet?[^.]*reach/i);
+    return match ? Math.max(bonus, Number(match[1])) : bonus;
+  }, 0);
 }
 
 function abilityModifier(character, ability) {

@@ -1,6 +1,106 @@
 # Development Plan
 
-## Current Session: Inline Weapon and Spell Feature Riders
+## Current Session: Consumable Resource Bar and Action Table Alignment
+
+### Implemented
+
+- Expanded the fixed consumable resource bar between turn progress and options:
+  - It still shows concentration and spell slots.
+  - It now also shows tracked class resources and limited-use resources such as Ki/Focus, Rage, Wild Shape, and similar consumables.
+  - Resource badges route to the Resources option group for detailed controls.
+- Normalized non-spell action table rows across Recommended, Actions, Attacks, Bonus, Free, and Reaction:
+  - Shared columns now include Type, M/R, Name, Range, Roll, Damage/Notes, and Buttons.
+  - Attack rows now include a Use button through the same option-use path as other action rows.
+  - Attack rows no longer lose range, damage, rider, or use details when shown outside the Attacks tab.
+- Added weapon range metadata in rules:
+  - Ranged and thrown weapons parse normal/long range from weapon properties such as `range 150/600`.
+  - Melee attacks show reach in feet.
+  - Reach weapons add 5 ft.
+  - Imported reach-changing feature text is checked for common reach bonuses, including Long-Limbed-style features.
+- Added a thin M/R column for attack rows, including spell attack rows where the spell looks like a melee or ranged spell attack.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/rules/weaponActions.js`
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `js/player-combat/ui/spellcastingBar.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Reach feature detection is conservative and based on imported feature names/text. It covers explicit numeric reach increases and Long-Limbed-style text, but unusual homebrew phrasing may not be detected.
+- The top resource bar is compact and links to the Resources group for editing; it does not directly increment/decrement class resources.
+- Spell M/R detection is heuristic for spell attacks using range and description text.
+
+### Manual Test Checklist
+
+1. Import or simulate a character with spell slots and Ki/Focus; confirm both spell slots and Ki/Focus appear in the fixed resource bar between turn progress and options.
+2. Click a spell slot badge and confirm the Spells group filters to that level; click a limited resource badge and confirm the Resources group opens.
+3. Open Recommended and Attacks with a melee weapon, reach weapon, thrown weapon, and ranged weapon; confirm M/R, range, roll, damage/notes, and Use controls appear consistently.
+4. Use an attack from the Attacks tab and confirm the action/attack turn state updates.
+5. Import or simulate a reach-changing feature and confirm melee attack range includes the feature bonus.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\spellcastingBar.js`
+- `node --check js\player-combat\ui\actionOptionRenderers.js`
+- `node --check js\player-combat\rules\weaponActions.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file is under 500 lines; largest file is `js/player-combat/normalizers/characterNormalizer.js` at 451 lines.
+
+### Next Recommended Phase
+
+Add a browser smoke test for resource-bar rendering and row controls, especially attack Use buttons and M/R/range columns across Recommended, Attacks, and Spells.
+
+## Previous Session: Action Tabs UI Refactor
+
+### Implemented
+
+- Split the oversized `js/player-combat/ui/actionTabs.js` into focused UI modules:
+  - `actionTabs.js` now owns tab selection state, option filtering, top-level render flow, and event binding.
+  - `actionOptionRenderers.js` owns option, attack, spell, log, badge, meta, warning, and detail-row rendering.
+  - `actionOptionHandlers.js` owns roll handling, option lookup, spell-casting guards, concentration replacement confirmation, and option use.
+- Preserved the existing action option behavior and moved rider roll buttons into expanded attack details so inline attack riders are reachable from weapon cards.
+- Reduced `actionTabs.js` from 499 lines to 135 lines; the largest player-combat file is now `characterNormalizer.js` at 451 lines.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `js/player-combat/ui/actionOptionHandlers.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- `actionOptionRenderers.js` is intentionally still a rendering bundle for all action tables. If attack or spell rendering grows further, split those table renderers into dedicated modules.
+- The refactor does not add new browser-level UI automation tests; existing rules and import tests cover the option model, while syntax checks cover module wiring.
+
+### Manual Test Checklist
+
+1. Import or simulate a character and switch between Recommended, Attacks, Actions, Spells, Bonus, Free, and Reaction tabs.
+2. Expand weapon and spell rows and confirm details still open and close.
+3. Roll primary weapon/spell dice and inline rider dice from expanded attack details.
+4. Use normal actions, movement, spells, and concentration spells and confirm the existing modal behavior is unchanged.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionOptionRenderers.js`
+- `node --check js\player-combat\ui\actionOptionHandlers.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file is under 500 lines; largest file is `js/player-combat/normalizers/characterNormalizer.js` at 451 lines.
+
+### Next Recommended Phase
+
+Add a small browser smoke test around tab switching, row expansion, and rider roll buttons before adding more UI behavior.
+
+## Previous Session: Inline Weapon and Spell Feature Riders
 
 ### Implemented
 

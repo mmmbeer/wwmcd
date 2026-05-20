@@ -214,7 +214,8 @@ body.has-turn-progress .app-shell {
 }
 
 .concentration-status,
-.spell-level-status {
+.spell-level-status,
+.resource-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -246,6 +247,13 @@ body.has-turn-progress .app-shell {
 
 .spell-level-status {
   padding: 2px 5px;
+}
+
+.resource-status span:first-child {
+  max-width: 94px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .spell-level-status.is-spent {
@@ -691,7 +699,7 @@ body.has-turn-progress .app-shell {
 
 .option-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 860px;
   border-collapse: collapse;
 }
 
@@ -720,31 +728,37 @@ body.has-turn-progress .app-shell {
 }
 
 .option-table tbody td:first-child {
-  width: 12%;
+  width: 10%;
   white-space: nowrap;
+}
+
+.option-table .attack-mode-col,
+.option-table tbody td:nth-child(2) {
+  width: 46px;
+  text-align: center;
 }
 
 .option-table tbody th {
   width: 22%;
 }
 
-.option-table td:nth-child(3) {
-  width: 42%;
-}
-
 .option-table td:nth-child(4) {
-  width: 24%;
+  width: 12%;
+  white-space: nowrap;
 }
 
-.attack-table tbody th {
+.option-table td:nth-child(5) {
+  width: 14%;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.option-table td:nth-child(6) {
   width: 30%;
 }
 
-.attack-table td:nth-child(3),
-.attack-table td:nth-child(4) {
-  width: 24%;
-  font-weight: 800;
-  white-space: nowrap;
+.option-table td:nth-child(7) {
+  width: 18%;
 }
 
 .spell-table .spell-concentration-col,
@@ -757,9 +771,9 @@ body.has-turn-progress .app-shell {
   width: 26%;
 }
 
-.spell-table td:nth-child(3),
 .spell-table td:nth-child(4),
-.spell-table td:nth-child(5) {
+.spell-table td:nth-child(5),
+.spell-table td:nth-child(6) {
   width: auto;
 }
 
@@ -768,6 +782,11 @@ body.has-turn-progress .app-shell {
   min-width: 28px;
   color: #7c4a03;
   background: #fff3d7;
+}
+
+.attack-mode-badge {
+  justify-content: center;
+  min-width: 28px;
 }
 
 .option-table p {

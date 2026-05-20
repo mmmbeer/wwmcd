@@ -220,6 +220,36 @@ test("weapon attacks expose multiple attacks from Extra Attack features", () => 
   assert.ok(longsword.meta.includes("3 attacks with the Attack action"));
 });
 
+test("weapon attacks expose melee/ranged range metadata and use cost", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      features: {
+        class: [],
+        race: [{ name: "Long-Limbed", description: "When you make a melee attack on your turn, your reach for it is 5 feet greater than normal." }],
+        feats: [],
+        other: []
+      },
+      inventory: {
+        weapons: [
+          { name: "Halberd", type: "Martial Melee Weapon", properties: "Heavy, reach, two-handed", damage: { diceString: "1d10" }, damageType: "slashing" },
+          { name: "Longbow", type: "Martial Ranged Weapon", properties: "Ammunition (range 150/600), heavy, two-handed", damage: { diceString: "1d8" }, damageType: "piercing" }
+        ]
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  const halberd = groups.attacks.find((option) => option.name === "Halberd");
+  const longbow = groups.attacks.find((option) => option.name === "Longbow");
+
+  assert.equal(halberd.cost.action, true);
+  assert.equal(halberd.range.type, "melee");
+  assert.equal(halberd.range.label, "15 ft");
+  assert.equal(longbow.range.type, "ranged");
+  assert.equal(longbow.range.label, "150/600 ft");
+});
+
 test("monk martial arts waits for Attack action and flurry spends Ki", () => {
   const character = baseCharacter({
     classes: [{ name: "Monk", level: 3 }],
