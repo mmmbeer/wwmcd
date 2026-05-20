@@ -156,21 +156,23 @@ function featureSpellOptions(entry, text, character, referenceData) {
 
 function featureSpellOption(entry, text, spell) {
   const cost = costFromCastingTime(spell.casting_time ?? "1 action");
+  const limitedUse = featureSpellLimitedUse(entry, text, spell.name);
+  const fullCost = limitedUse ? { ...cost, resource: limitedUse } : cost;
   const level = normalizeSpellLevel(spell.level);
   const description = `Cast ${spell.name} using ${entry.name}.`;
   const option = withFeatureSource(feature(
     `feature_${slug(entry.name)}_cast_${slug(spell.name)}`,
     `${entry.name}: ${spell.name}`,
     description,
-    cost,
+    fullCost,
     [entry.type, "feature", "spell", level === 0 ? "cantrip" : "leveled-spell"].filter(Boolean),
     {
-      resource: entry.name,
+      resource: limitedUse?.name ?? entry.name,
       spell: {
         level,
         concentration: /concentration/i.test(`${spell.duration ?? ""} ${spell.description ?? ""}`),
         castingTime: spell.casting_time ?? "1 action",
-        castingCost: castingCostName(cost),
+        castingCost: castingCostName(fullCost),
         range: spell.range,
         saveAbility: inferSaveAbility(spell.description ?? ""),
         reference: {
@@ -183,13 +185,50 @@ function featureSpellOption(entry, text, spell) {
       meta: [
         "Feature-granted spellcasting",
         "Does not require a spell slot unless you choose to cast it with one",
-        "Usage limit may need manual tracking"
+        limitedUse ? `${limitedUse.name}: ${limitedUse.max} use per ${limitedUse.reset.toLowerCase()}` : "Usage limit may need manual tracking"
       ],
       longDescription: text
     }
   ), entry);
 
   return { ...option, description };
+}
+
+function featureSpellLimitedUse(entry, text, spellName) {
+  const context = spellUseContext(text, spellName);
+  if (!context) return null;
+  if (!/\bwithout\s+(?:expending\s+)?a\s+spell\s+slot\b|\bwithout\s+using\s+a\s+spell\s+slot\b|\bno\s+spell\s+slot\b/i.test(context)) return null;
+  if (!/\bonce\b|\b1\s+time\b|\bone\s+time\b/i.test(context)) return null;
+
+  const reset = restReset(context);
+  if (!reset) return null;
+
+  return {
+    type: "classResource",
+    id: `resource-${slug(entry.name)}-${slug(spellName)}`,
+    name: `${entry.name}: ${spellName}`,
+    max: 1,
+    amount: 1,
+    reset,
+    source: entry.type ?? "feature"
+  };
+}
+
+function spellUseContext(text, spellName) {
+  const escaped = escapeRegExp(spellName).replace(/\s+/g, "\\s+");
+  const source = String(text ?? "");
+  const match = source.match(new RegExp(`\\b${escaped}\\b`, "i"));
+  if (!match) return "";
+  const start = Math.max(0, match.index - 220);
+  const end = Math.min(source.length, match.index + spellName.length + 360);
+  const context = source.slice(start, end);
+  return /\bcast\b/i.test(context) ? context : "";
+}
+
+function restReset(text) {
+  if (/\blong\b.{0,40}\brest\b|\brest\b.{0,40}\blong\b/i.test(text)) return "Long Rest";
+  if (/\bshort\b.{0,40}\brest\b|\brest\b.{0,40}\bshort\b/i.test(text)) return "Short Rest";
+  return null;
 }
 
 function mentionsCastSpell(text, spellName) {

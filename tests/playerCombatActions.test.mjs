@@ -5,6 +5,7 @@ import test from "node:test";
 import { transformCombatData } from "../js/player-combat/data/combatDataTransformer.js";
 import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
+import { resetLongRestResources } from "../js/player-combat/rules/restRules.js";
 
 const combatState = {
   turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
@@ -634,6 +635,46 @@ test("war caster lists eligible opportunity spells and marks spell cards", () =>
   assert.ok(warCaster.meta.includes("Eligible spells: Shocking Grasp"));
   assert.ok(shockingGrasp.meta.includes("War Caster: eligible for opportunity spell reaction"));
   assert.equal(fireball.meta.includes("War Caster: eligible for opportunity spell reaction"), false);
+});
+
+test("feature-granted once-per-long-rest spells attach tracked resources", () => {
+  const featureText = [
+    "You can cast the Levitate spell once with this trait, without expending a spell slot.",
+    "You regain the ability to cast it this way when you finish a long rest."
+  ].join(" ");
+  const character = baseCharacter({
+    level: 5,
+    features: {
+      class: [],
+      race: [{ name: "Mingle with the Wind", description: featureText }],
+      feats: [],
+      other: []
+    }
+  });
+  const referenceData = {
+    indexes: {
+      spellIndexByName: new Map([
+        ["levitate", { name: "Levitate", level: 2, casting_time: "1 action", duration: "Concentration, up to 10 minutes" }]
+      ])
+    }
+  };
+  const fresh = getCombatOptions({ character, combatState, referenceData });
+  const levitate = fresh.actions.find((option) => option.name === "Mingle with the Wind: Levitate");
+  const spent = getCombatOptions({
+    character,
+    combatState: {
+      ...combatState,
+      resourcesUsed: { spellSlots: {}, classResources: { [levitate.cost.resource.id]: 1 } }
+    },
+    referenceData
+  });
+
+  assert.equal(levitate.available, true);
+  assert.equal(levitate.cost.resource.max, 1);
+  assert.equal(levitate.cost.resource.reset, "Long Rest");
+  assert.equal(levitate.spell.concentration, true);
+  assert.equal(spent.actions.find((option) => option.id === levitate.id).available, false);
+  assert.deepEqual(resetLongRestResources({ spellSlots: {}, classResources: { [levitate.cost.resource.id]: 1 } }).classResources, {});
 });
 
 function baseCharacter(overrides = {}) {

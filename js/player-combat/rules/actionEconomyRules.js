@@ -57,7 +57,7 @@ function resourceBlockReason(option, character, combatState) {
     return used < max ? null : `No level ${resource.level} spell slots remaining.`;
   }
   if (resource.type !== "classResource") return null;
-  const match = findClassResource(character, resource.id);
+  const match = findClassResource(character, resource.id) ?? inlineResource(resource);
   if (!match) return `${resource.name ?? "Resource"} is not tracked.`;
   const max = Number(match.max ?? 0);
   const used = Number(combatState?.resourcesUsed?.classResources?.[match.id] ?? 0);
@@ -103,4 +103,9 @@ function findClassResource(character, resourceId) {
     ...(character?.resources?.classResources ?? []),
     ...(character?.resources?.limitedUses ?? [])
   ].find((resource) => resource.id === resourceId);
+}
+
+function inlineResource(resource) {
+  const max = Number(resource?.max ?? 0);
+  return max > 0 && resource?.id ? resource : null;
 }

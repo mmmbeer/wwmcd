@@ -1,6 +1,49 @@
 # Development Plan
 
-## Current Session: Compact Rows and Feature Spellcasting
+## Current Session: Feature Spell Limited Uses
+
+### Implemented
+
+- Added tracked limited-use resources for feature-granted spell casts when feature text says the spell can be cast once without a spell slot and recharges on a rest.
+  - Each tracked feature spell gets a stable resource id based on the feature and spell name.
+  - The option becomes unavailable after the tracked use is spent.
+  - Long rest reset clears the spent feature-spell resource through the existing limited-resource state bucket.
+  - Spell action economy, leveled spellcasting, and concentration tracking still apply to the feature spell.
+- Updated action economy resource checks to honor inline resource metadata on generated options when the imported character does not already contain that resource.
+
+### Files Changed
+
+- `js/player-combat/rules/featureActions.js`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Limited-use detection is conservative and targets clear once-per-rest spellcasting text that also says the feature cast does not use a spell slot.
+- Inferred feature-spell resources are enforced on the option and reset with rest state, but they are not yet added to the editable Limited Resources panel unless the import already provides them.
+
+### Manual Test Checklist
+
+1. Import or simulate an Air Genasi with Mingle with the Wind and confirm Levitate appears as a feature spell with a one-use long-rest resource.
+2. Use Levitate from the feature option and confirm it becomes unavailable after the cast.
+3. Take a long rest and confirm the feature spell is available again.
+4. Confirm Levitate still uses an Action, marks leveled spellcasting, and starts concentration.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\featureActions.js`
+- `node --check js\player-combat\rules\actionEconomyRules.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `js/player-combat/normalizers/characterNormalizer.js` at 451 lines.
+
+### Next Recommended Phase
+
+Surface inferred feature-spell resources in the Limited Resources panel so players can manually adjust them before or after using an option.
+
+## Previous Session: Compact Rows and Feature Spellcasting
 
 ### Implemented
 
