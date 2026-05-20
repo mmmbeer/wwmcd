@@ -44,7 +44,7 @@ export function findOption(groups, id) {
 }
 
 function blocksSecondLeveledSpell(option, combatState) {
-  return option.source === "spell"
+  return Boolean(option.spell)
     && Number(option.spell?.level ?? 0) > 0
     && combatState.turn?.leveledSpellCast;
 }

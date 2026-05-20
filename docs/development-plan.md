@@ -1,6 +1,57 @@
 # Development Plan
 
-## Current Session: PDF-Only Import Modal
+## Current Session: Compact Rows and Feature Spellcasting
+
+### Implemented
+
+- Removed compact-table description text from under non-spell action names; longer descriptions now stay in the expanded detail panel.
+- Limited the compact `Damage / Notes` column for attacks to short tactical metadata, keeping long imported feature reminders out of the table row.
+- Added feature-granted spellcasting options from imported/reference feature text that says the character can cast named spells:
+  - Feature casts use the referenced spell's action cost, level, range, concentration, and save metadata.
+  - Feature casts do not require spell slots, so racial/feature casts such as Air Genasi Feather Fall or Levitate remain available to characters without spell slots.
+  - Feature casts still count as leveled spellcasting for turn tracking and can start concentration.
+- Fixed feature collection so race features from both normalized feature storage locations are considered.
+
+### Files Changed
+
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `js/player-combat/rules/featureActions.js`
+- `js/player-combat/rules/featureData.js`
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/ui/actionOptionHandlers.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Feature-granted spell usage limits are surfaced as manual-tracking notes unless the import provides a tracked limited-use resource.
+- Feature spell detection depends on feature text mentioning a spell name from the loaded spell reference data near the word `cast`.
+
+### Manual Test Checklist
+
+1. Open Attacks and confirm action names no longer show long description text beneath them.
+2. Confirm the compact `Damage / Notes` column only shows short notes such as attack ability, while expanded details still show full notes and descriptions.
+3. Import or simulate an Air Genasi Monk and confirm Feather Fall appears as a Reaction feature cast and Levitate appears as an Action feature cast.
+4. Confirm those feature spell casts are available even when the character has no spell slots.
+5. Cast Levitate from the feature option and confirm Action is used and concentration is tracked.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\featureActions.js`
+- `node --check js\player-combat\rules\featureData.js`
+- `node --check js\player-combat\ui\actionOptionRenderers.js`
+- `node --check js\player-combat\ui\actionOptionHandlers.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `js/player-combat/normalizers/characterNormalizer.js` at 451 lines.
+
+### Next Recommended Phase
+
+Add explicit limited-use controls for feature-granted spell casts when imports provide once-per-rest spellcasting traits.
+
+## Previous Session: PDF-Only Import Modal
 
 ### Implemented
 

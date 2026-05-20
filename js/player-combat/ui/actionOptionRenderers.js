@@ -69,7 +69,6 @@ function renderOptionRow(option) {
       <td>${renderAttackMode(option)}</td>
       <th scope="row">
         ${escapeHtml(option.name)}
-        <p>${escapeHtml(option.description || "")}</p>
       </th>
       <td>${escapeHtml(optionRangeLabel(option))}</td>
       <td>${renderPrimaryRoll(option, unavailable)}</td>
@@ -221,6 +220,12 @@ function renderDamageTypeIcon(type) {
 }
 
 function renderMeta(option) {
+  const items = compactMeta(option);
+  if (!items.length) return "";
+  return `<ul class="option-meta">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderDetailMeta(option) {
   if (!option.meta?.length) return "";
   return `<ul class="option-meta">${option.meta.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
@@ -262,7 +267,7 @@ function renderDetailPanel(option, unavailable) {
         ${renderLongDescription(option)}
       </section>
       ${renderRollList(option, unavailable)}
-      ${option.meta?.length ? `<section class="detail-section"><h4>Notes</h4>${renderMeta(option)}</section>` : ""}
+      ${option.meta?.length ? `<section class="detail-section"><h4>Notes</h4>${renderDetailMeta(option)}</section>` : ""}
       ${option.source === "spell" ? `<section class="detail-section"><h4>Spell Reference</h4>${renderSpellDetailCard(option)}</section>` : ""}
       ${renderWarnings(option.warnings)}
       ${unavailable ? renderReasons(option.unavailableReasons) : ""}
@@ -406,7 +411,7 @@ function spellDcLabel(option) {
 }
 
 function useLabel(option) {
-  return option.source === "spell" ? "Cast" : option.cost?.movement ? "Use Move" : "Use";
+  return option.source === "spell" || option.spell ? "Cast" : option.cost?.movement ? "Use Move" : "Use";
 }
 
 function hasUseCost(option) {
@@ -428,4 +433,15 @@ function attackMode(option) {
 
 function titleCase(value) {
   return String(value ?? "").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function compactMeta(option) {
+  if (option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed")) {
+    return (option.meta ?? []).filter((item) => !isLongText(item)).slice(0, 2);
+  }
+  return [];
+}
+
+function isLongText(value) {
+  return String(value ?? "").length > 48 || /[.!?]\s/.test(String(value ?? ""));
 }

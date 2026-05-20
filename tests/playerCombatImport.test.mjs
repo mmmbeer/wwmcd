@@ -13,6 +13,7 @@ import { getResourceActions } from "../js/player-combat/rules/resourceActions.js
 import { resetsOnShortRest } from "../js/player-combat/rules/restRules.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
 import { getWeaponActions } from "../js/player-combat/rules/weaponActions.js";
+import { renderGroup } from "../js/player-combat/ui/actionOptionRenderers.js";
 
 test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", () => {
   const raw = {
@@ -322,6 +323,89 @@ test("bonus and reaction spells appear in matching action economy groups", () =>
   assert.ok(groups.reaction.some((option) => option.name === "Shield"));
   assert.equal(groups.bonus.find((option) => option.name === "Healing Word").spell.castingCost, "bonus");
   assert.equal(groups.reaction.find((option) => option.name === "Shield").spell.castingCost, "reaction");
+});
+
+test("feature-granted spellcasting does not require imported spell slots", () => {
+  const character = {
+    id: "air-genasi-monk",
+    name: "Air Genasi Monk",
+    level: 5,
+    classes: [{ name: "Monk", level: 5 }],
+    race: {
+      name: "Air Genasi",
+      features: [{
+        name: "Mingle with the Wind",
+        description: "When you reach 3rd level, you can cast Feather Fall once with this trait. When you reach 5th level, you can cast Levitate once with this trait. You regain the ability to cast these spells when you finish a long rest. You can also cast these spells using spell slots you have of the appropriate level."
+      }]
+    },
+    features: { race: [] },
+    stats: { str: 10, dex: 16, con: 14, int: 10, wis: 16, cha: 8 },
+    combat: { proficiencyBonus: 3, speed: { walk: 30 } },
+    resources: { spellSlots: {}, classResources: [], limitedUses: [] },
+    inventory: { weapons: [] },
+    spells: { known: [], prepared: [], cantrips: [] }
+  };
+
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: featureSpellReferenceData() });
+  const featherFall = groups.reaction.find((option) => option.name === "Mingle with the Wind: Feather Fall");
+  const levitate = groups.actions.find((option) => option.name === "Mingle with the Wind: Levitate");
+
+  assert.equal(featherFall?.available, true);
+  assert.equal(levitate?.available, true);
+  assert.equal(featherFall.cost.resource, undefined);
+  assert.equal(levitate.cost.resource, undefined);
+  assert.equal(levitate.source, "feature");
+  assert.equal(levitate.spell.level, 2);
+});
+
+test("feature spell casts still count as leveled spellcasting", () => {
+  const storage = createMemoryStorage();
+  const stateManager = createStateManager({ storage, eventBus: { emit() {} } });
+  const character = {
+    id: "feature-caster",
+    name: "Feature Caster",
+    importedAt: "2026-05-20T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: {}, classResources: [], limitedUses: [] }
+  };
+
+  stateManager.importCharacter(character);
+  stateManager.useCombatOption({
+    name: "Mingle with the Wind: Levitate",
+    source: "feature",
+    cost: { action: true },
+    spell: { level: 2, concentration: true }
+  });
+
+  const combatState = stateManager.getCombatState();
+  assert.equal(combatState.turn.actionUsed, true);
+  assert.equal(combatState.turn.leveledSpellCast, true);
+  assert.equal(combatState.turn.leveledSpellName, "Mingle with the Wind: Levitate");
+  assert.equal(combatState.current.concentrationSource, "feature");
+});
+
+test("compact action rows omit long descriptions and long attack notes", () => {
+  const html = renderGroup("attacks", "Attacks", [{
+    id: "attack_long_notes",
+    name: "Quarterstaff",
+    source: "weapon",
+    tags: ["weapon", "attack"],
+    cost: { action: true },
+    description: "This full description belongs in the expanded details, not under the action name.",
+    meta: [
+      "DEX attack",
+      "This long imported feature reminder should stay out of the compact Damage / Notes column because it belongs in details."
+    ],
+    rolls: [
+      { id: "attack", label: "Roll Attack", formula: "1d20+6", type: "attack" },
+      { id: "damage", label: "Roll Damage", formula: "1d6+3", type: "damage", damageType: "bludgeoning" }
+    ]
+  }], baseCombatState());
+
+  const compactRow = html.split("option-detail-row")[0];
+  assert.ok(!compactRow.includes("This full description belongs"));
+  assert.ok(!compactRow.includes("This long imported feature reminder"));
+  assert.ok(compactRow.includes("DEX attack"));
 });
 
 test("compact PDF spell casting-time abbreviations map to action types", () => {
@@ -670,6 +754,32 @@ function realReferenceData() {
     races: readJson("data/races.json")
   };
   return { data, ...transformCombatData(data) };
+}
+
+function featureSpellReferenceData() {
+  return {
+    indexes: {
+      featureActionIndexByName: new Map(),
+      spellIndexByName: new Map([
+        ["feather fall", {
+          name: "Feather Fall",
+          level: 1,
+          casting_time: "1 reaction",
+          range: "60 feet",
+          duration: "1 minute",
+          description: "Choose up to five falling creatures within range."
+        }],
+        ["levitate", {
+          name: "Levitate",
+          level: 2,
+          casting_time: "1 action",
+          range: "60 feet",
+          duration: "Concentration, up to 10 minutes",
+          description: "One creature or object must make a Constitution saving throw."
+        }]
+      ])
+    }
+  };
 }
 
 function readJson(path) {

@@ -141,7 +141,7 @@ export function createStateManager({ storage, eventBus }) {
       turn.actionSurgeUsed = true;
     }
     if (option.effect?.turnFlag) turn[option.effect.turnFlag] = true;
-    if (option.source === "spell" && Number(option.spell?.level ?? 0) > 0) {
+    if (option.spell && Number(option.spell?.level ?? 0) > 0) {
       turn.leveledSpellCast = true;
       turn.leveledSpellName = option.name;
     }
@@ -351,7 +351,7 @@ function applyOptionCurrentEffects(option, current) {
   let next = option.effect?.wildShape
     ? { ...current, currentForm: "Wild Shape" }
     : option.spell?.concentration
-      ? { ...current, concentration: option.name, concentrationSource: "spell" }
+      ? { ...current, concentration: option.name, concentrationSource: option.source === "spell" ? "spell" : "feature" }
       : current;
 
   if (option.effect?.activeEffect) {

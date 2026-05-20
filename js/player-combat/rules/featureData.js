@@ -4,7 +4,8 @@ import { normalizeName } from "../data/combatDataTransformer.js";
 export function collectCharacterFeatures(character, referenceData) {
   return uniqueFeatures([
     ...featuresFromList(character?.features?.class, "class", referenceData),
-    ...featuresFromList(character?.features?.race ?? character?.race?.features, "race", referenceData),
+    ...featuresFromList(character?.features?.race, "race", referenceData),
+    ...featuresFromList(character?.race?.features, "race", referenceData),
     ...featuresFromList(character?.features?.feats, "feat", referenceData),
     ...featuresFromList(character?.features?.other, "feature", referenceData),
     ...featuresFromList((character?.classes ?? []).flatMap((entry) => entry.features ?? []), "class", referenceData)
