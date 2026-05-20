@@ -6,6 +6,8 @@ import {
 import { getBasicActions } from "./basicActions.js";
 import { getFeatureActions } from "./featureActions.js";
 import { getMonkActions } from "./monkActions.js";
+import { getHighImpactFeatureActions } from "./highImpactFeatureActions.js";
+import { getEffectiveWalkSpeed } from "./movementRules.js";
 import { getResourceActions } from "./resourceActions.js";
 import { getSpellActions } from "./spellActions.js";
 import { getWeaponActions } from "./weaponActions.js";
@@ -14,12 +16,13 @@ export function getCombatOptions({ character, combatState, referenceData }) {
   if (!character || !combatState) return emptyGroups();
 
   const options = [
-    movementOption(character, combatState),
+    movementOption(character, combatState, referenceData),
     ...getBasicActions(character, combatState),
     ...getWeaponActions(character, referenceData),
     ...getSpellActions(character, combatState, referenceData),
     ...getFeatureActions(character, combatState, referenceData),
     ...getMonkActions(character, combatState),
+    ...getHighImpactFeatureActions(character, combatState, referenceData),
     ...getResourceActions(character, combatState)
   ];
 
@@ -27,9 +30,9 @@ export function getCombatOptions({ character, combatState, referenceData }) {
   return groupOptionsByTurnCost(checked);
 }
 
-function movementOption(character, combatState) {
+function movementOption(character, combatState, referenceData) {
   const remaining = getMovementRemaining(character, combatState);
-  const speed = Number(character?.combat?.speed?.walk ?? 0);
+  const speed = getEffectiveWalkSpeed(character, referenceData);
   return {
     id: "movement_walk",
     name: "Move",

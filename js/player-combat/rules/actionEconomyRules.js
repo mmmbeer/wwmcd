@@ -4,6 +4,7 @@ import {
   hasMovementBlocker,
   movementBlockReason
 } from "./conditionRules.js";
+import { getEffectiveWalkSpeed } from "./movementRules.js";
 
 const ACTION_COSTS = {
   action: ["actionUsed", "Action already used."],
@@ -49,7 +50,13 @@ export function applyActionEconomyRules(options, character, combatState) {
 
 function resourceBlockReason(option, character, combatState) {
   const resource = option.cost?.resource;
-  if (!resource || resource.type !== "classResource") return null;
+  if (!resource) return null;
+  if (resource.type === "spellSlot") {
+    const max = spellSlotMax(character?.resources?.spellSlots?.[resource.level]);
+    const used = Number(combatState?.resourcesUsed?.spellSlots?.[resource.level] ?? 0);
+    return used < max ? null : `No level ${resource.level} spell slots remaining.`;
+  }
+  if (resource.type !== "classResource") return null;
   const match = findClassResource(character, resource.id);
   if (!match) return `${resource.name ?? "Resource"} is not tracked.`;
   const max = Number(match.max ?? 0);
@@ -57,6 +64,11 @@ function resourceBlockReason(option, character, combatState) {
   const remaining = Math.max(0, max - used);
   const amount = Number(resource.amount ?? 1);
   return remaining >= amount ? null : `${match.name} has no uses remaining.`;
+}
+
+function spellSlotMax(value) {
+  if (value && typeof value === "object") return Number(value.available ?? value.max ?? value.value ?? 0);
+  return Number(value ?? 0);
 }
 
 export function groupOptionsByTurnCost(options) {
@@ -82,7 +94,7 @@ export function groupOptionsByTurnCost(options) {
 
 export function getMovementRemaining(character, combatState) {
   if (hasMovementBlocker(combatState)) return 0;
-  const speed = Number(character?.combat?.speed?.walk ?? 0);
+  const speed = getEffectiveWalkSpeed(character);
   return Math.max(0, speed - Number(combatState?.turn?.movementUsed ?? 0));
 }
 

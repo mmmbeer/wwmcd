@@ -1,6 +1,115 @@
 # Development Plan
 
-## Current Session: Player Combat Assistant Monk Attacks and Ki Tracking
+## Current Session: Highest-Impact Feature Gaps
+
+### Implemented
+
+- Added dedicated high-impact feature rules for:
+  - Action Surge: resource-aware extra-action control that clears action use and marks Action Surge used.
+  - Wild Shape: resource-aware action, with Circle of the Moon using a bonus action.
+  - Divine Smite: on-hit spell-slot resource option using the lowest available slot and rolling radiant damage.
+  - Patient Defense and Step of the Wind: Ki/Focus-spending Monk bonus actions.
+  - Polearm Master, Shield Master, Great Weapon Master, and Telekinetic: common feat bonus-action options with prerequisites, warnings, or rolls.
+- Added shared feature rule helpers for feature detection, class levels, subclass checks, resources, spell-slot availability, and ability modifiers.
+- Added movement rules for Fast Movement, Unarmored Movement, Mobile, Squat Nimbleness, and Fleet of Foot.
+- Inferred missing Action Surge and Wild Shape resources during normalization, similar to the existing inferred Monk Ki resource.
+- Prevented generic feature parsing from duplicating dedicated feature cards for the newly handled high-impact features.
+- Extended spell-slot resource availability checks so non-spell feature options can spend spell slots.
+
+### Files Changed
+
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/models/combatStateModel.js`
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/rules/actionEconomyRules.js`
+- `js/player-combat/rules/basicActions.js`
+- `js/player-combat/rules/combatOptionsService.js`
+- `js/player-combat/rules/featureActions.js`
+- `js/player-combat/rules/featureRuleHelpers.js`
+- `js/player-combat/rules/highImpactFeatureActions.js`
+- `js/player-combat/rules/movementRules.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/feature-implementation-plan.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Divine Smite is implemented as a resource-aware on-hit feature card, not yet as an inline rider attached to each melee weapon attack.
+- Wild Shape tracks that the character entered Wild Shape but does not yet provide beast form selection or form stat replacement.
+- Great Weapon Master exposes the conditional bonus attack and reminder text, but the -5/+10 attack mode is not yet an inline weapon attack toggle.
+- Polearm Master includes the bonus haft attack; the expanded opportunity attack trigger is still a reminder.
+- Shield Master includes the bonus shove; Dexterity save automation remains future work.
+- `ddbPdfImporterAdapter.js` is an existing 515-line file and should be split in a future importer cleanup pass.
+
+### Manual Test Checklist
+
+1. Import or simulate a Fighter with Action Surge, use an action, then use Action Surge and confirm action availability is restored and the Action Surge resource is spent.
+2. Import or simulate a Druid with Wild Shape and confirm normal druids use an action while Circle of the Moon druids use a bonus action.
+3. Import or simulate a Paladin with spell slots and Divine Smite; spend lower-level slots and confirm Smite uses the next available slot.
+4. Import or simulate a Monk with Ki and confirm Patient Defense, Step of the Wind: Dash, and Step of the Wind: Disengage spend Ki and bonus action.
+5. Import or simulate characters with Polearm Master, Shield Master, Great Weapon Master, Telekinetic, Mobile, and Fast Movement; confirm the expected bonus cards and movement speed changes.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\highImpactFeatureActions.js`
+- `node --check js\player-combat\rules\movementRules.js`
+- `node --check js\player-combat\rules\featureRuleHelpers.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --check tests\playerCombatActions.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+
+### Next Recommended Phase
+
+Move the next set of action-affecting features from reminder cards into dedicated rules: Reckless Attack, Rage/Frenzy state, Deflect Missiles, Slow Fall, Stunning Strike, Sneak Attack, metamagic, and War Caster opportunity spell casting.
+
+## Previous Session: Source Feature Audit
+
+### Implemented
+
+- Audited action-affecting class, race, and feat features from:
+  - `data/classes.json`
+  - `data/races.json`
+  - `data/feats.json`
+- Compared the source-data features against current parser and rules coverage:
+  - Generic feature action parsing.
+  - Extra Attack attack-count rules.
+  - Monk Martial Arts and Flurry of Blows rules.
+  - Spell action generation from imported character spell data.
+- Created a focused missing-feature plan with descriptions and implementation steps.
+
+### Files Changed
+
+- `docs/feature-implementation-plan.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- This session documents missing and partial support; it does not implement the missing feature rules.
+- The audit treats generic parsed reminder cards as partial coverage when the feature needs resource spending, conditional triggers, roll changes, movement changes, or stateful effects.
+- Spellcasting class features are considered covered only when the imported character spell data already includes the granted spells.
+- The current source feature parser only indexes class entries under `Class Features`; subclass-adjacent sections such as `Martial Archetypes`, `Sacred Oaths`, `Eldritch Invocations`, and `Arcane Traditions` need expanded traversal.
+
+### Manual Test Checklist
+
+1. Review `docs/feature-implementation-plan.md` and confirm the feature list matches the desired app scope.
+2. Use the plan to prioritize dedicated rules for Action Surge, Wild Shape, Divine Smite, Metamagic, speed modifiers, and feat-based bonus/reaction attacks.
+3. For each future feature implementation, add targeted tests to `tests/playerCombatActions.test.mjs` or a focused feature test file.
+
+### Verification Completed
+
+- Parsed `data/classes.json`, `data/races.json`, and `data/feats.json` locally with BOM handling.
+- Confirmed current parser finds 52 direct action-economy source features.
+- Confirmed the parser produces entries without usable cards for source features that grant actions but do not state a direct cost, including Charger and Dwarf Fortitude.
+- Confirmed subclass-adjacent class sections contain additional action-affecting features that are not currently indexed by the parser.
+
+### Next Recommended Phase
+
+Implement the highest-impact missing rules first: Action Surge, Patient Defense, Step of the Wind, Divine Smite, Wild Shape, Metamagic, Polearm Master, Great Weapon Master, Shield Master, and race/feat speed modifiers.
+
+## Previous Session: Player Combat Assistant Monk Attacks and Ki Tracking
 
 ### Implemented
 

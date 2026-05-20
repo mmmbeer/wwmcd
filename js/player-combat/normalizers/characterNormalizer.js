@@ -26,6 +26,22 @@ export function normalizeCharacter(raw) {
     limitedUses: extractLimitedResources(root, ["limitedUses", "features.limitedUses", "resources.limitedUses"], "feature")
   };
   addInferredMonkFocusResource(resources, classes);
+  addInferredClassResource(resources, classes, {
+    className: "Fighter",
+    minLevel: 2,
+    name: "Action Surge",
+    max: 1,
+    reset: "Short Rest",
+    note: "Inferred from Fighter level."
+  });
+  addInferredClassResource(resources, classes, {
+    className: "Druid",
+    minLevel: 2,
+    name: "Wild Shape",
+    max: 2,
+    reset: "Short Rest",
+    note: "Inferred from Druid level."
+  });
 
   const character = {
     id: createId(name || "character"),
@@ -241,6 +257,30 @@ function hasFocusResource(resources) {
     ...(resources.classResources ?? []),
     ...(resources.limitedUses ?? [])
   ].some((resource) => /\b(ki|focus|discipline)\b/i.test(resource.name));
+}
+
+function addInferredClassResource(resources, classes, config) {
+  const level = classes
+    .filter((entry) => new RegExp(`\\b${config.className}\\b`, "i").test(entry.name))
+    .reduce((sum, entry) => sum + Number(entry.level ?? 0), 0);
+  if (level < config.minLevel || hasResourceNamed(resources, config.name)) return;
+  resources.classResources.push({
+    id: stableResourceId(config.name, resources.classResources.length),
+    name: config.name,
+    max: config.max,
+    reset: config.reset,
+    source: "class",
+    cost: 1,
+    note: config.note
+  });
+}
+
+function hasResourceNamed(resources, name) {
+  const target = String(name).toLowerCase();
+  return [
+    ...(resources.classResources ?? []),
+    ...(resources.limitedUses ?? [])
+  ].some((resource) => String(resource.name ?? "").toLowerCase() === target);
 }
 
 function resourceMax(definition, limitedUse) {

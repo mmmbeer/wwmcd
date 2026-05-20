@@ -1,4 +1,5 @@
 import { addLogEntry, createCombatState, resetTurn } from "../models/combatStateModel.js";
+import { getEffectiveWalkSpeed } from "../rules/movementRules.js";
 import { resetLongRestResources, resetShortRestResources } from "../rules/restRules.js";
 
 export function createStateManager({ storage, eventBus }) {
@@ -135,13 +136,19 @@ export function createStateManager({ storage, eventBus }) {
     if (option.attack?.consumesAttackAction || (option.cost?.action && option.tags?.includes("attack"))) turn.attackActionUsed = true;
     if (option.id === "basic_ready") turn.readiedAction = true;
     if (option.id === "basic_use_readied_action") turn.readiedAction = false;
+    if (option.effect?.actionSurge) {
+      turn.actionUsed = false;
+      turn.actionSurgeUsed = true;
+    }
     if (option.source === "spell" && Number(option.spell?.level ?? 0) > 0) {
       turn.leveledSpellCast = true;
       turn.leveledSpellName = option.name;
     }
 
     const resourcesUsed = spendResource(state.resourcesUsed, option.cost?.resource);
-    const current = option.spell?.concentration
+    const current = option.effect?.wildShape
+      ? { ...state.current, currentForm: "Wild Shape" }
+      : option.spell?.concentration
       ? { ...state.current, concentration: option.name, concentrationSource: "spell" }
       : state.current;
     combatStates[activeCharacterId] = addLogEntry({
@@ -157,7 +164,7 @@ export function createStateManager({ storage, eventBus }) {
   function useMovement(amount) {
     const state = getCombatState();
     const character = getActiveCharacter();
-    const speed = Number(character?.combat?.speed?.walk ?? 0);
+    const speed = getEffectiveWalkSpeed(character, referenceData);
     const movementUsed = clamp((state?.turn.movementUsed ?? 0) + Number(amount || 0), 0, speed);
     updateTurn({ movementUsed }, `Movement set to ${movementUsed} ft.`);
   }

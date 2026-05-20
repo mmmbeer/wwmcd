@@ -259,6 +259,137 @@ test("monk martial arts waits for Attack action and flurry spends Ki", () => {
   assert.equal(noKi.bonus.find((option) => option.id === "monk_flurry_of_blows").available, false);
 });
 
+test("high-impact feature actions spend resources and update turn state", () => {
+  const character = baseCharacter({
+    classes: [{ name: "Fighter", level: 2 }],
+    resources: {
+      spellSlots: {},
+      classResources: [{ id: "resource-action-surge", name: "Action Surge", max: 1, reset: "Short Rest" }],
+      limitedUses: []
+    },
+    features: { class: [{ name: "Action Surge" }], race: [], feats: [], other: [] }
+  });
+  const groups = getCombatOptions({
+    character,
+    combatState: { ...combatState, turn: { ...combatState.turn, actionUsed: true } },
+    referenceData: null
+  });
+
+  const surge = groups.resources.find((option) => option.name === "Action Surge");
+
+  assert.equal(surge.available, true);
+  assert.equal(surge.effect.actionSurge, true);
+  assert.equal(surge.cost.resource.id, "resource-action-surge");
+});
+
+test("wild shape uses action by default and bonus action for moon druids", () => {
+  const common = {
+    resources: {
+      spellSlots: {},
+      classResources: [{ id: "resource-wild-shape", name: "Wild Shape", max: 2, reset: "Short Rest" }],
+      limitedUses: []
+    },
+    features: { class: [{ name: "Wild Shape" }], race: [], feats: [], other: [] }
+  };
+  const land = getCombatOptions({
+    character: baseCharacter({ classes: [{ name: "Druid", level: 2 }], ...common }),
+    combatState,
+    referenceData: null
+  });
+  const moon = getCombatOptions({
+    character: baseCharacter({ classes: [{ name: "Druid", subclass: "Circle of the Moon", level: 2 }], ...common }),
+    combatState,
+    referenceData: null
+  });
+
+  assert.ok(land.actions.some((option) => option.name === "Wild Shape" && option.cost.action));
+  assert.ok(moon.bonus.some((option) => option.name === "Wild Shape" && option.cost.bonus));
+});
+
+test("divine smite exposes lowest available spell slot as on-hit resource option", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      classes: [{ name: "Paladin", level: 2 }],
+      resources: { spellSlots: { 1: 2, 2: 1 }, classResources: [], limitedUses: [] },
+      features: { class: [{ name: "Divine Smite" }], race: [], feats: [], other: [] }
+    }),
+    combatState: {
+      ...combatState,
+      resourcesUsed: { spellSlots: { 1: 2 }, classResources: {} }
+    },
+    referenceData: null
+  });
+
+  const smite = groups.resources.find((option) => option.name === "Divine Smite");
+
+  assert.equal(smite.cost.resource.level, 2);
+  assert.equal(smite.rolls[0].formula, "3d8");
+});
+
+test("step of the wind and patient defense use tracked monk focus", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      classes: [{ name: "Monk", level: 2 }],
+      resources: {
+        spellSlots: {},
+        classResources: [{ id: "resource-ki", name: "Ki", max: 2, reset: "Short Rest" }],
+        limitedUses: []
+      },
+      features: {
+        class: [{ name: "Patient Defense" }, { name: "Step of the Wind" }],
+        race: [],
+        feats: [],
+        other: []
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  assert.ok(groups.bonus.some((option) => option.name === "Patient Defense" && option.cost.resource.id === "resource-ki"));
+  assert.ok(groups.bonus.some((option) => option.name === "Step of the Wind: Dash" && option.cost.resource.id === "resource-ki"));
+  assert.ok(groups.bonus.some((option) => option.name === "Step of the Wind: Disengage" && option.cost.resource.id === "resource-ki"));
+});
+
+test("common feat bonus actions expose prerequisites and rolls", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      stats: { str: 16, dex: 12, con: 12, int: 10, wis: 14, cha: 8 },
+      inventory: {
+        weapons: [{ name: "Quarterstaff", type: "Simple Melee Weapon", damage: { diceString: "1d6" }, damageType: "bludgeoning" }],
+        armor: [{ name: "Shield", type: "Shield", equipped: true }]
+      },
+      features: {
+        class: [],
+        race: [],
+        feats: [{ name: "Polearm Master" }, { name: "Shield Master" }, { name: "Telekinetic" }],
+        other: []
+      }
+    }),
+    combatState: { ...combatState, turn: { ...combatState.turn, attackActionUsed: true } },
+    referenceData: null
+  });
+
+  assert.ok(groups.bonus.some((option) => option.name === "Polearm Master: Haft Attack" && option.rolls.length === 2));
+  assert.equal(groups.bonus.find((option) => option.name === "Shield Master: Shove").available, true);
+  assert.ok(groups.bonus.some((option) => option.name === "Telekinetic Shove" && option.meta.some((entry) => /DC 12/.test(entry))));
+});
+
+test("feature speed modifiers affect movement remaining", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      combat: { proficiencyBonus: 2, speed: { walk: 30 } },
+      inventory: { weapons: [], armor: [] },
+      features: { class: [{ name: "Fast Movement" }], race: [], feats: [{ name: "Mobile" }], other: [] }
+    }),
+    combatState: { ...combatState, turn: { ...combatState.turn, movementUsed: 10 } },
+    referenceData: null
+  });
+
+  assert.equal(groups.movement.find((option) => option.name === "Move").movement.speed, 50);
+  assert.equal(groups.movement.find((option) => option.name === "Move").movement.remaining, 40);
+});
+
 function baseCharacter(overrides = {}) {
   return {
     classes: [],

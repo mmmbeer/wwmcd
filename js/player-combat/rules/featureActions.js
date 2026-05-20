@@ -2,9 +2,23 @@ import { normalizeName } from "../data/combatDataTransformer.js";
 import { findParsedFeatureActions, parseFeatureActionText } from "../data/featureActionParser.js";
 import { collectCharacterFeatures, featureText } from "./featureData.js";
 
+const DEDICATED_FEATURE_RULES = new Set([
+  "action surge",
+  "wild shape",
+  "divine smite",
+  "patient defense",
+  "step of the wind",
+  "great weapon master",
+  "polearm master",
+  "shield master",
+  "telekinetic"
+]);
+
 export function getFeatureActions(character, combatState, referenceData) {
   const features = collectCharacterFeatures(character, referenceData);
-  const options = features.flatMap((entry) => optionsForFeature(entry, referenceData));
+  const options = features
+    .filter((entry) => !DEDICATED_FEATURE_RULES.has(normalizeName(entry.name)))
+    .flatMap((entry) => optionsForFeature(entry, referenceData));
   return uniqueOptions(options);
 }
 

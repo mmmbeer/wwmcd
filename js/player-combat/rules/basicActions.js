@@ -1,5 +1,7 @@
+import { getEffectiveWalkSpeed } from "./movementRules.js";
+
 export function getBasicActions(character, combatState) {
-  const speed = Number(character?.combat?.speed?.walk ?? 0);
+  const speed = getEffectiveWalkSpeed(character);
   const actions = [
     basic("basic_dash", "Dash", `Gain extra movement equal to your speed (${speed} ft).`, { action: true }, true),
     basic("basic_disengage", "Disengage", "Your movement does not provoke opportunity attacks this turn.", { action: true }),
