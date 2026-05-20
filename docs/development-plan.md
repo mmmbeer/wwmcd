@@ -1,6 +1,48 @@
 # Development Plan
 
-## Current Session: Expandable Action Row Details
+## Current Session: PDF-Only Import Modal
+
+### Implemented
+
+- Removed JSON file upload and pasted JSON entry from the character import modal.
+- Reworked the import modal around fillable PDF import only:
+  - Added a large clickable PDF drop zone.
+  - Added drag-and-drop support for PDF files.
+  - Disabled the Import button until a PDF has been parsed and normalized successfully.
+- Added a loaded-file preview that shows the character name, class, level, and PDF filename before import.
+- Kept import warnings visible after the selected file is cleared from the modal.
+
+### Files Changed
+
+- `js/player-combat/ui/characterImportPanel.js`
+- `css/player-combat.css`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- PDF import is still limited to fillable character sheet PDFs; scanned or flattened PDFs are rejected by the existing importer.
+- JSON import code still exists in the importer module for now, but it is no longer exposed in the import modal.
+
+### Manual Test Checklist
+
+1. Open the import modal and confirm it only offers fillable PDF import.
+2. Click the drop zone, choose a fillable character sheet PDF, and confirm the preview shows character name, class, and level.
+3. Drag a fillable PDF onto the drop zone and confirm the same preview appears.
+4. Try a non-PDF file and confirm the modal shows an inline error and keeps Import disabled.
+5. Import a valid PDF and confirm the character loads and any warnings remain visible.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\characterImportPanel.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html css tests` returned no matches.
+- Confirmed every `js/player-combat` JavaScript file remains under 500 lines; largest file is `js/player-combat/normalizers/characterNormalizer.js` at 451 lines.
+
+### Next Recommended Phase
+
+Add a browser smoke test for the import modal's click-select, drag-and-drop, preview, and disabled Import states.
+
+## Previous Session: Expandable Action Row Details
 
 ### Implemented
 
