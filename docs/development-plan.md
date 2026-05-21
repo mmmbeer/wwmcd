@@ -2063,3 +2063,15 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\rules\actionEconomyRules.js`
 - `node --test tests\*.test.mjs`
+
+### Combat Row Column Update
+
+- Removed descriptive/effect text from the compact row columns; descriptions now live only in the expandable detail panel.
+- Spell rows now render as: chevron, casting-time badge, level, name, range, DC, and `Cast`.
+- Action, bonus-action, and reaction rows now render as: chevron, source badge, name, blank spacer, and `Use`.
+- Attack rows now render as: chevron, action-cost badge, melee/ranged type, name, range, attack modifier, damage, and `Attack`.
+
+### Combat Row Verification
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\*.test.mjs`

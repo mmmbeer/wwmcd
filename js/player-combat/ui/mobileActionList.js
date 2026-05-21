@@ -4,7 +4,7 @@ import { getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
 export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false } = {}) {
   if (group === "log") return renderLog(label, combatState);
   const visibleOptions = options.length
-    ? options.map((option) => renderActionRow(option)).join("")
+    ? options.map((option) => renderActionRow(option, group)).join("")
     : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`;
 
   return `
@@ -29,7 +29,7 @@ export function toggleActionDetail(root, optionId) {
   if (!panel || !toggle) return;
   const expanded = toggle.getAttribute("aria-expanded") === "true";
   toggle.setAttribute("aria-expanded", String(!expanded));
-  toggle.querySelector("span").textContent = expanded ? "⌄" : "⌃";
+  toggle.querySelector("span").textContent = expanded ? "v" : "^";
   panel.hidden = expanded;
 }
 
@@ -60,41 +60,60 @@ export function renderPlannedTurnBar(snapshot) {
   `;
 }
 
-function renderActionRow(option) {
+function renderActionRow(option, group) {
   const unavailable = option.available === false;
   const selected = isOptionPlanned(option);
+  const rowKind = rowKindFor(option, group);
   return `
     <article class="action-entry ${selected ? "is-selected" : ""} ${unavailable ? "is-unavailable" : ""}" role="listitem">
-      <div class="action-row">
+      <div class="action-row action-row--${escapeHtml(rowKind)}">
         <button class="action-expand-toggle" type="button" data-toggle-action-detail="${escapeHtml(option.id)}" aria-expanded="false" aria-label="Show details for ${escapeHtml(option.name)}">
-          <span aria-hidden="true">⌄</span>
+          <span aria-hidden="true">v</span>
         </button>
         <button class="action-select-main"
           type="button"
           data-plan-option="${escapeHtml(option.id)}"
           aria-pressed="${selected ? "true" : "false"}"
           ${unavailable ? `aria-label="${escapeHtml(`${option.name}. Unavailable: ${unavailableText(option)}`)}"` : ""}>
-          <span class="action-icon" aria-hidden="true">${escapeHtml(iconFor(option))}</span>
-          <span class="action-name-cell">
-            <span class="action-name-line">
-              <strong>${escapeHtml(option.name)}</strong>
-              ${renderBadge(option)}
-            </span>
-            <small>${escapeHtml(subtitle(option))}</small>
-          </span>
-          <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
-          <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
-          <span class="action-effect">
-            <strong>${escapeHtml(effectLabel(option) || "-")}</strong>
-            <small>${escapeHtml(noteLabel(option))}</small>
-          </span>
-          <span class="action-select-mark" aria-hidden="true">${selected ? "✓" : "+"}</span>
+          ${renderRowCells(option, rowKind, selected)}
         </button>
       </div>
       <div class="action-detail-panel" data-action-detail="${escapeHtml(option.id)}" hidden>
         ${renderActionDetail(option)}
       </div>
     </article>
+  `;
+}
+
+function renderRowCells(option, rowKind, selected) {
+  if (rowKind === "spell") {
+    return `
+      ${renderCostBadge(option)}
+      <span class="action-fact">${escapeHtml(spellLevelLabel(option))}</span>
+      ${renderNameCell(option)}
+      <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
+      <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
+      ${renderActionButtonLabel("Cast", selected)}
+    `;
+  }
+
+  if (rowKind === "attack") {
+    return `
+      ${renderCostBadge(option)}
+      <span class="type-badge type-free">${escapeHtml(attackModeLabel(option))}</span>
+      ${renderNameCell(option)}
+      <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
+      <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
+      <span class="action-fact">${escapeHtml(damageLabel(option) || "-")}</span>
+      ${renderActionButtonLabel("Attack", selected)}
+    `;
+  }
+
+  return `
+    ${renderSourceBadge(option)}
+    ${renderNameCell(option)}
+    <span class="action-fact action-fact--empty" aria-hidden="true"></span>
+    ${renderActionButtonLabel("Use", selected)}
   `;
 }
 
@@ -113,9 +132,28 @@ function renderActionDetail(option) {
   `;
 }
 
-function renderBadge(option) {
+function renderNameCell(option) {
+  return `
+    <span class="action-name-cell">
+      <span class="action-name-line">
+        <strong>${escapeHtml(option.name)}</strong>
+      </span>
+    </span>
+  `;
+}
+
+function renderActionButtonLabel(label, selected) {
+  return `<span class="action-select-mark">${escapeHtml(selected ? "Planned" : label)}</span>`;
+}
+
+function renderCostBadge(option) {
   const type = typeLabel(option);
   return `<span class="type-badge type-${escapeHtml(type.key)}">${escapeHtml(type.label)}</span>`;
+}
+
+function renderSourceBadge(option) {
+  const source = option.source === "basic" ? "Basic" : option.source === "feature" ? "Feature" : titleCase(option.source || "Option");
+  return `<span class="type-badge type-free">${escapeHtml(source)}</span>`;
 }
 
 function renderLog(label, combatState) {
@@ -159,32 +197,17 @@ function detailFact(label, value) {
 }
 
 function typeLabel(option) {
-  if (option.spell) return { key: "spell", label: costLabel(option) };
-  if (option.cost?.bonus) return { key: "bonus", label: "Bonus" };
-  if (option.cost?.reaction) return { key: "reaction", label: "Reaction" };
+  if (option.cost?.bonus) return { key: "bonus", label: "BA" };
+  if (option.cost?.reaction) return { key: "reaction", label: "R" };
   if (option.cost?.movement) return { key: "movement", label: "Move" };
   if (option.cost?.object || !option.cost?.action) return { key: "free", label: "Free" };
-  return { key: "action", label: "Action" };
+  return { key: "action", label: "A" };
 }
 
-function costLabel(option) {
-  if (option.cost?.bonus) return "Bonus";
-  if (option.cost?.reaction) return "Reaction";
-  return "Spell";
-}
-
-function iconFor(option) {
-  if (option.cost?.movement) return ">";
-  if (option.cost?.reaction) return "R";
-  if (option.cost?.bonus) return "*";
-  if (option.spell) return "S";
-  if (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack")) return "A";
-  if (option.cost?.object || !option.cost?.action) return ".";
-  return "+";
-}
-
-function subtitle(option) {
-  return [option.source ? titleCase(option.source) : null, option.resource, unavailableText(option)].filter(Boolean).join(" | ");
+function rowKindFor(option, group) {
+  if (group === "spells" || option.source === "spell" || option.spell) return "spell";
+  if (group === "attacks" || option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed")) return "attack";
+  return "action";
 }
 
 function unavailableText(option) {
@@ -203,15 +226,19 @@ function hitDcLabel(option) {
   return [ability ? ability.toUpperCase() : null, dc ? `DC ${dc}` : null].filter(Boolean).join(" ");
 }
 
-function effectLabel(option) {
-  const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
-  if (damage) return [damage.formula, titleCase(damage.damageType)].filter(Boolean).join(" ");
-  if (option.movement?.remaining !== undefined) return `Move ${option.movement.step ?? 5} ft`;
-  return option.effect?.activeEffect ?? option.description ?? option.meta?.[0] ?? "";
+function spellLevelLabel(option) {
+  const level = Number(option.spell?.level ?? 0);
+  return level > 0 ? String(level) : "Cantrip";
 }
 
-function noteLabel(option) {
-  return option.meta?.find((entry) => String(entry).length < 56) ?? option.notes ?? "";
+function attackModeLabel(option) {
+  const type = option.range?.type ?? (option.tags?.includes("ranged") ? "ranged" : "melee");
+  return titleCase(type);
+}
+
+function damageLabel(option) {
+  const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
+  return damage ? [damage.formula, titleCase(damage.damageType)].filter(Boolean).join(" ") : "";
 }
 
 function descriptionText(option) {
