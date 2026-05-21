@@ -1970,6 +1970,32 @@ body.has-turn-progress .app-shell {
   min-height: 1px;
 }
 
+.damage-cell {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.damage-type-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  color: var(--accent-gold-soft);
+  background: rgba(217, 164, 65, 0.1);
+}
+
+.damage-type-icon svg {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .type-badge {
   flex: 0 0 auto;
   min-height: 18px;

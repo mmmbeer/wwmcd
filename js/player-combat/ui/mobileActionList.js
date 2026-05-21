@@ -104,7 +104,7 @@ function renderRowCells(option, rowKind, selected) {
       ${renderNameCell(option)}
       <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
       <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
-      <span class="action-fact">${escapeHtml(damageLabel(option) || "-")}</span>
+      ${renderDamageCell(option)}
       ${renderActionButtonLabel("Attack", selected)}
     `;
   }
@@ -238,7 +238,51 @@ function attackModeLabel(option) {
 
 function damageLabel(option) {
   const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
-  return damage ? [damage.formula, titleCase(damage.damageType)].filter(Boolean).join(" ") : "";
+  return damage?.formula ?? "";
+}
+
+function renderDamageCell(option) {
+  const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
+  if (!damage) return `<span class="action-fact">-</span>`;
+  return `
+    <span class="action-fact damage-cell">
+      <span>${escapeHtml(damage.formula)}</span>
+      ${damage.damageType ? renderDamageTypeIcon(damage.damageType) : ""}
+    </span>
+  `;
+}
+
+function renderDamageTypeIcon(type) {
+  const label = titleCase(type);
+  return `
+    <span class="damage-type-icon" title="${escapeHtml(label)} damage" aria-label="${escapeHtml(label)} damage">
+      ${damageTypeSvg(type)}
+    </span>
+  `;
+}
+
+function damageTypeSvg(type) {
+  const key = String(type ?? "").toLowerCase();
+  const commonAttrs = `viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"`;
+  if (/bludgeoning/.test(key)) {
+    return `<svg ${commonAttrs}><circle cx="12" cy="12" r="7"></circle><path d="M7 17 17 7"></path></svg>`;
+  }
+  if (/piercing/.test(key)) {
+    return `<svg ${commonAttrs}><path d="M12 3 17 21 12 17 7 21Z"></path></svg>`;
+  }
+  if (/slashing/.test(key)) {
+    return `<svg ${commonAttrs}><path d="M5 19C10 9 15 5 21 3 19 9 15 14 5 19Z"></path></svg>`;
+  }
+  if (/fire/.test(key)) {
+    return `<svg ${commonAttrs}><path d="M12 21c4-2 6-5 4-9-2 2-3 2-3 0 0-3-2-5-4-7 1 5-4 6-4 11 0 3 3 5 7 5Z"></path></svg>`;
+  }
+  if (/cold/.test(key)) {
+    return `<svg ${commonAttrs}><path d="M12 3v18M5 7l14 10M19 7 5 17"></path></svg>`;
+  }
+  if (/lightning|thunder/.test(key)) {
+    return `<svg ${commonAttrs}><path d="M13 2 5 14h6l-1 8 9-13h-6Z"></path></svg>`;
+  }
+  return `<svg ${commonAttrs}><path d="M12 3 21 12 12 21 3 12Z"></path></svg>`;
 }
 
 function descriptionText(option) {
