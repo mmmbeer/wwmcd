@@ -23,8 +23,18 @@ export function toggleExpandedRow(root, row) {
   }
 }
 
+export function renderExpandedDetailRow(row, option) {
+  if (!row || !option || row.dataset.detailRendered === "true") return;
+  const target = row.querySelector("[data-detail-content]");
+  if (!target) return;
+  target.innerHTML = renderDetailPanel(option, option.available === false);
+  row.dataset.detailRendered = "true";
+}
+
 export function bindSpellDetailCards(root) {
   root.querySelectorAll(".spell-detail-row .srd-hover-card__close").forEach((button) => {
+    if (button.dataset.closeBound === "true") return;
+    button.dataset.closeBound = "true";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       const detailRow = button.closest(".option-detail-row");
@@ -63,7 +73,7 @@ function renderOptionRow(option) {
   const unavailable = option.available === false;
   const detailId = `detail-${escapeHtml(option.id)}`;
   return `
-    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
+    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" data-option-id="${escapeHtml(option.id)}" aria-expanded="false">
       <td>${renderChevron(option)}</td>
       <td>${renderTypeBadge(option)}</td>
       <td>${renderAttackMode(option)}</td>
@@ -144,7 +154,7 @@ function renderSpellRows(option) {
   const unavailable = option.available === false;
   const detailId = `detail-${escapeHtml(option.id)}`;
   return `
-    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" aria-expanded="false">
+    <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" data-option-id="${escapeHtml(option.id)}" aria-expanded="false">
       <td>${renderChevron(option)}</td>
       <td>${renderCastingCostBadge(option)}</td>
       <td>${renderConcentrationBadge(option)}</td>
@@ -234,9 +244,7 @@ function renderDetailRow(option, unavailable, detailId) {
   return `
     <tr class="option-detail-row ${option.source === "spell" ? "spell-detail-row" : ""}" id="${detailId}" hidden>
       <td></td>
-      <td colspan="7">
-        ${renderDetailPanel(option, unavailable)}
-      </td>
+      <td colspan="7" data-detail-content></td>
     </tr>
   `;
 }

@@ -1,6 +1,6 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
 import { findOption, handleRoll, useOption } from "./actionOptionHandlers.js";
-import { bindSpellDetailCards, renderGroup, toggleExpandedRow } from "./actionOptionRenderers.js";
+import { bindSpellDetailCards, renderExpandedDetailRow, renderGroup, toggleExpandedRow } from "./actionOptionRenderers.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
@@ -22,6 +22,8 @@ let selectedGroup = "recommended";
 let selectedSpellLevel = null;
 let selectedSpellCost = null;
 let lastRender = null;
+let cachedSnapshot = null;
+let cachedGroups = null;
 
 export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast }) {
   lastRender = () => renderActionTabs(root, snapshot, { stateManager, modalApi, showToast });
@@ -34,7 +36,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     return;
   }
 
-  const groups = getCombatOptions({ character, combatState, referenceData: snapshot.referenceData });
+  const groups = getCachedGroups(snapshot);
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? []);
   root.innerHTML = `
@@ -52,6 +54,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
 function bindActionTabEvents(root, snapshot, services, groups, combatState) {
   root.querySelectorAll("[data-tab-group]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.dataset.tabGroup === selectedGroup && selectedSpellLevel === null && selectedSpellCost === null) return;
       selectedGroup = button.dataset.tabGroup;
       selectedSpellLevel = null;
       selectedSpellCost = null;
@@ -62,9 +65,13 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
   root.querySelectorAll("[data-select-group]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      selectedGroup = button.dataset.selectGroup;
-      selectedSpellLevel = button.dataset.spellLevel ? Number(button.dataset.spellLevel) : null;
-      selectedSpellCost = button.dataset.spellCost ?? null;
+      const nextGroup = button.dataset.selectGroup;
+      const nextSpellLevel = button.dataset.spellLevel ? Number(button.dataset.spellLevel) : null;
+      const nextSpellCost = button.dataset.spellCost ?? null;
+      if (nextGroup === selectedGroup && nextSpellLevel === selectedSpellLevel && nextSpellCost === selectedSpellCost) return;
+      selectedGroup = nextGroup;
+      selectedSpellLevel = nextSpellLevel;
+      selectedSpellCost = nextSpellCost;
       renderActionTabs(root, snapshot, services);
     });
   });
@@ -92,10 +99,26 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
   });
 
   root.querySelectorAll("[data-expand-target]").forEach((row) => {
-    row.addEventListener("click", () => toggleExpandedRow(root, row));
+    row.addEventListener("click", () => {
+      const detailRow = root.querySelector(`#${CSS.escape(row.dataset.expandTarget)}`);
+      renderExpandedDetailRow(detailRow, findOption(groups, row.dataset.optionId));
+      toggleExpandedRow(root, row);
+      bindSpellDetailCards(root);
+    });
   });
 
   bindSpellDetailCards(root);
+}
+
+function getCachedGroups(snapshot) {
+  if (cachedSnapshot === snapshot && cachedGroups) return cachedGroups;
+  cachedSnapshot = snapshot;
+  cachedGroups = getCombatOptions({
+    character: snapshot.activeCharacter,
+    combatState: snapshot.combatState,
+    referenceData: snapshot.referenceData
+  });
+  return cachedGroups;
 }
 
 function bindGroupSelection() {

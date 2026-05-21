@@ -1,6 +1,50 @@
 # Development Plan
 
-## Current Session: Feature Spell Limited Uses
+## Current Session: Action Tab UI Performance
+
+### Implemented
+
+- Audited the action tab render path for tab-switch lag.
+- Cached combat option groups for the active state snapshot so local tab changes no longer rerun the full combat option pipeline.
+- Ignored clicks on the already-selected tab or already-selected spell filter to avoid redundant renders.
+- Changed expanded action/spell detail rows to lazy-render their full detail panel only when opened.
+  - Compact table rows still render immediately.
+  - Hidden spell reference cards are no longer generated for every spell during tab switches.
+- Guarded spell detail close-button binding so repeated expansion does not attach duplicate listeners.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The selected tab's compact table still re-renders when switching categories; the expensive rules recomputation and hidden detail-card rendering are removed from normal tab switching.
+- No browser profiler trace was captured in this session, so the improvement is based on code-path reduction and automated regression checks.
+
+### Manual Test Checklist
+
+1. Import or simulate a spellcaster with a larger spell list.
+2. Switch between Recommendation, Actions, Attacks, and Spells and confirm tab changes feel responsive.
+3. Expand a weapon, feature, and spell row and confirm details render on first open and toggle closed/open afterward.
+4. Close an expanded spell detail card with its close button and confirm the row collapses without triggering a roll or cast action.
+5. Click the already-selected tab and confirm the UI does not visibly refresh.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionOptionRenderers.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg -n "alert\(|prompt\(|confirm\(" js\player-combat -S` returned no matches.
+- Confirmed touched UI files remain under 500 lines: `actionTabs.js` 158 lines, `actionOptionRenderers.js` 455 lines.
+
+### Next Recommended Phase
+
+Add a small browser smoke/performance test around tab switching and row expansion so future action-table changes catch large DOM rewrites before manual testing.
+
+## Previous Session: Feature Spell Limited Uses
 
 ### Implemented
 
