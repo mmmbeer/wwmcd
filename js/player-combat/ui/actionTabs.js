@@ -1,6 +1,7 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { findOption, handleRoll, rollAttackAndDamage, useOption } from "./actionOptionHandlers.js";
-import { bindSpellDetailCards, renderExpandedDetailRow, renderGroup, toggleExpandedRow } from "./actionOptionRenderers.js";
+import { findOption } from "./actionOptionHandlers.js";
+import { renderMobileActionList } from "./mobileActionList.js";
+import { selectPlannedOption } from "./plannedTurnState.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
@@ -45,7 +46,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
       ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
     </nav>
     <div class="option-tabs">
-      ${renderGroup(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
+      ${renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
 
@@ -85,43 +86,14 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     });
   });
 
-  root.querySelectorAll("[data-roll-option]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      handleRoll(button, groups, services.stateManager, services.showToast);
+  root.querySelectorAll("[data-plan-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const option = findOption(groups, button.dataset.planOption);
+      const result = selectPlannedOption(option);
+      if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
     });
   });
 
-  root.querySelectorAll("[data-use-option]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const option = findOption(groups, button.dataset.useOption);
-      if (option) {
-        if (selectedGroup === "attacks") {
-          rollAttackAndDamage(option, services.stateManager, services.showToast);
-        }
-        useOption(option, combatState, services.stateManager, services.modalApi);
-      }
-    });
-  });
-
-  root.querySelectorAll("[data-use-movement]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      services.stateManager.useMovement(Number(button.dataset.useMovement || 5));
-    });
-  });
-
-  root.querySelectorAll("[data-expand-target]").forEach((row) => {
-    row.addEventListener("click", () => {
-      const detailRow = root.querySelector(`#${CSS.escape(row.dataset.expandTarget)}`);
-      renderExpandedDetailRow(detailRow, findOption(groups, row.dataset.optionId));
-      toggleExpandedRow(root, row);
-      bindSpellDetailCards(root);
-    });
-  });
-
-  bindSpellDetailCards(root);
 }
 
 function getCachedGroups(snapshot) {

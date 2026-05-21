@@ -1940,3 +1940,54 @@ Add focused resource controls and the next layer of condition/resource warnings,
 ### Next Recommended Phase
 
 Improve normalization mappings for more D&D Beyond spell and weapon shapes, add focused resource controls, and add condition-specific warnings beyond the obvious action-blocking conditions.
+
+---
+
+## Dark Fantasy Combat Screen Refresh
+
+### What Was Implemented
+
+- Restyled the player combat app into a compact dark-fantasy mobile interface using reusable CSS design tokens.
+- Replaced the top combat area with an individual action economy tracker for Action, Bonus, Reaction, Free, and Movement.
+- Reworked character status into a dense strip with crest, name, ancestry/class/level line, HP meter, HP/temp controls, AC, speed, initiative, and conditions.
+- Reworked limited resources into compact spell-slot/resource chips with pips and remaining counts.
+- Replaced the desktop-style action tables in the main combat flow with compact tappable mobile action rows.
+- Added a planned-turn state layer so Action, Bonus, Reaction, Free, and Movement choices can be staged before resources are spent.
+- Added a sticky planned-turn bar with Clear and Confirm controls.
+- Added compact bottom navigation placeholders for Combat, Spells, Features, Gear, and Notes.
+
+### Files Changed
+
+- `index.html`
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/combatStatusBar.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/plannedTurnState.js`
+- `js/player-combat/ui/spellcastingBar.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The bottom navigation is visual structure only; non-combat tabs are not routed yet.
+- Planned-turn confirmation commits selected options through the existing combat option handler, but deeper multi-action spell edge cases still depend on current option availability rules.
+- Movement planning supports 5-foot increments from the action row/top movement control; a dedicated picker can be added later.
+
+### Manual Test Steps
+
+1. Serve the repo root and open `/` at a phone-sized viewport such as 375x812.
+2. Import or load a character and confirm no large portrait appears.
+3. Confirm the top tracker shows Action, Bonus, Reaction, Free, and Movement instead of initiative order.
+4. Tap an Action, Bonus Action, Reaction, Free action, and Movement row; confirm selected rows and the planned-turn bar update.
+5. Tap another Action and confirm it replaces the previous planned Action.
+6. Tap Clear and confirm no resources or economy slots are spent.
+7. Tap Confirm and confirm selected resources/economy are committed, movement updates, a toast appears, and the plan clears.
+8. Search for `alert(`, `prompt(`, and `confirm(` and confirm none are used.
+
+### Verification Completed
+
+- `node --test tests\*.test.mjs`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html`
+- Checked new JavaScript module sizes; `mobileActionList.js`, `plannedTurnState.js`, and updated `turnEconomyPanel.js` are under 500 lines.

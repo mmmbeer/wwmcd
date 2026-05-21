@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 80" role="img" aria-label="Minimal dark fantasy divider ornament">
+  <title>Minimal dark fantasy divider ornament</title>
+  <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter">
+    <!-- left long rule -->
+    <path d="M64 40 H264" />
+    <!-- right long rule -->
+    <path d="M376 40 H576" />
+
+    <!-- left end diamond -->
+    <path d="M40 40 L54 33 L68 40 L54 47 Z" />
+    <!-- right end diamond -->
+    <path d="M600 40 L586 33 L572 40 L586 47 Z" />
+
+    <!-- center diamond -->
+    <path d="M320 18 L342 40 L320 62 L298 40 Z" />
+
+    <!-- small upper/lower chevrons -->
+    <path d="M320 6 L332 18" />
+    <path d="M320 6 L308 18" />
+    <path d="M320 74 L332 62" />
+    <path d="M320 74 L308 62" />
+
+    <!-- left angular bracket -->
+    <path d="M264 40 H292 L306 26 H328" />
+    <path d="M264 40 H292 L306 54 H328" />
+
+    <!-- right angular bracket -->
+    <path d="M376 40 H348 L334 26 H312" />
+    <path d="M376 40 H348 L334 54 H312" />
+
+    <!-- short parallel line accents left -->
+    <path d="M256 32 H286" />
+    <path d="M256 48 H286" />
+
+    <!-- short parallel line accents right -->
+    <path d="M384 32 H354" />
+    <path d="M384 48 H354" />
+
+    <!-- small inner side diamonds -->
+    <path d="M280 40 L292 30 L304 40 L292 50 Z" />
+    <path d="M360 40 L348 30 L336 40 L348 50 Z" />
+  </g>
+</svg>

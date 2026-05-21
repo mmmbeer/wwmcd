@@ -1,45 +1,50 @@
 import { formatFeet } from "./renderUtils.js";
 import { getAttackCount } from "../rules/attackCountRules.js";
-import { showTransitionNotice, turnDoneNotice } from "./transitionNotice.js";
+import { getPlannedTurn, selectPlannedOption } from "./plannedTurnState.js";
 
-export function renderTurnEconomyPanel(root, snapshot, { stateManager, modalApi }) {
+export function renderTurnEconomyPanel(root, snapshot, { modalApi }) {
   const character = snapshot.activeCharacter;
   const state = snapshot.combatState;
 
   if (!character || !state) {
-    document.body.classList.remove("has-turn-progress");
     root.innerHTML = "";
     return;
   }
 
-  document.body.classList.add("has-turn-progress");
   const speed = Number(character.combat.speed.walk ?? 0);
   const movementUsed = Number(state.turn.movementUsed ?? 0);
-  const movement = `${formatFeet(movementUsed)}/${formatFeet(speed)}`;
+  const plan = getPlannedTurn();
+  const plannedMovement = Number(plan.movementUsed ?? 0);
+  const movement = `${formatFeet(Math.min(movementUsed + plannedMovement, speed))}/${formatFeet(speed)}`;
   const actionsAvailable = getAttackCount(character, snapshot.referenceData);
   root.innerHTML = `
-    <nav class="turn-progress" aria-label="Turn progress">
-      ${segment("actions", "Action", state.turn.actionUsed, actionsAvailable, state.turn.actionUsed ? actionsAvailable : 0)}
-      ${segment("bonus", "Bonus Action", state.turn.bonusActionUsed)}
-      ${segment("reaction", "Reaction", state.turn.reactionUsed)}
-      ${segment("free", "Free", state.turn.objectInteractionUsed)}
-      <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""}">
+    <nav class="turn-progress" aria-label="Action economy">
+      ${segment("actions", "Action", state.turn.actionUsed, Boolean(plan.action), actionsAvailable)}
+      ${segment("bonus", "Bonus", state.turn.bonusActionUsed, Boolean(plan.bonusAction))}
+      ${segment("reaction", "React", state.turn.reactionUsed, Boolean(plan.reaction))}
+      ${segment("free", "Free", false, Boolean(plan.freeActions.length), 1, "Unlimited")}
+      <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""} ${plannedMovement ? "is-planned" : ""}">
         <button class="turn-segment" type="button" data-group="movement">
-          <span>Movement: ${movement}</span>
+          <span class="turn-icon" aria-hidden="true">↗</span>
+          <span>Move</span>
+          <strong>${movement}</strong>
         </button>
         <button class="turn-move-add" type="button" data-move="5" aria-label="Add 5 feet of movement">+</button>
       </div>
-      <button class="turn-done" type="button" data-turn="end">Done</button>
-      <button class="turn-log" type="button" data-roll-log>Dice Log</button>
+      <button class="turn-log" type="button" data-roll-log>Log</button>
     </nav>
   `;
 
-  root.querySelector("[data-turn='end']").addEventListener("click", (event) => {
-    showTransitionNotice(event.currentTarget, turnDoneNotice(state));
-    stateManager.endTurn();
-  });
   root.querySelector("[data-roll-log]").addEventListener("click", () => openRollLogModal(state, modalApi));
-  root.querySelector("[data-move='5']").addEventListener("click", () => stateManager.useMovement(5));
+  root.querySelector("[data-move='5']").addEventListener("click", () => {
+    selectPlannedOption({
+      id: "movement_walk",
+      name: "Move",
+      available: movementUsed + plannedMovement < speed,
+      cost: { movement: true },
+      movement: { remaining: speed - movementUsed, speed, step: 5 }
+    });
+  });
   root.querySelectorAll("[data-group]").forEach((button) => {
     button.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: button.dataset.group } }));
@@ -84,12 +89,22 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function segment(group, label, spent, total = 1, used = spent ? 1 : 0) {
-  const partial = total > 1 && used > 0 && used < total;
-  const progress = partial ? ` (${used}/${total})` : "";
+function segment(group, label, spent, planned = false, total = 1, overrideStatus = null) {
+  const status = overrideStatus ?? (spent ? "Spent" : planned ? "Planned" : "Ready");
   return `
-    <button class="turn-segment ${spent ? "is-spent" : ""} ${partial ? "is-partial" : ""}" type="button" data-group="${group}">
-      <span>${label}${progress}</span>
+    <button class="turn-segment ${spent ? "is-spent" : ""} ${planned ? "is-planned" : ""}" type="button" data-group="${group}">
+      <span class="turn-icon" aria-hidden="true">${iconFor(group)}</span>
+      <span>${label}</span>
+      <strong>${escapeHtml(status)}${total > 1 && !spent && !planned ? ` x${escapeHtml(total)}` : ""}</strong>
     </button>
   `;
+}
+
+function iconFor(group) {
+  return {
+    actions: "⚔",
+    bonus: "✦",
+    reaction: "↯",
+    free: "•"
+  }[group] ?? "◆";
 }

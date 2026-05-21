@@ -28,18 +28,25 @@ export function renderCombatStatusBar(root, snapshot, { stateManager, modalApi }
   }
 
   const maxHp = Number(character.combat?.maxHp ?? 0);
+  const hp = Number(state.current.hp ?? 0);
+  const hpPercent = maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0;
   root.innerHTML = `
     <section class="combat-status-bar" aria-label="Combat status">
-      <div class="status-inline">
-        <label for="status-hp">HP:</label>
-        <input id="status-hp" data-status-number="hp" type="number" inputmode="numeric" value="${Number(state.current.hp ?? 0)}">
-        <span>/ ${maxHp}</span>
-        <label for="status-temp">Temp:</label>
-        <input id="status-temp" data-status-number="tempHp" type="number" inputmode="numeric" value="${Number(state.current.tempHp ?? 0)}">
+      <div class="character-crest" aria-hidden="true">${escapeHtml(crest(character.name))}</div>
+      <div class="character-status-main">
+        <strong>${escapeHtml(character.name)}</strong>
+        <span>${escapeHtml(characterLine(character))}</span>
+        <div class="hp-meter" aria-label="Hit points ${hp} of ${maxHp}">
+          <span style="width: ${hpPercent}%"></span>
+        </div>
       </div>
-      <div class="status-inline status-basics">
-        <strong>AC: ${escapeHtml(state.current.ac ?? character.combat?.ac ?? 10)}</strong>
-        <strong>Speed: ${escapeHtml(formatFeet(character.combat?.speed?.walk ?? 0))}</strong>
+      <div class="status-stat-grid">
+        <label>HP <input data-status-number="hp" type="number" inputmode="numeric" value="${hp}"></label>
+        <span>/ ${maxHp}</span>
+        <label>Tmp <input data-status-number="tempHp" type="number" inputmode="numeric" value="${Number(state.current.tempHp ?? 0)}"></label>
+        <strong>AC ${escapeHtml(state.current.ac ?? character.combat?.ac ?? 10)}</strong>
+        <strong>SPD ${escapeHtml(formatFeet(character.combat?.speed?.walk ?? 0))}</strong>
+        <strong>INIT ${escapeHtml(initiativeLabel(character))}</strong>
       </div>
       <div class="condition-row">
         <span class="condition-label">Conditions:</span>
@@ -64,6 +71,24 @@ export function renderCombatStatusBar(root, snapshot, { stateManager, modalApi }
   root.querySelector("[data-status-action='add-condition']").addEventListener("click", () => {
     openConditionModal({ modalApi, reference: snapshot.referenceData, state, stateManager });
   });
+}
+
+function crest(name) {
+  return String(name ?? "?").trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function characterLine(character) {
+  const race = character.race?.name ?? character.ancestry?.name ?? character.race ?? "Unknown";
+  const classes = (character.classes ?? []).map((entry) => [
+    entry.name,
+    entry.subclass ? `(${entry.subclass})` : null
+  ].filter(Boolean).join(" ")).join(" / ") || "Unknown class";
+  return `${race} | ${classes} | Level ${character.level || "?"}`;
+}
+
+function initiativeLabel(character) {
+  const value = Number(character.combat?.initiative ?? character.combat?.initiativeBonus ?? character.stats?.dexMod ?? 0);
+  return value >= 0 ? `+${value}` : String(value);
 }
 
 function renderConditionBadges(conditions) {

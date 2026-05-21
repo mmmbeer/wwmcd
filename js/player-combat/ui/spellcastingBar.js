@@ -16,9 +16,10 @@ export function renderSpellcastingBar(root, snapshot, stateManager) {
   }
 
   root.innerHTML = `
-    <section class="spellcasting-bar" aria-label="Consumable resources">
+    <section class="spellcasting-bar" aria-label="Limited resources">
+      <span class="section-label">Resources</span>
       <button class="concentration-status ${state.current.concentration ? "is-active" : ""}" type="button" data-concentration-toggle="true" aria-pressed="${state.current.concentration ? "true" : "false"}">
-        <span>Concentration</span>
+        <span>Conc.</span>
       </button>
       ${slots.map(([level, value]) => renderLevel(level, value, state.resourcesUsed?.spellSlots?.[level])).join("")}
       ${limitedResources.map((resource) => renderResource(resource, state.resourcesUsed?.classResources?.[resource.id])).join("")}
@@ -57,15 +58,16 @@ function renderLevel(level, value, usedValue) {
   const used = Math.min(Number(usedValue ?? 0), max);
   return `
     <button class="spell-level-status ${used >= max ? "is-spent" : ""}" type="button" data-spell-level="${escapeHtml(level)}">
-      <span>${escapeHtml(level)}</span>
+      <span>${escapeHtml(ordinal(level))}</span>
       <span class="spell-slot-boxes">${renderBoxes(max, used)}</span>
+      <strong>${escapeHtml(max - used)}/${escapeHtml(max)}</strong>
     </button>
   `;
 }
 
 function renderBoxes(max, used) {
   return Array.from({ length: max }, (_, index) => (
-    `<span class="spell-slot-box ${index < used ? "is-used" : ""}" aria-hidden="true">${index < used ? "✓" : ""}</span>`
+    `<span class="spell-slot-box ${index < used ? "is-used" : ""}" aria-hidden="true"></span>`
   )).join("");
 }
 
@@ -81,8 +83,13 @@ function renderResource(resource, usedValue) {
     <button class="spell-level-status resource-status ${used >= max ? "is-spent" : ""}" type="button" data-resource-view="${escapeHtml(resource.id)}" title="${escapeHtml(resource.name)}">
       <span>${escapeHtml(resource.name)}</span>
       <span class="spell-slot-boxes">${renderBoxes(max, used)}</span>
+      <strong>${escapeHtml(max - used)}/${escapeHtml(max)}</strong>
     </button>
   `;
+}
+
+function ordinal(level) {
+  return { 1: "1st", 2: "2nd", 3: "3rd" }[level] ?? `${level}th`;
 }
 
 function uniqueResources(resources) {

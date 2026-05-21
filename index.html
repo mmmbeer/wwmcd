@@ -9,26 +9,35 @@
   <body>
     <div class="app-shell" id="player-combat-app">
       <header class="app-header">
-        <div>
-          <p class="eyebrow">D&D 5e</p>
-          <h1 id="app-title">what would my character do?</h1>
+        <button class="utility-icon" type="button" aria-label="Open menu">☰</button>
+        <div class="utility-title">
+          <h1 id="app-title">Combat Turn</h1>
           <div class="header-character" id="header-character"></div>
         </div>
         <div class="header-actions" id="header-actions"></div>
       </header>
 
       <div id="turn-economy-panel"></div>
-      <div id="spellcasting-bar"></div>
       <div id="combat-status-bar"></div>
+      <div id="spellcasting-bar"></div>
 
       <main class="app-main">
         <div id="import-launcher"></div>
 
-        <section class="panel" aria-labelledby="actions-title">
+        <section class="panel action-panel" aria-labelledby="actions-title">
           <h2 id="actions-title" class="visually-hidden">Actions</h2>
           <div id="action-tabs"></div>
         </section>
       </main>
+
+      <div id="planned-turn-bar"></div>
+      <nav class="bottom-nav" aria-label="Primary navigation">
+        <button class="bottom-nav-item is-active" type="button">⚔<span>Combat</span></button>
+        <button class="bottom-nav-item" type="button">✧<span>Spells</span></button>
+        <button class="bottom-nav-item" type="button">◆<span>Features</span></button>
+        <button class="bottom-nav-item" type="button">▣<span>Gear</span></button>
+        <button class="bottom-nav-item" type="button">☰<span>Notes</span></button>
+      </nav>
     </div>
 
     <div id="modal-root"></div>
