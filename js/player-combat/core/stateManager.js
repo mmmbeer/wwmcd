@@ -128,32 +128,33 @@ export function createStateManager({ storage, eventBus }) {
     const state = getCombatState();
     if (!state) return;
 
-    const turn = { ...state.turn };
-    if (option.cost?.action) turn.actionUsed = true;
-    if (option.cost?.bonus) turn.bonusActionUsed = true;
-    if (option.cost?.reaction) turn.reactionUsed = true;
-    if (option.cost?.object) turn.objectInteractionUsed = true;
-    if (option.attack?.consumesAttackAction || (option.cost?.action && option.tags?.includes("attack"))) turn.attackActionUsed = true;
-    if (option.id === "basic_ready") turn.readiedAction = true;
-    if (option.id === "basic_use_readied_action") turn.readiedAction = false;
-    if (option.effect?.actionSurge) {
-      turn.actionUsed = false;
-      turn.actionSurgeUsed = true;
-    }
-    if (option.effect?.turnFlag) turn[option.effect.turnFlag] = true;
-    if (option.spell && Number(option.spell?.level ?? 0) > 0) {
-      turn.leveledSpellCast = true;
-      turn.leveledSpellName = option.name;
+    combatStates[activeCharacterId] = applyCombatOption(state, option);
+    persistCombatStates();
+    emitChange();
+  }
+
+  function useCombatOptions(options = [], { movementUsed = 0 } = {}) {
+    const state = getCombatState();
+    const character = getActiveCharacter();
+    if (!state) return;
+
+    let next = state;
+    for (const option of options.filter(Boolean)) {
+      next = applyCombatOption(next, option);
     }
 
-    const resourcesUsed = spendResource(state.resourcesUsed, option.cost?.resource);
-    const current = applyOptionCurrentEffects(option, state.current);
-    combatStates[activeCharacterId] = addLogEntry({
-      ...state,
-      current,
-      turn,
-      resourcesUsed
-    }, `${option.name} used.`);
+    if (movementUsed > 0 && character) {
+      const speed = getEffectiveWalkSpeed(character, referenceData);
+      next = addLogEntry({
+        ...next,
+        turn: {
+          ...next.turn,
+          movementUsed: clamp((next.turn.movementUsed ?? 0) + Number(movementUsed || 0), 0, speed)
+        }
+      }, `Movement set to ${clamp((next.turn.movementUsed ?? 0) + Number(movementUsed || 0), 0, speed)} ft.`);
+    }
+
+    combatStates[activeCharacterId] = next;
     persistCombatStates();
     emitChange();
   }
@@ -332,6 +333,7 @@ export function createStateManager({ storage, eventBus }) {
     useBonusAction,
     useReaction,
     useCombatOption,
+    useCombatOptions,
     useMovement,
     setSpellSlotUsed,
     adjustSpellSlotUsed,
@@ -345,6 +347,33 @@ export function createStateManager({ storage, eventBus }) {
     logRoll,
     getSnapshot
   };
+}
+
+function applyCombatOption(state, option) {
+  const turn = { ...state.turn };
+  if (option.cost?.action) turn.actionUsed = true;
+  if (option.cost?.bonus) turn.bonusActionUsed = true;
+  if (option.cost?.reaction) turn.reactionUsed = true;
+  if (option.cost?.object) turn.objectInteractionUsed = true;
+  if (option.attack?.consumesAttackAction || (option.cost?.action && option.tags?.includes("attack"))) turn.attackActionUsed = true;
+  if (option.id === "basic_ready") turn.readiedAction = true;
+  if (option.id === "basic_use_readied_action") turn.readiedAction = false;
+  if (option.effect?.actionSurge) {
+    turn.actionUsed = false;
+    turn.actionSurgeUsed = true;
+  }
+  if (option.effect?.turnFlag) turn[option.effect.turnFlag] = true;
+  if (option.spell && Number(option.spell?.level ?? 0) > 0) {
+    turn.leveledSpellCast = true;
+    turn.leveledSpellName = option.name;
+  }
+
+  return addLogEntry({
+    ...state,
+    current: applyOptionCurrentEffects(option, state.current),
+    turn,
+    resourcesUsed: spendResource(state.resourcesUsed, option.cost?.resource)
+  }, `${option.name} used.`);
 }
 
 function applyOptionCurrentEffects(option, current) {

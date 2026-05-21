@@ -2004,3 +2004,30 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\combatStatusBar.js`
 - `node --test tests\*.test.mjs`
 - `git diff --check`
+
+### Busy State Regression Fix
+
+- Added a lightweight busy overlay for import, short rest, long rest, and confirm turn actions.
+- Yielded to the browser before synchronous state transitions so the busy indicator can paint before full combat option re-rendering begins.
+- Batched planned-turn confirmation into one combat-state update to avoid multiple intermediate renders when confirming action, bonus action, reaction, free actions, and movement together.
+
+### Busy State Verification
+
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --check js\player-combat\ui\characterImportPanel.js`
+- `node --check js\player-combat\ui\plannedTurnState.js`
+- `node --test tests\*.test.mjs`
+- `git diff --check`
+
+### Turn Complete Modal
+
+- Confirming a planned turn now opens a custom Turn Complete modal after the selected actions/resources/movement are committed.
+- The modal includes:
+  - `Start New Turn`, which resets the turn economy through the existing turn-start flow.
+  - `Use a Reaction`, which navigates to the Reaction action list so off-turn reaction options are immediately available.
+
+### Turn Complete Verification
+
+- `node --check js\player-combat\app.js`
+- `node --test tests\*.test.mjs`

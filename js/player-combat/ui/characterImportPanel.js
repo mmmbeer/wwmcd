@@ -2,7 +2,7 @@ import { importCharacterFromPdf } from "../importers/ddbPdfImporterAdapter.js";
 import { normalizeCharacter } from "../normalizers/characterNormalizer.js";
 import { escapeHtml } from "./renderUtils.js";
 
-export function renderCharacterImportPanel(root, { stateManager, showToast, modalApi }) {
+export function renderCharacterImportPanel(root, { stateManager, showToast, modalApi, busyApi }) {
   root.innerHTML = `
     <form class="form-stack" id="character-import-form">
       <div class="field">
@@ -38,7 +38,8 @@ export function renderCharacterImportPanel(root, { stateManager, showToast, moda
       return;
     }
 
-    stateManager.importCharacter(pendingImport.character);
+    importButton.disabled = true;
+    await runBusy(busyApi, "Importing character...", () => stateManager.importCharacter(pendingImport.character));
     feedback.innerHTML = renderWarnings(pendingImport.warnings);
     showToast({ type: "success", message: `${pendingImport.character.name} imported.` });
     window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: "recommended" } }));
@@ -124,6 +125,10 @@ export function renderCharacterImportPanel(root, { stateManager, showToast, moda
     if (!keepFeedback) feedback.replaceChildren();
     dropzone.classList.remove("is-dragging");
   }
+}
+
+function runBusy(busyApi, label, task) {
+  return busyApi?.run ? busyApi.run(label, task) : task();
 }
 
 function renderImportPreview(character, fileName) {

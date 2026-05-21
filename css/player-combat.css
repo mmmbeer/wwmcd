@@ -2234,6 +2234,58 @@ body.has-turn-progress .app-shell {
   color: var(--text-primary);
 }
 
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.48);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.busy-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.busy-card {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 190px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18)),
+    var(--bg-panel);
+  color: var(--text-primary);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.42);
+}
+
+.busy-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(240, 196, 106, 0.25);
+  border-top-color: var(--accent-gold-soft);
+  border-radius: 50%;
+  animation: busy-spin 800ms linear infinite;
+}
+
+body.is-busy {
+  cursor: progress;
+}
+
+@keyframes busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 390px) {
   .app-shell {
     padding-bottom: 96px;

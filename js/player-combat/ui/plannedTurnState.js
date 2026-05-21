@@ -64,8 +64,12 @@ export function confirmPlannedTurn(stateManager) {
     ...plan.freeActions
   ].filter(Boolean);
 
-  options.forEach((option) => stateManager.useCombatOption(option));
-  if (plan.movementUsed > 0) stateManager.useMovement(plan.movementUsed);
+  if (stateManager.useCombatOptions) {
+    stateManager.useCombatOptions(options, { movementUsed: plan.movementUsed });
+  } else {
+    options.forEach((option) => stateManager.useCombatOption(option));
+    if (plan.movementUsed > 0) stateManager.useMovement(plan.movementUsed);
+  }
   clearPlannedTurn({ silent: true });
   notifyPlanChanged();
   return { optionCount: options.length, movementUsed: plan.movementUsed };

@@ -35,6 +35,12 @@
 
     <div id="modal-root"></div>
     <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <div class="busy-overlay" id="busy-overlay" role="status" aria-live="polite" hidden>
+      <div class="busy-card">
+        <span class="busy-spinner" aria-hidden="true"></span>
+        <strong id="busy-message">Working...</strong>
+      </div>
+    </div>
 
     <script type="module" src="./js/player-combat/bootstrap.js"></script>
   </body>
