@@ -2031,3 +2031,20 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 
 - `node --check js\player-combat\app.js`
 - `node --test tests\*.test.mjs`
+
+### Action Detail and Roll Modal Regression Fix
+
+- Restored expandable details for compact mobile action rows. Each row now has a `Details` control that reveals source, range, roll, resource, description, notes, warnings, and unavailable reasons.
+- Added a pre-commit roll modal for planned actions with dice rolls. Confirm Turn now prompts for each rollable planned option before committing action economy/resources.
+- The roll modal shows the core roll, supports advantage for d20 rolls, accepts extra dice such as `1d4` or `2d6`, logs the roll result, and requires a completed roll before OK marks the action used.
+- Canceling or dismissing the roll modal aborts the turn commit and leaves the planned turn intact.
+
+### Action Detail and Roll Verification
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\modal.js`
+- `node --check js\player-combat\app.js`
+- `node --test tests\*.test.mjs`
+- `git diff --check`

@@ -13,6 +13,15 @@ export function getPlannedTurn() {
   return clonePlan(plannedTurn);
 }
 
+export function getPlannedTurnOptions() {
+  return [
+    plannedTurn.action,
+    plannedTurn.bonusAction,
+    plannedTurn.reaction,
+    ...plannedTurn.freeActions
+  ].filter(Boolean);
+}
+
 export function clearPlannedTurn({ silent = false } = {}) {
   plannedTurn = clonePlan(EMPTY_PLAN);
   if (!silent) notifyPlanChanged();

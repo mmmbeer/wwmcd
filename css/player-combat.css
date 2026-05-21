@@ -1816,6 +1816,62 @@ body.has-turn-progress .app-shell {
   opacity: 0.52;
 }
 
+.action-entry {
+  display: grid;
+  border-bottom: 1px solid rgba(190, 143, 72, 0.16);
+  background: var(--bg-row);
+}
+
+.action-entry.is-selected {
+  box-shadow: inset 3px 0 0 var(--accent-gold);
+  background: linear-gradient(90deg, rgba(217, 164, 65, 0.16), rgba(23, 33, 42, 0.9));
+}
+
+.action-entry.is-unavailable {
+  opacity: 0.62;
+}
+
+.action-entry .action-row {
+  border-bottom: 0;
+  background: transparent;
+}
+
+.action-expand-toggle {
+  justify-self: start;
+  min-height: 26px;
+  margin: 0 0 6px 47px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: rgba(17, 27, 32, 0.82);
+  color: var(--text-secondary);
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.action-expand-toggle[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  color: var(--accent-gold-soft);
+}
+
+.action-detail-panel {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-3) 47px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.action-detail-panel[hidden] {
+  display: none;
+}
+
+.action-detail-panel p {
+  margin: 0;
+}
+
 .action-icon,
 .action-select-mark {
   display: grid;
@@ -2232,6 +2288,52 @@ body.has-turn-progress .app-shell {
   border-color: var(--border-muted);
   background: var(--bg-panel-2);
   color: var(--text-primary);
+}
+
+.action-roll-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.roll-modal-summary {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.roll-core,
+.roll-result {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--bg-row);
+}
+
+.roll-core span,
+.roll-result span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.roll-core strong,
+.roll-result strong {
+  color: var(--accent-gold-soft);
+  font-size: 1.2rem;
+}
+
+.roll-result small {
+  color: var(--text-secondary);
+}
+
+.roll-check {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--text-primary);
+  font-weight: 800;
 }
 
 .busy-overlay {

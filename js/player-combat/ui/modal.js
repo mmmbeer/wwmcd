@@ -1,13 +1,17 @@
 export function createModal(root) {
   let lastFocused = null;
+  let onClose = null;
 
   function close() {
     root.replaceChildren();
     lastFocused?.focus?.();
+    onClose?.();
+    onClose = null;
   }
 
-  function showModal({ title, body, actions = [] }) {
+  function showModal({ title, body, actions = [], onClose: closeHandler = null }) {
     lastFocused = document.activeElement;
+    onClose = closeHandler;
     const backdrop = document.createElement("div");
     backdrop.className = "modal-backdrop";
 

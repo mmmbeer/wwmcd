@@ -1,6 +1,6 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
 import { findOption } from "./actionOptionHandlers.js";
-import { renderMobileActionList } from "./mobileActionList.js";
+import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
 import { selectPlannedOption } from "./plannedTurnState.js";
 import { escapeHtml } from "./renderUtils.js";
 
@@ -92,6 +92,10 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       const result = selectPlannedOption(option);
       if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
     });
+  });
+
+  root.querySelectorAll("[data-toggle-action-detail]").forEach((button) => {
+    button.addEventListener("click", () => toggleActionDetail(root, button.dataset.toggleActionDetail));
   });
 
 }

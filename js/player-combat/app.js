@@ -7,8 +7,9 @@ import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
 import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
+import { resolvePlannedActionRolls } from "./ui/actionRollModal.js";
 import { renderPlannedTurnBar } from "./ui/mobileActionList.js";
-import { clearPlannedTurn, confirmPlannedTurn } from "./ui/plannedTurnState.js";
+import { clearPlannedTurn, confirmPlannedTurn, getPlannedTurnOptions } from "./ui/plannedTurnState.js";
 import { createToast } from "./ui/toast.js";
 import { longRestNotice, shortRestNotice, showTransitionNotice } from "./ui/transitionNotice.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
@@ -75,6 +76,13 @@ function renderPlannedTurn(root, snapshot, { stateManager, modalApi, showToast, 
   root.innerHTML = renderPlannedTurnBar(snapshot);
   root.querySelector("[data-plan-clear]")?.addEventListener("click", () => clearPlannedTurn());
   root.querySelector("[data-plan-confirm]")?.addEventListener("click", async () => {
+    const shouldCommit = await resolvePlannedActionRolls({
+      modalApi,
+      stateManager,
+      options: getPlannedTurnOptions()
+    });
+    if (!shouldCommit) return;
+
     const result = await busyApi.run("Confirming turn...", () => confirmPlannedTurn(stateManager));
     showToast({
       type: "success",
@@ -85,29 +93,32 @@ function renderPlannedTurn(root, snapshot, { stateManager, modalApi, showToast, 
 }
 
 function showTurnCompleteModal({ modalApi, stateManager, busyApi }) {
+  const reactionUsed = Boolean(stateManager.getSnapshot?.().combatState?.turn?.reactionUsed);
+  const actions = [
+    ...(!reactionUsed ? [{
+      label: "Use a Reaction",
+      variant: "secondary",
+      onClick: () => {
+        window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: "reaction" } }));
+      }
+    }] : []),
+    {
+      label: "Start New Turn",
+      variant: "primary",
+      close: false,
+      onClick: async () => {
+        await busyApi.run("Starting new turn...", () => stateManager.startTurn());
+        modalApi.close();
+      }
+    }
+  ];
+
   modalApi.showModal({
     title: "Turn Complete",
     body: `
       <p>Your planned actions have been committed. Start your next turn when the table returns to you, or keep reaction options handy for off-turn triggers.</p>
     `,
-    actions: [
-      {
-        label: "Use a Reaction",
-        variant: "secondary",
-        onClick: () => {
-          window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: "reaction" } }));
-        }
-      },
-      {
-        label: "Start New Turn",
-        variant: "primary",
-        close: false,
-        onClick: async () => {
-          await busyApi.run("Starting new turn...", () => stateManager.startTurn());
-          modalApi.close();
-        }
-      }
-    ]
+    actions
   });
 }
 
