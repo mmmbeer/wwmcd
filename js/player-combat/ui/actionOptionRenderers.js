@@ -1,11 +1,11 @@
 import { escapeHtml } from "./renderUtils.js";
 import { renderSpellDetailCard } from "./spellDetailCard.js";
 
-export function renderGroup(key, label, options, combatState) {
+export function renderGroup(key, label, options, combatState, { hideUnavailable = false } = {}) {
   if (key === "log") return renderLogGroup(label, combatState);
   return `
     <section class="option-group" aria-label="${escapeHtml(label)}">
-      ${options.length ? renderOptionTable(key, options) : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
+      ${options.length ? renderOptionTable(key, options, hideUnavailable) : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`}
     </section>
   `;
 }
@@ -27,7 +27,7 @@ export function renderExpandedDetailRow(row, option) {
   if (!row || !option || row.dataset.detailRendered === "true") return;
   const target = row.querySelector("[data-detail-content]");
   if (!target) return;
-  target.innerHTML = renderDetailPanel(option, option.available === false);
+  target.innerHTML = renderDetailPanel(option, option.available === false, row.dataset.detailGroup);
   row.dataset.detailRendered = "true";
 }
 
@@ -44,8 +44,9 @@ export function bindSpellDetailCards(root) {
   });
 }
 
-function renderOptionTable(group, options) {
-  if (group === "spells") return renderSpellTable(options);
+function renderOptionTable(group, options, hideUnavailable) {
+  if (group === "spells") return renderSpellTable(options, hideUnavailable);
+  if (group === "attacks") return renderAttackTable(options, hideUnavailable);
   return `
     <div class="option-table-wrap">
       <table class="option-table">
@@ -58,20 +59,44 @@ function renderOptionTable(group, options) {
             <th scope="col">Range</th>
             <th scope="col">Roll</th>
             <th scope="col">Damage / Notes</th>
-            <th scope="col">Buttons</th>
+            <th scope="col">${renderAvailabilityToggle(hideUnavailable)}</th>
           </tr>
         </thead>
         <tbody>
-          ${options.map(renderOptionRow).join("")}
+          ${options.map((option) => renderOptionRow(option)).join("")}
         </tbody>
       </table>
     </div>
   `;
 }
 
-function renderOptionRow(option) {
+function renderAttackTable(options, hideUnavailable) {
+  return `
+    <div class="option-table-wrap">
+      <table class="option-table attack-table">
+        <thead>
+          <tr>
+            <th class="expand-col" scope="col"></th>
+            <th scope="col">Type</th>
+            <th class="attack-mode-col" scope="col">M/R</th>
+            <th scope="col">Name</th>
+            <th scope="col">Range</th>
+            <th scope="col">Roll</th>
+            <th scope="col">${renderAvailabilityToggle(hideUnavailable)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${options.map((option) => renderOptionRow(option, "attacks")).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderOptionRow(option, group = "") {
   const unavailable = option.available === false;
   const detailId = `detail-${escapeHtml(option.id)}`;
+  const isAttackGroup = group === "attacks";
   return `
     <tr class="expandable-row ${unavailable ? "is-unavailable" : ""}" data-expand-target="${detailId}" data-option-id="${escapeHtml(option.id)}" aria-expanded="false">
       <td>${renderChevron(option)}</td>
@@ -82,19 +107,20 @@ function renderOptionRow(option) {
       </th>
       <td>${escapeHtml(optionRangeLabel(option))}</td>
       <td>${renderPrimaryRoll(option, unavailable)}</td>
-      <td>
-        ${renderMeta(option)}
-        ${renderAdditionalRollButtons(option, unavailable)}
-        ${renderWarnings(option.warnings)}
-        ${unavailable ? renderReasons(option.unavailableReasons) : ""}
-      </td>
-      <td>${renderOptionButtons(option, unavailable)}</td>
+      ${isAttackGroup ? "" : `
+        <td>
+          ${renderMeta(option)}
+          ${renderAdditionalRollButtons(option, unavailable)}
+          ${renderWarnings(option.warnings)}
+        </td>
+      `}
+      <td>${renderOptionButtons(option, unavailable, isAttackGroup)}</td>
     </tr>
-    ${renderDetailRow(option, unavailable, detailId)}
+    ${renderDetailRow(option, unavailable, detailId, isAttackGroup ? 6 : 7, group)}
   `;
 }
 
-function renderOptionButtons(option, unavailable) {
+function renderOptionButtons(option, unavailable, suppressPrimaryRollButtons = false) {
   if (option.cost?.movement) {
     return `
       <div class="button-row option-button-row">
@@ -107,7 +133,7 @@ function renderOptionButtons(option, unavailable) {
 
   return `
     <div class="button-row option-button-row">
-      ${(option.rolls ?? []).map((roll) => `
+      ${optionButtonRolls(option, suppressPrimaryRollButtons).map((roll) => `
         <button class="btn btn-secondary" type="button" data-roll-option="${escapeHtml(option.id)}" data-roll-id="${escapeHtml(roll.id)}" ${unavailable ? "disabled" : ""}>
           ${escapeHtml(roll.label)}
         </button>
@@ -126,7 +152,13 @@ function renderOptionButtons(option, unavailable) {
   `;
 }
 
-function renderSpellTable(options) {
+function optionButtonRolls(option, suppressPrimaryRollButtons) {
+  const rolls = option.rolls ?? [];
+  if (!suppressPrimaryRollButtons) return rolls;
+  return rolls.filter((roll) => !["attack", "damage"].includes(roll.id));
+}
+
+function renderSpellTable(options, hideUnavailable) {
   return `
     <div class="option-table-wrap">
       <table class="option-table spell-table">
@@ -139,7 +171,7 @@ function renderSpellTable(options) {
             <th scope="col">Spell</th>
             <th scope="col">Range</th>
             <th scope="col">DC</th>
-            <th scope="col">Action Buttons</th>
+            <th scope="col">${renderAvailabilityToggle(hideUnavailable)}</th>
           </tr>
         </thead>
         <tbody>
@@ -176,7 +208,7 @@ function renderPrimaryRoll(option, unavailable) {
   if (!roll) return "";
   const label = attackRoll ? attackBonusLabel(roll.formula) : roll.formula;
   const damage = attackRoll && damageRoll
-    ? `<small>${escapeHtml(damageRoll.formula)} ${renderDamageTypeIcon(damageRoll.damageType)}</small>`
+    ? `<small>${escapeHtml(damageRoll.formula)} ${renderRollIcon(option, damageRoll, unavailable)} ${renderDamageTypeIcon(damageRoll.damageType)}</small>`
     : "";
   return `${escapeHtml(label)} ${renderRollIcon(option, roll, unavailable)} ${damage}`;
 }
@@ -240,16 +272,16 @@ function renderDetailMeta(option) {
   return `<ul class="option-meta">${option.meta.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
-function renderDetailRow(option, unavailable, detailId) {
+function renderDetailRow(option, unavailable, detailId, colspan = 7, group = "") {
   return `
-    <tr class="option-detail-row ${option.source === "spell" ? "spell-detail-row" : ""}" id="${detailId}" hidden>
+    <tr class="option-detail-row ${option.source === "spell" ? "spell-detail-row" : ""}" id="${detailId}" data-detail-group="${escapeHtml(group)}" hidden>
       <td></td>
-      <td colspan="7" data-detail-content></td>
+      <td colspan="${colspan}" data-detail-content></td>
     </tr>
   `;
 }
 
-function renderDetailPanel(option, unavailable) {
+function renderDetailPanel(option, unavailable, group = "") {
   return `
     <div class="option-detail-panel">
       <div class="option-detail-heading">
@@ -274,7 +306,7 @@ function renderDetailPanel(option, unavailable) {
         <h4>Long Description</h4>
         ${renderLongDescription(option)}
       </section>
-      ${renderRollList(option, unavailable)}
+      ${renderRollList(option, unavailable, group === "attacks")}
       ${option.meta?.length ? `<section class="detail-section"><h4>Notes</h4>${renderDetailMeta(option)}</section>` : ""}
       ${option.source === "spell" ? `<section class="detail-section"><h4>Spell Reference</h4>${renderSpellDetailCard(option)}</section>` : ""}
       ${renderWarnings(option.warnings)}
@@ -289,8 +321,8 @@ function renderLongDescription(option) {
   return text.split(/\n{2,}/).map((paragraph) => `<p>${escapeHtml(paragraph.trim())}</p>`).join("");
 }
 
-function renderRollList(option, unavailable) {
-  const rolls = option.rolls ?? [];
+function renderRollList(option, unavailable, suppressPrimaryRolls = false) {
+  const rolls = optionButtonRolls(option, suppressPrimaryRolls);
   if (!rolls.length) return "";
   return `
     <section class="detail-section">
@@ -332,7 +364,9 @@ function renderAdditionalRollButtons(option, unavailable) {
 }
 
 function renderReasons(reasons = []) {
-  return `<p class="inline-message warning">${escapeHtml(reasons.join(" "))}</p>`;
+  const visibleReasons = reasons.filter((reason) => !/already used/i.test(reason));
+  if (!visibleReasons.length) return "";
+  return `<p class="inline-message warning">${escapeHtml(visibleReasons.join(" "))}</p>`;
 }
 
 function renderWarnings(warnings = []) {
@@ -441,6 +475,15 @@ function attackMode(option) {
 
 function titleCase(value) {
   return String(value ?? "").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function renderAvailabilityToggle(hideUnavailable) {
+  return `
+    <label class="availability-toggle">
+      <input type="checkbox" data-toggle-unavailable ${hideUnavailable ? "checked" : ""}>
+      <span>Hide unavailable</span>
+    </label>
+  `;
 }
 
 function compactMeta(option) {

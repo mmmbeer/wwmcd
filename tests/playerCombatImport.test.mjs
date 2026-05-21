@@ -403,9 +403,12 @@ test("compact action rows omit long descriptions and long attack notes", () => {
   }], baseCombatState());
 
   const compactRow = html.split("option-detail-row")[0];
+  assert.ok(!compactRow.includes("Damage / Notes"));
+  assert.ok(!compactRow.includes(">Roll Attack<"));
+  assert.ok(!compactRow.includes(">Roll Damage<"));
   assert.ok(!compactRow.includes("This full description belongs"));
   assert.ok(!compactRow.includes("This long imported feature reminder"));
-  assert.ok(compactRow.includes("DEX attack"));
+  assert.ok(compactRow.includes("1d6+3"));
 });
 
 test("compact PDF spell casting-time abbreviations map to action types", () => {

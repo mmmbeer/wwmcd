@@ -8,6 +8,18 @@ export function handleRoll(button, groups, stateManager, showToast) {
   const roll = option?.rolls?.find((entry) => entry.id === button.dataset.rollId);
   if (!option || !roll) return;
 
+  rollAndReport(option, roll, stateManager, showToast);
+}
+
+export function rollAttackAndDamage(option, stateManager, showToast) {
+  const rolls = [
+    option?.rolls?.find((entry) => entry.type === "attack" || entry.id === "attack"),
+    option?.rolls?.find((entry) => entry.type === "damage" && entry.id === "damage")
+  ].filter(Boolean);
+  rolls.forEach((roll) => rollAndReport(option, roll, stateManager, showToast));
+}
+
+function rollAndReport(option, roll, stateManager, showToast) {
   const result = roll.type === "damage"
     ? rollDamage({ formula: roll.formula, label: `${option.name} ${roll.label}` })
     : rollDice(roll.formula, { label: `${option.name} ${roll.label}`, type: roll.type });

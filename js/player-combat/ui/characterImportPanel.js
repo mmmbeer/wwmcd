@@ -2,7 +2,7 @@ import { importCharacterFromPdf } from "../importers/ddbPdfImporterAdapter.js";
 import { normalizeCharacter } from "../normalizers/characterNormalizer.js";
 import { escapeHtml } from "./renderUtils.js";
 
-export function renderCharacterImportPanel(root, { stateManager, showToast }) {
+export function renderCharacterImportPanel(root, { stateManager, showToast, modalApi }) {
   root.innerHTML = `
     <form class="form-stack" id="character-import-form">
       <div class="field">
@@ -41,6 +41,8 @@ export function renderCharacterImportPanel(root, { stateManager, showToast }) {
     stateManager.importCharacter(pendingImport.character);
     feedback.innerHTML = renderWarnings(pendingImport.warnings);
     showToast({ type: "success", message: `${pendingImport.character.name} imported.` });
+    window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: "recommended" } }));
+    modalApi?.close?.();
     clearImport({ keepFeedback: true });
   });
 

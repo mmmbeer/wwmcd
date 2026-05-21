@@ -1,6 +1,64 @@
 # Development Plan
 
-## Current Session: Action Tab UI Performance
+## Current Session: Action Table Polish
+
+### Implemented
+
+- Removed the outer action-panel spacing by dropping `app-main` gap/padding and the extra panel padding.
+- Updated action tables so unavailable rows are muted, italicized, sorted to the end, and optionally hidden with a header checkbox.
+- Removed compact “already used” unavailable notices while keeping non-economy unavailable reasons available in expanded details.
+- Reworked the Attacks table:
+  - Removed the `Damage / Notes` column.
+  - Removed attack/damage text buttons from attack rows and attack expanded details.
+  - Kept small clickable dice controls beside the attack modifier and damage formula in the Roll column.
+  - The `Use` button now rolls attack and damage before consuming the attack action.
+- Closed the import modal after a successful import and returned the action tabs to `Recommendation`.
+- Tightened expanded long-description wrapping so long imported feature/action text wraps inside the detail row.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionOptionHandlers.js`
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/characterImportPanel.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The hide-unavailable checkbox is a UI-only preference for the current session and is not persisted.
+- Import warnings are no longer held open in the modal after import; they are superseded by the success toast and the app returning to Recommendation.
+
+### Manual Test Checklist
+
+1. Open Recommendation, Actions, and Attacks and confirm the panel starts flush with the app main content.
+2. Use an action, confirm unavailable rows move to the end, appear muted/italicized, and do not show an “already used” compact notice.
+3. Toggle `Hide unavailable` in a table header and confirm unavailable rows hide and return.
+4. Open Attacks and confirm `Damage / Notes`, `Roll Attack`, and `Roll Damage` are absent from compact and expanded rows.
+5. Click the small dice beside attack and damage values and confirm each roll logs independently.
+6. Click `Use` on an attack and confirm both attack and damage roll, then the action is consumed.
+7. Import a new PDF character and confirm the modal closes and the Recommendation tab is selected.
+8. Expand a long action detail row and confirm the long description wraps within the table area.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionOptionRenderers.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionOptionHandlers.js`
+- `node --check js\player-combat\ui\characterImportPanel.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg -n "alert\(|prompt\(|confirm\(" js\player-combat -S` returned no matches.
+- Confirmed touched UI files remain under 500 lines: `actionOptionRenderers.js` 498, `actionTabs.js` 175, `actionOptionHandlers.js` 78, `characterImportPanel.js` 158.
+
+### Next Recommended Phase
+
+Add a browser-level smoke test for the attack table controls, hide-unavailable checkbox, and successful import modal transition.
+
+## Previous Session: Action Tab UI Performance
 
 ### Implemented
 

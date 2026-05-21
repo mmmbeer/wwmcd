@@ -1,5 +1,5 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { findOption, handleRoll, useOption } from "./actionOptionHandlers.js";
+import { findOption, handleRoll, rollAttackAndDamage, useOption } from "./actionOptionHandlers.js";
 import { bindSpellDetailCards, renderExpandedDetailRow, renderGroup, toggleExpandedRow } from "./actionOptionRenderers.js";
 import { escapeHtml } from "./renderUtils.js";
 
@@ -21,6 +21,7 @@ const GROUP_LABELS = {
 let selectedGroup = "recommended";
 let selectedSpellLevel = null;
 let selectedSpellCost = null;
+let hideUnavailable = false;
 let lastRender = null;
 let cachedSnapshot = null;
 let cachedGroups = null;
@@ -38,13 +39,13 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
 
   const groups = getCachedGroups(snapshot);
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
-  const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? []);
+  const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? [], hideUnavailable);
   root.innerHTML = `
     <nav class="option-nav" aria-label="Action categories">
       ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
     </nav>
     <div class="option-tabs">
-      ${renderGroup(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState)}
+      ${renderGroup(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
 
@@ -76,6 +77,14 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     });
   });
 
+  root.querySelectorAll("[data-toggle-unavailable]").forEach((checkbox) => {
+    checkbox.addEventListener("click", (event) => event.stopPropagation());
+    checkbox.addEventListener("change", () => {
+      hideUnavailable = checkbox.checked;
+      renderActionTabs(root, snapshot, services);
+    });
+  });
+
   root.querySelectorAll("[data-roll-option]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -87,7 +96,12 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       const option = findOption(groups, button.dataset.useOption);
-      if (option) useOption(option, combatState, services.stateManager, services.modalApi);
+      if (option) {
+        if (selectedGroup === "attacks") {
+          rollAttackAndDamage(option, services.stateManager, services.showToast);
+        }
+        useOption(option, combatState, services.stateManager, services.modalApi);
+      }
     });
   });
 
@@ -133,13 +147,16 @@ function bindGroupSelection() {
   });
 }
 
-function filterOptions(group, options) {
-  if (group !== "spells") return options;
-  return options.filter((option) => {
+function filterOptions(group, options, hideUnavailableOptions) {
+  const filtered = group === "spells" ? options.filter((option) => {
     const levelMatches = selectedSpellLevel === null || option.spell?.level === selectedSpellLevel;
     const costMatches = !selectedSpellCost || option.cost?.[selectedSpellCost];
     return levelMatches && costMatches;
-  });
+  }) : options;
+  return filtered
+    .filter((option) => !hideUnavailableOptions || option.available !== false)
+    .slice()
+    .sort((a, b) => Number(a.available === false) - Number(b.available === false));
 }
 
 function groupLabel(group) {

@@ -106,7 +106,7 @@ function renderImportLauncher(root, snapshot, { stateManager, modalApi, showToas
 
 function openImportModal({ modalApi, stateManager, showToast }) {
   const body = document.createElement("div");
-  renderCharacterImportPanel(body, { stateManager, showToast });
+  renderCharacterImportPanel(body, { stateManager, showToast, modalApi });
   modalApi.showModal({
     title: "Import Character",
     body,

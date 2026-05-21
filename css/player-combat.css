@@ -90,10 +90,10 @@ body.has-turn-progress .app-shell {
 
 .app-main {
   display: grid;
-  gap: var(--space-4);
+  gap: 0;
   max-width: 980px;
   margin: 0 auto;
-  padding: var(--space-4);
+  padding: 0;
 }
 
 .header-actions {
@@ -392,7 +392,7 @@ body.has-turn-progress .app-shell {
 }
 
 .panel {
-  padding: var(--space-4);
+  padding: 0;
 }
 
 .panel-header {
@@ -774,8 +774,10 @@ body.has-turn-progress .app-shell {
   border-bottom: 0;
 }
 
-.option-table tbody tr.is-unavailable {
-  opacity: 0.78;
+.option-table tbody tr.is-unavailable th,
+.option-table tbody tr.is-unavailable td {
+  color: var(--muted);
+  font-style: italic;
 }
 
 .option-table .expand-col,
@@ -816,6 +818,14 @@ body.has-turn-progress .app-shell {
 }
 
 .option-table td:nth-child(8) {
+  width: 18%;
+}
+
+.attack-table {
+  min-width: 760px;
+}
+
+.attack-table td:nth-child(7) {
   width: 18%;
 }
 
@@ -891,9 +901,12 @@ body.has-turn-progress .app-shell {
 .option-detail-panel {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
   max-width: 92ch;
   padding: var(--space-2) 0;
   animation: detail-slide 140ms ease-out;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .option-detail-heading {
@@ -956,6 +969,8 @@ body.has-turn-progress .app-shell {
 .detail-section p {
   max-width: 78ch;
   margin: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .detail-roll-list {
@@ -992,8 +1007,8 @@ body.has-turn-progress .app-shell {
 .icon-btn {
   display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-muted);
@@ -1002,6 +1017,25 @@ body.has-turn-progress .app-shell {
   font-weight: 900;
   cursor: pointer;
   vertical-align: middle;
+}
+
+.option-table td:nth-child(6) small {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  margin-left: var(--space-1);
+  font-weight: 800;
+}
+
+.availability-toggle {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .icon-btn:disabled {
