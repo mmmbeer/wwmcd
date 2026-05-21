@@ -2,13 +2,9 @@ import { rollDice } from "../core/diceRoller.js";
 import { formatRollSummary } from "./diceResult.js";
 import { escapeHtml } from "./renderUtils.js";
 
-export async function resolvePlannedActionRolls({ modalApi, stateManager, options = [] }) {
-  const rollOptions = options.filter((option) => primaryRoll(option));
-  for (const option of rollOptions) {
-    const confirmed = await showActionRollModal({ modalApi, stateManager, option });
-    if (!confirmed) return false;
-  }
-  return true;
+export function resolveActionRoll({ modalApi, stateManager, option }) {
+  if (!primaryRoll(option)) return Promise.resolve(true);
+  return showActionRollModal({ modalApi, stateManager, option });
 }
 
 function showActionRollModal({ modalApi, stateManager, option }) {

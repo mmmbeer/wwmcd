@@ -171,6 +171,32 @@ test("bonus and reaction spell activation objects sort into matching groups", ()
   assert.ok(groups.reaction.some((option) => option.name === "Shield"));
 });
 
+test("leveled spells become unavailable after one leveled spell has been cast this turn", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      resources: { spellSlots: { 1: 2 }, classResources: [], limitedUses: [] },
+      spells: {
+        spellcastingAbility: "wis",
+        prepared: [
+          { name: "Bless", level: 1, activation: { activationTime: 1, activationType: "Action" } },
+          { name: "Healing Word", level: 1, activation: { activationTime: 1, activationType: "Bonus Action" } }
+        ],
+        known: [],
+        cantrips: []
+      }
+    }),
+    combatState: {
+      ...combatState,
+      turn: { ...combatState.turn, leveledSpellCast: true, leveledSpellName: "Bless" }
+    },
+    referenceData: null
+  });
+
+  assert.equal(groups.spells.find((option) => option.name === "Healing Word").available, false);
+  assert.ok(groups.spells.find((option) => option.name === "Healing Word").unavailableReasons.some((reason) => /Bless/.test(reason)));
+});
+
+
 test("imported Extra Attack uses SRD text to affect attack count", () => {
   const character = baseCharacter({
     features: { class: [{ name: "Extra Attack" }], race: [], feats: [], other: [] }

@@ -29,7 +29,7 @@ export function toggleActionDetail(root, optionId) {
   if (!panel || !toggle) return;
   const expanded = toggle.getAttribute("aria-expanded") === "true";
   toggle.setAttribute("aria-expanded", String(!expanded));
-  toggle.querySelector("span").textContent = expanded ? "Details" : "Hide";
+  toggle.querySelector("span").textContent = expanded ? "⌄" : "⌃";
   panel.hidden = expanded;
 }
 
@@ -65,30 +65,32 @@ function renderActionRow(option) {
   const selected = isOptionPlanned(option);
   return `
     <article class="action-entry ${selected ? "is-selected" : ""} ${unavailable ? "is-unavailable" : ""}" role="listitem">
-      <button class="action-row"
-        type="button"
-        data-plan-option="${escapeHtml(option.id)}"
-        aria-pressed="${selected ? "true" : "false"}"
-        ${unavailable ? `aria-label="${escapeHtml(`${option.name}. Unavailable: ${unavailableText(option)}`)}"` : ""}>
-        <span class="action-icon" aria-hidden="true">${escapeHtml(iconFor(option))}</span>
-        <span class="action-name-cell">
-          <span class="action-name-line">
-            <strong>${escapeHtml(option.name)}</strong>
-            ${renderBadge(option)}
+      <div class="action-row">
+        <button class="action-expand-toggle" type="button" data-toggle-action-detail="${escapeHtml(option.id)}" aria-expanded="false" aria-label="Show details for ${escapeHtml(option.name)}">
+          <span aria-hidden="true">⌄</span>
+        </button>
+        <button class="action-select-main"
+          type="button"
+          data-plan-option="${escapeHtml(option.id)}"
+          aria-pressed="${selected ? "true" : "false"}"
+          ${unavailable ? `aria-label="${escapeHtml(`${option.name}. Unavailable: ${unavailableText(option)}`)}"` : ""}>
+          <span class="action-icon" aria-hidden="true">${escapeHtml(iconFor(option))}</span>
+          <span class="action-name-cell">
+            <span class="action-name-line">
+              <strong>${escapeHtml(option.name)}</strong>
+              ${renderBadge(option)}
+            </span>
+            <small>${escapeHtml(subtitle(option))}</small>
           </span>
-          <small>${escapeHtml(subtitle(option))}</small>
-        </span>
-        <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
-        <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
-        <span class="action-effect">
-          <strong>${escapeHtml(effectLabel(option) || "-")}</strong>
-          <small>${escapeHtml(noteLabel(option))}</small>
-        </span>
-        <span class="action-select-mark" aria-hidden="true">${selected ? "✓" : "+"}</span>
-      </button>
-      <button class="action-expand-toggle" type="button" data-toggle-action-detail="${escapeHtml(option.id)}" aria-expanded="false" aria-label="Show details for ${escapeHtml(option.name)}">
-        <span aria-hidden="true">Details</span>
-      </button>
+          <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
+          <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
+          <span class="action-effect">
+            <strong>${escapeHtml(effectLabel(option) || "-")}</strong>
+            <small>${escapeHtml(noteLabel(option))}</small>
+          </span>
+          <span class="action-select-mark" aria-hidden="true">${selected ? "✓" : "+"}</span>
+        </button>
+      </div>
       <div class="action-detail-panel" data-action-detail="${escapeHtml(option.id)}" hidden>
         ${renderActionDetail(option)}
       </div>

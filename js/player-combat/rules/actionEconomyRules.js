@@ -34,6 +34,9 @@ export function applyActionEconomyRules(options, character, combatState) {
     const resourceBlock = resourceBlockReason(option, character, combatState);
     if (resourceBlock) reasons.push(resourceBlock);
 
+    const spellBlock = leveledSpellBlockReason(option, combatState);
+    if (spellBlock) reasons.push(spellBlock);
+
     const actionBlock = actionBlockReason(option, combatState);
     if (actionBlock) reasons.push(actionBlock);
 
@@ -46,6 +49,14 @@ export function applyActionEconomyRules(options, character, combatState) {
       warnings: [...new Set(warnings)]
     };
   });
+}
+
+function leveledSpellBlockReason(option, combatState) {
+  if (!option.spell || Number(option.spell?.level ?? 0) <= 0 || !combatState?.turn?.leveledSpellCast) return null;
+  const current = combatState.turn?.leveledSpellName;
+  return current
+    ? `You already cast ${current}, a leveled spell, this turn.`
+    : "You already cast a leveled spell this turn.";
 }
 
 function resourceBlockReason(option, character, combatState) {

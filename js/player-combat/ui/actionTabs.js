@@ -1,7 +1,8 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
 import { findOption } from "./actionOptionHandlers.js";
+import { resolveActionRoll } from "./actionRollModal.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
-import { selectPlannedOption } from "./plannedTurnState.js";
+import { selectPlannedOption, validatePlannedOption } from "./plannedTurnState.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
@@ -87,9 +88,22 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
   });
 
   root.querySelectorAll("[data-plan-option]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const option = findOption(groups, button.dataset.planOption);
-      const result = selectPlannedOption(option);
+      const validation = validatePlannedOption(option, { combatState });
+      if (!validation.ok) {
+        services.showToast?.({ type: "warning", message: validation.message });
+        return;
+      }
+      if (option?.available !== false && hasRoll(option)) {
+        const rolled = await resolveActionRoll({
+          modalApi: services.modalApi,
+          stateManager: services.stateManager,
+          option
+        });
+        if (!rolled) return;
+      }
+      const result = selectPlannedOption(option, { combatState });
       if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
     });
   });
@@ -98,6 +112,10 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     button.addEventListener("click", () => toggleActionDetail(root, button.dataset.toggleActionDetail));
   });
 
+}
+
+function hasRoll(option) {
+  return Boolean(option?.rolls?.length);
 }
 
 function getCachedGroups(snapshot) {

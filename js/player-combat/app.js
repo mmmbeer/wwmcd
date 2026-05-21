@@ -7,9 +7,8 @@ import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
 import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
-import { resolvePlannedActionRolls } from "./ui/actionRollModal.js";
 import { renderPlannedTurnBar } from "./ui/mobileActionList.js";
-import { clearPlannedTurn, confirmPlannedTurn, getPlannedTurnOptions } from "./ui/plannedTurnState.js";
+import { clearPlannedTurn, confirmPlannedTurn } from "./ui/plannedTurnState.js";
 import { createToast } from "./ui/toast.js";
 import { longRestNotice, shortRestNotice, showTransitionNotice } from "./ui/transitionNotice.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
@@ -76,13 +75,6 @@ function renderPlannedTurn(root, snapshot, { stateManager, modalApi, showToast, 
   root.innerHTML = renderPlannedTurnBar(snapshot);
   root.querySelector("[data-plan-clear]")?.addEventListener("click", () => clearPlannedTurn());
   root.querySelector("[data-plan-confirm]")?.addEventListener("click", async () => {
-    const shouldCommit = await resolvePlannedActionRolls({
-      modalApi,
-      stateManager,
-      options: getPlannedTurnOptions()
-    });
-    if (!shouldCommit) return;
-
     const result = await busyApi.run("Confirming turn...", () => confirmPlannedTurn(stateManager));
     showToast({
       type: "success",

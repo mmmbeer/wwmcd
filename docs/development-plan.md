@@ -2038,6 +2038,7 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - Added a pre-commit roll modal for planned actions with dice rolls. Confirm Turn now prompts for each rollable planned option before committing action economy/resources.
 - The roll modal shows the core roll, supports advantage for d20 rolls, accepts extra dice such as `1d4` or `2d6`, logs the roll result, and requires a completed roll before OK marks the action used.
 - Canceling or dismissing the roll modal aborts the turn commit and leaves the planned turn intact.
+- Follow-up correction: roll prompts now occur when selecting a rollable action. The action is added to the planned turn only after the roll modal is completed. Confirm Turn no longer prompts for rolls.
 
 ### Action Detail and Roll Verification
 
@@ -2048,3 +2049,17 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\app.js`
 - `node --test tests\*.test.mjs`
 - `git diff --check`
+
+### Chevron Details and Leveled Spell Fix
+
+- Moved the action detail control into a thin first column of each action row as a chevron toggle.
+- Restored the one-leveled-spell-per-turn guard in both rules availability and planned action selection, so a second leveled spell cannot be planned before confirmation or cast after one has already been committed.
+- Added a regression test for leveled spell unavailability after a leveled spell has been cast this turn.
+
+### Chevron Details and Spell Verification
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\plannedTurnState.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\rules\actionEconomyRules.js`
+- `node --test tests\*.test.mjs`

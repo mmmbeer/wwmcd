@@ -37,8 +37,15 @@ export function isOptionPlanned(option) {
   ].some((entry) => entry?.id === option.id);
 }
 
-export function selectPlannedOption(option) {
+export function validatePlannedOption(option, { combatState = null } = {}) {
   if (!option || option.available === false) return { ok: false, message: unavailableMessage(option) };
+  const spellBlock = leveledSpellBlockReason(option, combatState);
+  return spellBlock ? { ok: false, message: spellBlock } : { ok: true };
+}
+
+export function selectPlannedOption(option, { combatState = null } = {}) {
+  const validation = validatePlannedOption(option, { combatState });
+  if (!validation.ok) return validation;
 
   if (option.cost?.movement) {
     const step = Number(option.movement?.step ?? 5);
@@ -105,6 +112,22 @@ function plannedResources(plan) {
 
 function unavailableMessage(option) {
   return option.unavailableReasons?.join(" ") || `${option.name} is unavailable right now.`;
+}
+
+function leveledSpellBlockReason(option, combatState) {
+  if (!isLeveledSpell(option)) return null;
+  const alreadyCastName = combatState?.turn?.leveledSpellName;
+  if (combatState?.turn?.leveledSpellCast) {
+    return alreadyCastName
+      ? `You already cast ${alreadyCastName}, a leveled spell, this turn.`
+      : "You already cast a leveled spell this turn.";
+  }
+  const planned = getPlannedTurnOptions().find((entry) => isLeveledSpell(entry) && entry.id !== option.id);
+  return planned ? `You already planned ${planned.name}, a leveled spell, this turn.` : null;
+}
+
+function isLeveledSpell(option) {
+  return Boolean(option?.spell) && Number(option.spell?.level ?? 0) > 0;
 }
 
 function notifyPlanChanged() {
