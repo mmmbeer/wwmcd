@@ -8,6 +8,7 @@ import { createModal } from "./ui/modal.js";
 import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
 import { createToast } from "./ui/toast.js";
+import { longRestNotice, shortRestNotice, showTransitionNotice } from "./ui/transitionNotice.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
 
 export async function createPlayerCombatApp() {
@@ -90,8 +91,14 @@ function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast
   `;
 
   root.querySelector("[data-header-action='import']").addEventListener("click", () => openImportModal({ modalApi, stateManager, showToast }));
-  root.querySelector("[data-header-action='short-rest']")?.addEventListener("click", () => stateManager.takeShortRest());
-  root.querySelector("[data-header-action='long-rest']")?.addEventListener("click", () => stateManager.takeLongRest());
+  root.querySelector("[data-header-action='short-rest']")?.addEventListener("click", (event) => {
+    showTransitionNotice(event.currentTarget, shortRestNotice(snapshot.activeCharacter, snapshot.combatState));
+    stateManager.takeShortRest();
+  });
+  root.querySelector("[data-header-action='long-rest']")?.addEventListener("click", (event) => {
+    showTransitionNotice(event.currentTarget, longRestNotice(snapshot.activeCharacter, snapshot.combatState));
+    stateManager.takeLongRest();
+  });
 }
 
 function renderImportLauncher(root, snapshot, { stateManager, modalApi, showToast }) {

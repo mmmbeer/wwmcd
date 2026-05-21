@@ -1,6 +1,55 @@
 # Development Plan
 
-## Current Session: Action Table Polish
+## Current Session: Rest and Turn Transition Notices
+
+### Implemented
+
+- Added a reusable transient transition popover for quick UI state changes.
+- `Done` now shows a short reset summary before ending the turn:
+  - Action, bonus action, free action, movement, and this-turn spell limits reset.
+  - The round advances.
+  - Reaction/readied-action carryover is called out when applicable.
+- `Short Rest` now shows which spent short-rest resources will reset and notes that spell slots/long-rest resources stay unchanged.
+- `Long Rest` now shows whether spent spell slots reset and lists spent limited resources that reset.
+- Popovers are anchored to the clicked button, use `role="status"`, and auto-dismiss without blocking play.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/transitionNotice.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The transition notice is intentionally informational; it does not pause or confirm the action.
+- The reset summary follows the app's current tracked reset behavior, so untracked sheet-only resources are not listed.
+
+### Manual Test Checklist
+
+1. Spend an action, bonus action, movement, and a spell/limited resource.
+2. Click `Done` and confirm a popover appears near the button before the UI resets/advances.
+3. Spend a short-rest resource such as Ki or Action Surge, click `Short Rest`, and confirm the popover names the reset resource.
+4. Spend spell slots and limited resources, click `Long Rest`, and confirm the popover names what resets.
+5. Confirm repeated clicks replace the previous popover instead of stacking.
+
+### Verification Completed
+
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
+- `node --check js\player-combat\ui\transitionNotice.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg -n "alert\(|prompt\(|confirm\(" js\player-combat -S` returned no matches.
+- Confirmed touched UI files remain under 500 lines: `transitionNotice.js` 90, `turnEconomyPanel.js` 95, `app.js` 122.
+
+### Next Recommended Phase
+
+Add a browser smoke test for the transient popover position/content on mobile and desktop widths.
+
+## Previous Session: Action Table Polish
 
 ### Implemented
 

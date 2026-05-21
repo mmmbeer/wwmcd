@@ -1,5 +1,6 @@
 import { formatFeet } from "./renderUtils.js";
 import { getAttackCount } from "../rules/attackCountRules.js";
+import { showTransitionNotice, turnDoneNotice } from "./transitionNotice.js";
 
 export function renderTurnEconomyPanel(root, snapshot, { stateManager, modalApi }) {
   const character = snapshot.activeCharacter;
@@ -33,7 +34,10 @@ export function renderTurnEconomyPanel(root, snapshot, { stateManager, modalApi 
     </nav>
   `;
 
-  root.querySelector("[data-turn='end']").addEventListener("click", () => stateManager.endTurn());
+  root.querySelector("[data-turn='end']").addEventListener("click", (event) => {
+    showTransitionNotice(event.currentTarget, turnDoneNotice(state));
+    stateManager.endTurn();
+  });
   root.querySelector("[data-roll-log]").addEventListener("click", () => openRollLogModal(state, modalApi));
   root.querySelector("[data-move='5']").addEventListener("click", () => stateManager.useMovement(5));
   root.querySelectorAll("[data-group]").forEach((button) => {
