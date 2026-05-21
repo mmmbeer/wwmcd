@@ -1991,3 +1991,16 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --test tests\*.test.mjs`
 - `rg "\b(alert|prompt|confirm)\s*\(" js index.html`
 - Checked new JavaScript module sizes; `mobileActionList.js`, `plannedTurnState.js`, and updated `turnEconomyPanel.js` are under 500 lines.
+
+### Follow-Up Layout Adjustment
+
+- Removed the bottom navigation from the app shell and fixed the planned-turn bar to the viewport bottom so the plan remains visible.
+- Made the action economy tracker sticky below the compact header.
+- Compressed combat status into two lines: identity on one line, then HP/temp HP, HP meter, AC, speed, initiative, and conditions on one horizontally scrolling line.
+- Improved dark modal contrast for import and condition workflows by overriding form fields, dropzones, preview blocks, and inline messages.
+
+### Follow-Up Verification
+
+- `node --check js\player-combat\ui\combatStatusBar.js`
+- `node --test tests\*.test.mjs`
+- `git diff --check`

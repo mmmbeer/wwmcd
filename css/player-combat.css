@@ -2062,3 +2062,200 @@ body.has-turn-progress .app-shell {
     display: none;
   }
 }
+
+/* Requested compact combat layout adjustments */
+.app-shell {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  padding-bottom: 88px;
+}
+
+.turn-progress {
+  position: sticky;
+  top: 49px;
+  z-index: 7;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+.combat-status-bar {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px;
+}
+
+.character-crest {
+  width: 28px;
+  height: 28px;
+  font-size: 0.82rem;
+}
+
+.character-status-main {
+  gap: 4px;
+}
+
+.character-identity-line {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-combat-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 900;
+  scrollbar-width: none;
+}
+
+.status-combat-line::-webkit-scrollbar {
+  display: none;
+}
+
+.status-combat-line label,
+.status-combat-line strong,
+.status-combat-line .condition-label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 24px;
+  text-transform: uppercase;
+}
+
+.status-combat-line input {
+  width: 40px;
+  min-height: 24px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--bg-row);
+  color: var(--text-primary);
+  padding: 2px 5px;
+  font-weight: 900;
+}
+
+.status-combat-line .hp-control span {
+  color: var(--text-secondary);
+}
+
+.status-combat-line .hp-meter {
+  flex: 0 0 42px;
+  height: 4px;
+}
+
+.status-combat-line .condition-badges {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.status-combat-line .condition-badge,
+.status-combat-line .condition-add {
+  min-height: 22px;
+}
+
+.status-combat-line .condition-add,
+.status-combat-line .condition-badge button {
+  width: 22px;
+  height: 22px;
+}
+
+.planned-turn-bar {
+  position: fixed;
+  left: max(0px, calc((100vw - 760px) / 2));
+  right: max(0px, calc((100vw - 760px) / 2));
+  bottom: 0;
+  z-index: 12;
+  margin: 0;
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 0;
+  border-left: 1px solid var(--border-strong);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.bottom-nav {
+  display: none;
+}
+
+.modal {
+  border: 1px solid var(--border-strong);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.16)),
+    #0b1217;
+  color: var(--text-primary);
+}
+
+.modal h2,
+.modal h3,
+.modal label,
+.modal .field-label,
+.modal strong {
+  color: var(--text-primary);
+}
+
+.modal p,
+.modal small,
+.modal .inline-message,
+.modal .pdf-dropzone__meta,
+.modal .import-preview small {
+  color: var(--text-secondary);
+}
+
+.modal input,
+.modal textarea,
+.modal select,
+.field input,
+.field textarea,
+.field select {
+  border-color: var(--border-muted);
+  background: var(--bg-row);
+  color: var(--text-primary);
+}
+
+.modal option {
+  background: var(--bg-row);
+  color: var(--text-primary);
+}
+
+.modal .pdf-dropzone,
+.modal .import-preview,
+.modal .inline-message,
+.modal .tab-placeholder {
+  border-color: var(--border-muted);
+  background: var(--bg-panel-2);
+  color: var(--text-primary);
+}
+
+@media (max-width: 390px) {
+  .app-shell {
+    padding-bottom: 96px;
+  }
+
+  .turn-progress {
+    top: 45px;
+  }
+
+  .combat-status-bar,
+  .spellcasting-bar,
+  .app-main {
+    margin-inline: var(--space-2);
+  }
+
+  .planned-turn-bar {
+    left: 0;
+    right: 0;
+    margin-inline: 0;
+  }
+
+  .character-identity-line {
+    font-size: 0.78rem;
+  }
+}
