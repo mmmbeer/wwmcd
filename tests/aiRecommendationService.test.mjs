@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildRecommendationUserMessage,
+  compactContextForRequest,
   extractFirstJsonObject,
   getAiRecommendations,
   isStructuredOutputUnsupportedError,
@@ -76,6 +77,16 @@ test("normalization flags unavailable matched options", () => {
   assert.match(result.recommendations[0].warnings.join(" "), /marked unavailable/);
 });
 
+test("normalization defaults null concentration impact to none", () => {
+  const payload = responseWithAction("attack_rapier", "Rapier");
+  payload.recommendations[0].concentrationImpact = null;
+  const result = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: { attacks: [availableRapier] }
+  });
+
+  assert.equal(result.recommendations[0].concentrationImpact, "none");
+});
+
 test("balanced JSON extraction ignores surrounding text and braces in strings", () => {
   const wrapped = `notes before JSON ${JSON.stringify({
     turnAssessment: "Use {braces} safely.",
@@ -112,12 +123,60 @@ test("user message builder includes shared tactical instructions and context JSO
   assert.match(message, /combat-turn-recommendation\/v2/);
 });
 
+test("user message builder compacts oversized tactical context", () => {
+  const context = largeContext();
+  const compact = compactContextForRequest(context, 12000);
+  const message = buildRecommendationUserMessage(context);
+
+  assert.equal(compact.requestNotes.contextCompacted, true);
+  assert.ok(JSON.stringify(compact).length < JSON.stringify(context).length);
+  assert.ok(compact.availableOptions.spells.length < context.availableOptions.spells.length);
+  assert.match(message, /contextCompacted/);
+  assert.ok(message.length < JSON.stringify(context).length);
+});
+
 function responseWithAction(optionId, name) {
   return {
     turnAssessment: "Attack is the clearest plan.",
     recommendedOptionId: optionId,
     missingInfo: [],
     recommendations: [recommendation(optionId, name)]
+  };
+}
+
+function largeContext() {
+  const longText = "Long tactical and rules text. ".repeat(200);
+  const options = Array.from({ length: 80 }, (_, index) => ({
+    id: `spell_${index}`,
+    name: `Spell ${index}`,
+    source: "spell",
+    group: "spells",
+    available: true,
+    cost: { action: true },
+    rolls: [{ id: "damage", formula: "8d6" }],
+    tags: ["spell"],
+    spell: { level: 3, concentration: index % 2 === 0 },
+    summary: longText
+  }));
+  return {
+    schemaVersion: "combat-turn-recommendation/v2",
+    character: {
+      name: "Large",
+      spells: {
+        prepared: options.map((option) => ({ name: option.name, level: 3, description: longText })),
+        known: options.map((option) => ({ name: option.name, level: 3, description: longText }))
+      },
+      features: { class: options.map((option) => ({ name: option.name, description: longText })) },
+      equipment: { items: options.map((option) => ({ name: option.name, description: longText })) }
+    },
+    combatState: { current: { concentration: null }, turn: {} },
+    turnRules: {},
+    playerIntent: {},
+    availableOptions: { spells: options },
+    unavailableOptions: { spells: options.map((option) => ({ ...option, available: false })) },
+    optionIndex: options.map((option) => ({ id: option.id, name: option.name, group: "spells" })),
+    deterministicRecommendations: [],
+    instructionHints: {}
   };
 }
 

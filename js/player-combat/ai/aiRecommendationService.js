@@ -1,5 +1,6 @@
 import { requestGroqChat } from "./groqClient.js";
 import { AI_RECOMMENDATION_SYSTEM_PROMPT } from "./aiRecommendationPrompt.js";
+import { compactContextForRequest } from "./aiRecommendationRequestContext.js";
 
 const FALLBACK_JSON_PROMPT = `The selected model does not support Groq structured outputs.
 Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
@@ -74,6 +75,7 @@ export function shouldAskClarifyingQuestion(aiResult) {
 }
 
 export function buildRecommendationUserMessage(context) {
+  const requestContext = compactContextForRequest(context);
   return [
     "Recommend practical D&D 5e turn plans for the current player character.",
     "",
@@ -86,9 +88,11 @@ export function buildRecommendationUserMessage(context) {
     "- Prefer useful, table-ready guidance over long rules explanation.",
     "",
     "Context JSON:",
-    JSON.stringify(context)
+    JSON.stringify(requestContext)
   ].join("\n");
 }
+
+export { compactContextForRequest };
 
 function structuredRecommendationRequest({ apiKey, model, context }) {
   return {
@@ -371,7 +375,7 @@ function recommendationSchema() {
       freeInteraction: { type: "string" },
       reactionPlan: { type: "string" },
       resourcesUsed: { type: "array", items: { type: "string" } },
-      concentrationImpact: { type: "string" },
+      concentrationImpact: nullableStringSchema(),
       assumptions: { type: "array", items: { type: "string" } },
       reasons: { type: "array", items: { type: "string" } },
       warnings: { type: "array", items: { type: "string" } }
@@ -391,4 +395,8 @@ function actionPieceSchema() {
       explanation: { type: "string" }
     }
   };
+}
+
+function nullableStringSchema() {
+  return { type: ["string", "null"] };
 }

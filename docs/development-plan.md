@@ -11,12 +11,14 @@
 - Added post-response validation that preserves recommendations while downgrading invented or unavailable option use to `conditional` and adding warnings.
 - Replaced broad regex JSON extraction with a balanced JSON object extractor for fallback responses.
 - Added `shouldAskClarifyingQuestion(aiResult)` for UI follow-up decisions.
+- Added request-context compaction so oversized character/options payloads are trimmed before sending to Groq while local response validation still uses the full context.
 - Updated AI recommendation rendering to accept the new object shape while preserving the transitional `sets` array and existing quick-add behavior.
 
 ### Files Changed
 
 - `js/player-combat/ai/aiRecommendationContext.js`
 - `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
 - `js/player-combat/ai/aiRecommendationService.js`
 - `js/player-combat/ui/actionTabs.js`
 - `js/player-combat/ui/recommendationWizardPanel.js`
@@ -28,6 +30,7 @@
 
 - The UI displays the richer AI fields compactly but does not yet provide the suggested clarification choice flow when `shouldAskClarifyingQuestion()` is true.
 - Validation checks option IDs/names against supplied option summaries; it does not independently re-run all D&D 5e rules beyond the app's available/unavailable option metadata.
+- Request compaction caps how much spell/feature/equipment detail reaches the model for very large characters, favoring legal option IDs and short tactical summaries over long source text.
 
 ### Manual Test Checklist
 
@@ -37,11 +40,13 @@
 4. Use a fallback model response with prose around valid JSON and confirm the recommendation still parses.
 5. Confirm an invented option ID renders as a conditional AI recommendation with a warning instead of silently becoming valid.
 6. Confirm an unavailable option ID renders as conditional with the unavailable reason.
+7. Confirm large imported characters can request AI recommendations without a `Request Entity Too Large` response.
 
 ### Verification Completed
 
 - `node --check js\player-combat\ai\aiRecommendationContext.js`
 - `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ai\aiRecommendationRequestContext.js`
 - `node --check js\player-combat\ui\recommendationWizardPanel.js`
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --test tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
