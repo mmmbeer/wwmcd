@@ -95,6 +95,10 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
         services.showToast?.({ type: "warning", message: validation.message });
         return;
       }
+      if (willReplaceConcentration(option, combatState)) {
+        const confirmed = await confirmConcentrationChange(services.modalApi, option, combatState);
+        if (!confirmed) return;
+      }
       if (option?.available !== false && hasRoll(option)) {
         const rolled = await resolveActionRoll({
           modalApi: services.modalApi,
@@ -116,6 +120,33 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
 
 function hasRoll(option) {
   return Boolean(option?.rolls?.length);
+}
+
+function willReplaceConcentration(option, combatState) {
+  return Boolean(option?.spell?.concentration)
+    && Boolean(combatState?.current?.concentration)
+    && combatState.current.concentration !== option.name;
+}
+
+function confirmConcentrationChange(modalApi, option, combatState) {
+  return new Promise((resolve) => {
+    const current = combatState.current?.concentration;
+    let resolved = false;
+    const done = (value) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(value);
+    };
+    modalApi.showModal({
+      title: "Replace Concentration?",
+      body: `<p>You are currently concentrating on ${escapeHtml(current)}. Casting ${escapeHtml(option.name)} will end that concentration.</p>`,
+      onClose: () => done(false),
+      actions: [
+        { label: "Cancel", variant: "secondary", onClick: () => done(false) },
+        { label: "Replace Concentration", variant: "primary", onClick: () => done(true) }
+      ]
+    });
+  });
 }
 
 function getCachedGroups(snapshot) {

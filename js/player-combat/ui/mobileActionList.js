@@ -88,6 +88,7 @@ function renderActionRow(option, group) {
 function renderRowCells(option, rowKind, selected) {
   if (rowKind === "spell") {
     return `
+      ${renderConcentrationCell(option)}
       ${renderCostBadge(option)}
       <span class="action-fact">${escapeHtml(spellLevelLabel(option))}</span>
       ${renderNameCell(option)}
@@ -100,7 +101,7 @@ function renderRowCells(option, rowKind, selected) {
   if (rowKind === "attack") {
     return `
       ${renderCostBadge(option)}
-      <span class="type-badge type-free">${escapeHtml(attackModeLabel(option))}</span>
+      <span class="type-badge type-free">${escapeHtml(attackModeLabel(option).toLowerCase())}</span>
       ${renderNameCell(option)}
       <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
       <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
@@ -152,8 +153,13 @@ function renderCostBadge(option) {
 }
 
 function renderSourceBadge(option) {
-  const source = option.source === "basic" ? "Basic" : option.source === "feature" ? "Feature" : titleCase(option.source || "Option");
+  const source = option.source === "basic" ? "basic" : option.source === "feature" ? "feature" : option.spell ? "spell" : String(option.source || "basic").toLowerCase();
   return `<span class="type-badge type-free">${escapeHtml(source)}</span>`;
+}
+
+function renderConcentrationCell(option) {
+  if (!option.spell?.concentration) return `<span class="concentration-cell" aria-hidden="true"></span>`;
+  return `<span class="concentration-cell concentration-badge" title="Requires concentration" aria-label="Requires concentration">C</span>`;
 }
 
 function renderLog(label, combatState) {
@@ -197,11 +203,10 @@ function detailFact(label, value) {
 }
 
 function typeLabel(option) {
-  if (option.cost?.bonus) return { key: "bonus", label: "BA" };
-  if (option.cost?.reaction) return { key: "reaction", label: "R" };
-  if (option.cost?.movement) return { key: "movement", label: "Move" };
-  if (option.cost?.object || !option.cost?.action) return { key: "free", label: "Free" };
-  return { key: "action", label: "A" };
+  if (option.cost?.bonus) return { key: "bonus", label: "bonus" };
+  if (option.cost?.reaction) return { key: "reaction", label: "reaction" };
+  if (option.cost?.object || !option.cost?.action || option.cost?.movement) return { key: "free", label: "free" };
+  return { key: "action", label: "action" };
 }
 
 function rowKindFor(option, group) {

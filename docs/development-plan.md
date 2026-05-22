@@ -2087,3 +2087,17 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\actionRollModal.js`
 - `node --test tests\*.test.mjs`
 - `git diff --check`
+
+### Badge and Concentration Table Update
+
+- Normalized action-cost badges across all compact tables to `action`, `bonus`, `reaction`, and `free`.
+- Normalized type/source badges to lowercase `basic`, `feature`, `spell`, `melee`, and `ranged` where applicable.
+- Added a thin concentration column to spell rows with a `C` badge for concentration spells.
+- Restored concentration replacement warning when selecting a concentration spell while already concentrating; confirmed casts still update concentration state on commit.
+
+### Badge and Concentration Verification
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --test tests\*.test.mjs`
+- `git diff --check`

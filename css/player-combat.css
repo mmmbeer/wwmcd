@@ -1801,11 +1801,29 @@ body.has-turn-progress .app-shell {
 }
 
 .action-row--spell {
-  grid-template-columns: 22px 46px 58px minmax(110px, 1.4fr) minmax(54px, 0.7fr) minmax(54px, 0.7fr) 64px;
+  grid-template-columns: 22px 24px 68px 58px minmax(110px, 1.4fr) minmax(54px, 0.7fr) minmax(54px, 0.7fr) 64px;
 }
 
 .action-row--spell .type-badge {
   color: var(--accent-blue);
+}
+
+.concentration-cell {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.action-row--spell .concentration-badge {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--accent-purple);
+  border-radius: var(--radius-sm);
+  background: rgba(178, 107, 232, 0.16);
+  color: var(--accent-purple);
+  font-size: 0.68rem;
+  font-weight: 900;
 }
 
 .action-row--attack {
@@ -2182,7 +2200,7 @@ body.has-turn-progress .app-shell {
   }
 
   .action-row--spell {
-    grid-template-columns: 20px 42px 48px minmax(88px, 1.4fr) minmax(48px, 0.7fr) minmax(46px, 0.7fr) 56px;
+    grid-template-columns: 20px 22px 58px 48px minmax(88px, 1.4fr) minmax(48px, 0.7fr) minmax(46px, 0.7fr) 56px;
   }
 
   .action-row--attack {
