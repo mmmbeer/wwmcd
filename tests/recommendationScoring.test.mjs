@@ -310,6 +310,43 @@ test("spells and attack riders are not labeled as free actions", () => {
   assert.ok(!allFreeNames.includes("Light"));
 });
 
+test("non-combat casting time spells are excluded from turn recommendations", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_ceremony",
+        name: "Ceremony",
+        source: "spell",
+        description: "Level 1 - Range Touch",
+        spell: { level: 1, castingTime: "1 hour", castingCost: "special", range: "Touch" },
+        cost: { resource: { type: "spellSlot", level: 1 } },
+        resource: "Level 1 spell slot",
+        recommended: true,
+        rolls: [],
+        available: true
+      },
+      {
+        id: "spell_cure_wounds",
+        name: "Cure Wounds",
+        source: "spell",
+        description: "A creature you touch regains hit points.",
+        spell: { level: 1, castingTime: "1 action", castingCost: "action", range: "Touch" },
+        cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+        resource: "Level 1 spell slot",
+        rolls: [{ id: "healing", type: "healing", formula: "1d8+3" }],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "support", situation: "ally", resources: "spend" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "support", situation: "ally" } });
+
+  assert.ok(!ranked.some((entry) => entry.option.name === "Ceremony"));
+  assert.ok(ranked.some((entry) => entry.option.name === "Cure Wounds"));
+  assert.ok(!sets.some((set) => set.pieces.some((piece) => piece.entry.option.name === "Ceremony")));
+});
+
 test("Light is penalized in normal combat recommendations", () => {
   const ranked = getRankedRecommendations({
     groups: groupsWith([

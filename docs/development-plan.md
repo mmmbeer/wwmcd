@@ -1,5 +1,37 @@
 # Development Plan
 
+## Current Session: Spell Casting-Time Recommendation Filter
+
+### Implemented
+
+- Excluded spell options from turn recommendations unless they have an action, bonus-action, or reaction casting cost.
+- Prevented long-casting spells such as `Ceremony` from appearing in ranked recommendations or composed recommendation sets.
+- Kept the filter inside recommendation candidate collection so source spell JSON and spell loading remain unchanged.
+- Added regression coverage proving a `1 hour` spell is excluded while an action spell remains recommendable.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- This only filters recommendation ranking and turn-set composition; non-combat spells can still exist in spell data/details elsewhere.
+- Imported spell fixtures without explicit `spell.castingCost` are accepted if they have an explicit action, bonus, or reaction cost.
+
+### Manual Test Checklist
+
+1. Import or create a character with `Ceremony` and an action spell such as `Cure Wounds`.
+2. Open the Recommendation tab and confirm `Ceremony` does not appear in ranked recommendations or turn sets.
+3. Confirm action, bonus-action, and reaction spells still appear when otherwise available.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationScoring.js`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: Recommendation Set Sequencing
 
 ### Implemented

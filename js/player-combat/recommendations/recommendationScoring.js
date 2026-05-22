@@ -181,10 +181,17 @@ function collectOptions(groups) {
   const byId = new Map();
   for (const group of ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources", "recommended"]) {
     for (const option of groups?.[group] ?? []) {
-      if (option?.id && !byId.has(option.id)) byId.set(option.id, option);
+      if (option?.id && isRecommendationCandidate(option) && !byId.has(option.id)) byId.set(option.id, option);
     }
   }
   return [...byId.values()];
+}
+
+function isRecommendationCandidate(option) {
+  if (!option?.spell) return true;
+  const hasTurnCost = Boolean(option.cost?.action || option.cost?.bonus || option.cost?.reaction);
+  if (!hasTurnCost) return false;
+  return !option.spell?.castingCost || ["action", "bonus", "reaction"].includes(option.spell.castingCost);
 }
 
 function damageScore(option, context) {
