@@ -1,5 +1,63 @@
 # Development Plan
 
+## Current Session: Groq AI Recommendation Support
+
+### Implemented
+
+- Added local AI settings for a user-provided Groq API key, model list cache, and selected model under the existing `pca.settings` storage key.
+- Added an `AI Options` item to the hamburger menu for saving the key locally and loading available Groq models through the existing PHP proxy.
+- Added an `AI` button to the Recommendation Wizard header after a Groq key is saved.
+- Added an AI recommendation modal that captures user tactical notes, includes the wizard answers, and sends a compact app context covering combat state, resources, conditions, spell slots, features, traits, equipment, spell lists, attacks, available options, and deterministic turn-set recommendations.
+- Added a Groq chat service that requests structured ranked turn-plan JSON with actions, bonus actions, reactions, explanations, reasons, and warnings.
+- Rendered AI results with the existing recommendation set card pattern; matched AI action pieces can be added to the planned turn through the existing validation path.
+- Added focused test coverage for the AI context payload shape.
+
+### Files Changed
+
+- `js/player-combat/ai/aiSettings.js`
+- `js/player-combat/ai/groqClient.js`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ui/aiOptionsModal.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/recommendationWizardPanel.js`
+- `css/player-combat.css`
+- `tests/aiRecommendationContext.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The API key is stored locally in browser local storage, not on the server. This keeps the server from retaining the key, but local storage is not an encrypted secret store.
+- AI recommendations depend on Groq model behavior and may still need player review against table rulings.
+- PHP CLI is not installed in this environment, so the existing Groq proxy could not be linted locally.
+
+### Manual Test Checklist
+
+1. Open the hamburger menu and choose `AI Options`.
+2. Save a Groq API key and confirm the menu shows `AI Options (saved)`.
+3. Load models, select a model, close the modal, and confirm the Recommendation Wizard header shows the `AI` button.
+4. Open AI recommendations, enter tactical notes, click `Get Recommendations`, and confirm the inline spinner appears while the request is in flight.
+5. Confirm ranked AI turn sets render with explanations, reasons, warnings, and action pieces.
+6. Click a matched AI action piece and confirm it stages in the planned turn using the same availability and concentration validation as normal recommendations.
+7. Refresh the page and confirm the saved key/model remain available locally.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\aiSettings.js`
+- `node --check js\player-combat\ai\groqClient.js`
+- `node --check js\player-combat\ai\aiRecommendationContext.js`
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ui\aiOptionsModal.js`
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\recommendationWizardPanel.js`
+- `node --test tests\aiRecommendationContext.test.mjs`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs`
+
 ## Current Session: Leveled Spell Recommendation Pairing
 
 ### Implemented

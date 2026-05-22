@@ -2,6 +2,7 @@ import { createEventBus } from "./core/eventBus.js";
 import { createStateManager } from "./core/stateManager.js";
 import { createStorage } from "./core/storage.js";
 import { loadReferenceData } from "./data/referenceDataService.js";
+import { hasGroqApiKey } from "./ai/aiSettings.js";
 import { getEffectiveWalkSpeed } from "./rules/movementRules.js";
 import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
@@ -14,6 +15,7 @@ import { clearPlannedTurn, confirmPlannedTurn } from "./ui/plannedTurnState.js";
 import { createToast } from "./ui/toast.js";
 import { longRestNotice, shortRestNotice, showTransitionNotice } from "./ui/transitionNotice.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
+import { openAiOptionsModal } from "./ui/aiOptionsModal.js";
 
 export async function createPlayerCombatApp() {
   const eventBus = createEventBus();
@@ -40,13 +42,24 @@ export async function createPlayerCombatApp() {
   const render = (snapshot) => {
     latestSnapshot = snapshot;
     renderHeaderIdentity(roots, snapshot);
-    renderUtilityMenu(roots, snapshot, { stateManager, modalApi, showToast, busyApi });
+    renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, showToast, busyApi, onSettingsChanged: () => render(latestSnapshot) });
     renderHeaderActions(roots.headerActions, snapshot, { stateManager, modalApi, showToast, busyApi });
     renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast, busyApi });
     renderTurnEconomyPanel(roots.turnPanel, snapshot, { stateManager, modalApi });
     renderSpellcastingBar(roots.spellcastingBar, snapshot, stateManager);
     renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
-    renderActionTabs(roots.tabs, snapshot, { stateManager, modalApi, showToast });
+    renderActionTabs(roots.tabs, snapshot, {
+      stateManager,
+      storage,
+      modalApi,
+      showToast,
+      openAiSettings: () => openAiOptionsModal({
+        modalApi,
+        storage,
+        showToast,
+        onSettingsChanged: () => render(latestSnapshot)
+      })
+    });
     renderPlannedTurn(roots.plannedTurnBar, snapshot, { stateManager, modalApi, showToast, busyApi });
   };
 
@@ -194,7 +207,7 @@ function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast
   });
 }
 
-function renderUtilityMenu(roots, snapshot, { stateManager, modalApi, showToast, busyApi }) {
+function renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, showToast, busyApi, onSettingsChanged }) {
   const button = roots.utilityMenuButton;
   const menu = roots.utilityMenu;
   if (!button || !menu) return;
@@ -202,6 +215,9 @@ function renderUtilityMenu(roots, snapshot, { stateManager, modalApi, showToast,
   menu.innerHTML = `
     <button class="utility-menu-item" type="button" data-menu-action="import">
       ${snapshot.activeCharacter ? "Import / Replace Character" : "Import Character"}
+    </button>
+    <button class="utility-menu-item" type="button" data-menu-action="ai-options">
+      AI Options${hasGroqApiKey(storage) ? " (saved)" : ""}
     </button>
   `;
 
@@ -223,6 +239,10 @@ function renderUtilityMenu(roots, snapshot, { stateManager, modalApi, showToast,
   menu.querySelector("[data-menu-action='import']")?.addEventListener("click", () => {
     setUtilityMenuOpen(button, menu, false);
     openImportModal({ modalApi, stateManager, showToast, busyApi });
+  });
+  menu.querySelector("[data-menu-action='ai-options']")?.addEventListener("click", () => {
+    setUtilityMenuOpen(button, menu, false);
+    openAiOptionsModal({ modalApi, storage, showToast, onSettingsChanged });
   });
 }
 

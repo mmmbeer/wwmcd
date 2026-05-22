@@ -1833,6 +1833,13 @@ body.has-turn-progress .app-shell {
   align-items: center;
 }
 
+.recommendation-wizard__actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
 .recommendation-questions {
   display: flex;
   gap: 6px;
@@ -1877,6 +1884,14 @@ body.has-turn-progress .app-shell {
   flex: 0 0 auto;
   min-height: 28px;
   padding: 4px 8px;
+  font-size: 0.68rem;
+}
+
+.recommendation-ai-button {
+  min-width: 34px;
+  min-height: 28px;
+  padding: 4px 8px;
+  color: var(--accent-gold-soft);
   font-size: 0.68rem;
 }
 
@@ -2197,10 +2212,59 @@ body.has-turn-progress .app-shell {
   white-space: nowrap;
 }
 
+.recommendation-set-piece small {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .recommendation-set-piece:hover,
 .recommendation-set-piece:focus-visible {
   outline: 1px solid var(--border-strong);
   outline-offset: -1px;
+}
+
+.ai-options-form,
+.ai-recommendation-modal {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ai-options-form .form-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ai-options-actions,
+.ai-context-summary,
+.ai-loading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ai-notes-field textarea {
+  min-height: 112px;
+}
+
+.ai-loading {
+  color: var(--accent-gold-soft);
+  font-size: 0.82rem;
+}
+
+.ai-recommendation-results .recommendation-set-list {
+  max-height: min(56vh, 620px);
+}
+
+.ai-recommendation-summary {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .action-icon,

@@ -21,13 +21,16 @@ export function resetRecommendationAnswers() {
   recommendationAnswers = getDefaultRecommendationAnswers();
 }
 
-export function renderRecommendationWizardPanel(groups, rankedEntries) {
+export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabled = false } = {}) {
   const questions = getRecommendationQuestionConfig(groups, recommendationAnswers);
   return `
     <section class="recommendation-wizard" aria-label="Recommendation wizard">
       <div class="recommendation-wizard__header">
         <span class="section-label">Recommendation Wizard</span>
-        <button class="btn btn-secondary recommendation-reset" type="button" data-recommendation-reset>Reset</button>
+        <div class="recommendation-wizard__actions">
+          ${aiEnabled ? `<button class="btn btn-secondary recommendation-ai-button" type="button" data-recommendation-ai aria-label="Open AI recommendations">AI</button>` : ""}
+          <button class="btn btn-secondary recommendation-reset" type="button" data-recommendation-reset>Reset</button>
+        </div>
       </div>
       <div class="recommendation-questions" aria-label="Recommendation filters">
         ${questions.map(renderQuestion).join("")}
@@ -36,7 +39,7 @@ export function renderRecommendationWizardPanel(groups, rankedEntries) {
   `;
 }
 
-export function bindRecommendationWizardEvents(root, onChange) {
+export function bindRecommendationWizardEvents(root, onChange, { onAiClick } = {}) {
   root.querySelectorAll("[data-recommendation-answer]").forEach((select) => {
     select.addEventListener("change", () => {
       updateRecommendationAnswer(select.dataset.recommendationAnswer, select.value);
@@ -48,6 +51,8 @@ export function bindRecommendationWizardEvents(root, onChange) {
     resetRecommendationAnswers();
     onChange();
   });
+
+  root.querySelector("[data-recommendation-ai]")?.addEventListener("click", () => onAiClick?.());
 }
 
 function renderQuestion(question) {

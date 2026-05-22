@@ -1,4 +1,5 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
+import { hasGroqApiKey } from "../ai/aiSettings.js";
 import {
   getRankedRecommendations,
   getRankedRecommendationSets
@@ -12,6 +13,7 @@ import {
   renderRecommendationSets,
   renderRecommendationWizardPanel
 } from "./recommendationWizardPanel.js";
+import { openAiRecommendationModal } from "./aiRecommendationModal.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
@@ -38,8 +40,9 @@ let cachedSnapshot = null;
 let cachedGroups = null;
 let cachedPlanKey = "";
 
-export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast }) {
-  lastRender = () => renderActionTabs(root, snapshot, { stateManager, modalApi, showToast });
+export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast, storage, openAiSettings }) {
+  const services = { stateManager, modalApi, showToast, storage, openAiSettings };
+  lastRender = () => renderActionTabs(root, snapshot, services);
   bindGroupSelection();
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
@@ -66,14 +69,14 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
       ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
     </nav>
     <div class="option-tabs">
-      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations) : ""}
+      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasGroqApiKey(storage) }) : ""}
       ${visibleGroup === "recommended"
     ? renderRecommendationSets(recommendationSets)
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
 
-  bindActionTabEvents(root, snapshot, { stateManager, modalApi, showToast }, groups, combatState);
+  bindActionTabEvents(root, snapshot, services, groups, combatState);
 }
 
 function bindActionTabEvents(root, snapshot, services, groups, combatState) {
@@ -109,29 +112,56 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     });
   });
 
-  bindRecommendationWizardEvents(root, () => renderActionTabs(root, snapshot, services));
+  bindRecommendationWizardEvents(root, () => renderActionTabs(root, snapshot, services), {
+    onAiClick: () => openAiRecommendationModal({
+      modalApi: services.modalApi,
+      storage: services.storage,
+      snapshot,
+      groups,
+      recommendationSets: getRankedRecommendationSets({
+        rankedEntries: getRankedRecommendations({
+          groups,
+          character: snapshot.activeCharacter,
+          combatState,
+          answers: getRecommendationAnswers(),
+          referenceData: snapshot.referenceData
+        }),
+        answers: getRecommendationAnswers()
+      }),
+      answers: getRecommendationAnswers(),
+      showToast: services.showToast,
+      openSettings: services.openAiSettings,
+      onPlanOption: (optionId) => selectPlanOptionById(optionId, groups, combatState, services)
+    })
+  });
 
   root.querySelectorAll("[data-plan-option]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const option = findOption(groups, button.dataset.planOption);
-      const validation = validatePlannedOption(option, { combatState });
-      if (!validation.ok) {
-        services.showToast?.({ type: "warning", message: validation.message });
-        return;
-      }
-      if (willReplaceConcentration(option, combatState)) {
-        const confirmed = await confirmConcentrationChange(services.modalApi, option, combatState);
-        if (!confirmed) return;
-      }
-      const result = selectPlannedOption(option, { combatState });
-      if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
-    });
+    button.addEventListener("click", () => selectPlanOptionById(button.dataset.planOption, groups, combatState, services));
   });
 
   root.querySelectorAll("[data-toggle-action-detail]").forEach((button) => {
     button.addEventListener("click", () => toggleActionDetail(root, button.dataset.toggleActionDetail));
   });
 
+}
+
+async function selectPlanOptionById(optionId, groups, combatState, services) {
+  const option = findOption(groups, optionId);
+  if (!option) {
+    services.showToast?.({ type: "warning", message: "That recommendation is not available in the current action list." });
+    return;
+  }
+  const validation = validatePlannedOption(option, { combatState });
+  if (!validation.ok) {
+    services.showToast?.({ type: "warning", message: validation.message });
+    return;
+  }
+  if (willReplaceConcentration(option, combatState)) {
+    const confirmed = await confirmConcentrationChange(services.modalApi, option, combatState);
+    if (!confirmed) return;
+  }
+  const result = selectPlannedOption(option, { combatState });
+  if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
 }
 
 function willReplaceConcentration(option, combatState) {
