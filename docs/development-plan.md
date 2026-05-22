@@ -1,5 +1,42 @@
 # Development Plan
 
+## Current Session: Recommendation Set Sequencing
+
+### Implemented
+
+- Split recommendation turn-set composition into `recommendationSets.js` so scoring and set sequencing stay focused.
+- Added post-attack rider sequencing for options such as `Divine Smite`, `Sneak Attack`, and `Stunning Strike`.
+- Recommendation sets now attach post-attack riders only after a compatible Attack action; for example, `Divine Smite` will not be paired after a `Cast Haste` action.
+- Replaced misleading `Free` labeling for conditional attack riders with `Rider`.
+- Limited `Free` recommendation-set pieces to true free/object-style interactions such as object interaction, speaking, dropping an item, dropping prone, or stopping concentration.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationSets.js`
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Post-attack rider detection is intentionally conservative and name/text based for the current first pass.
+- The composer sequences one high-ranked rider per turn set; future work can support multiple compatible riders after one attack when the UI can explain the stack clearly.
+- This changes recommendation-set labeling and composition only; it does not change underlying action availability or resource rules.
+
+### Manual Test Checklist
+
+1. Open a paladin with `Divine Smite`, a weapon attack, and `Haste`; confirm a `Haste` recommendation set does not include `Divine Smite`.
+2. Confirm a weapon Attack recommendation set can include `Divine Smite` as a `Rider`.
+3. Open a rogue with `Sneak Attack`; confirm it appears as a `Rider` after a compatible attack, not as a `Free` action.
+4. Confirm true object/free-style interactions can still appear as `Free`.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationScoring.js`
+- `node --check js\player-combat\recommendations\recommendationSets.js`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: Tactical Recommendation Metadata
 
 ### Implemented

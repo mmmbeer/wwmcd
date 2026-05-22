@@ -223,6 +223,93 @@ test("recommendation sets combine compatible action economy pieces", () => {
   assert.ok(sets[0].pieces.some((piece) => piece.slot === "Move"));
 });
 
+test("post-attack riders only follow compatible Attack actions in recommendation sets", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4"),
+      {
+        id: "spell_haste",
+        name: "Haste",
+        source: "spell",
+        description: "Choose a willing creature; it gains speed, AC, and an extra limited action.",
+        spell: { level: 3, concentration: true, range: "30 feet" },
+        cost: { action: true, resource: { type: "spellSlot", level: 3 } },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "feature_divine_smite",
+        name: "Divine Smite",
+        source: "feature",
+        description: "After a melee weapon hit, spend a spell slot for radiant damage.",
+        tags: ["paladin", "feature", "damage", "melee"],
+        cost: { resource: { type: "spellSlot", level: 1 } },
+        rolls: [{ id: "smiteDamage", type: "damage", formula: "2d8" }],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", resources: "spend" },
+    tacticalMetadata
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "damage", resources: "spend" } });
+  const hasteSet = sets.find((set) => set.pieces[0].entry.option.name === "Haste");
+  const attackSet = sets.find((set) => set.pieces[0].entry.option.name === "Longsword");
+
+  assert.ok(hasteSet);
+  assert.ok(!hasteSet.pieces.some((piece) => piece.entry.option.name === "Divine Smite"));
+  assert.ok(attackSet.pieces.some((piece) => piece.slot === "Rider" && piece.entry.option.name === "Divine Smite"));
+});
+
+test("spells and attack riders are not labeled as free actions", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("rapier", "Rapier", "1d8+4"),
+      {
+        id: "feature_sneak_attack",
+        name: "Sneak Attack",
+        source: "feature",
+        description: "Once per turn, add damage to an eligible finesse or ranged weapon hit.",
+        tags: ["rogue", "feature", "damage", "attack"],
+        cost: {},
+        rolls: [{ id: "sneakDamage", type: "damage", formula: "3d6" }],
+        available: true,
+        meta: ["Requires advantage or an ally adjacent to the target"]
+      },
+      {
+        id: "spell_light",
+        name: "Light",
+        source: "spell",
+        description: "Cantrip - Touch",
+        spell: { level: 0, range: "Touch" },
+        cost: { action: true },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "basic_object_interaction",
+        name: "Object Interaction",
+        source: "basic",
+        group: "action",
+        description: "Draw, stow, open, close, pick up, or hand off one simple object.",
+        cost: { object: true },
+        rolls: [],
+        available: true
+      }
+    ]),
+    character: rogueCharacter(),
+    combatState: baseCombatState(),
+    answers: { goal: "damage" },
+    tacticalMetadata
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "damage" } });
+  const allFreeNames = sets.flatMap((set) => set.pieces.filter((piece) => piece.slot === "Free").map((piece) => piece.entry.option.name));
+
+  assert.ok(allFreeNames.includes("Object Interaction"));
+  assert.ok(!allFreeNames.includes("Sneak Attack"));
+  assert.ok(!allFreeNames.includes("Light"));
+});
+
 test("Light is penalized in normal combat recommendations", () => {
   const ranked = getRankedRecommendations({
     groups: groupsWith([
