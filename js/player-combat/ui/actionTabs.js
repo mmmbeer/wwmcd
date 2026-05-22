@@ -1,8 +1,14 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
+import { getRankedRecommendations } from "../recommendations/recommendationScoring.js";
 import { findOption } from "./actionOptionHandlers.js";
 import { resolveActionRoll } from "./actionRollModal.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
 import { selectPlannedOption, validatePlannedOption } from "./plannedTurnState.js";
+import {
+  bindRecommendationWizardEvents,
+  getRecommendationAnswers,
+  renderRecommendationWizardPanel
+} from "./recommendationWizardPanel.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
@@ -41,12 +47,19 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
 
   const groups = getCachedGroups(snapshot);
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
-  const visibleOptions = filterOptions(visibleGroup, groups[visibleGroup] ?? [], hideUnavailable);
+  const rankedRecommendations = visibleGroup === "recommended"
+    ? getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers() })
+    : [];
+  const baseOptions = visibleGroup === "recommended"
+    ? rankedRecommendations.map((entry) => entry.option).slice(0, 8)
+    : groups[visibleGroup] ?? [];
+  const visibleOptions = filterOptions(visibleGroup, baseOptions, hideUnavailable);
   root.innerHTML = `
     <nav class="option-nav" aria-label="Action categories">
       ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
     </nav>
     <div class="option-tabs">
+      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations) : ""}
       ${renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
@@ -86,6 +99,8 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       renderActionTabs(root, snapshot, services);
     });
   });
+
+  bindRecommendationWizardEvents(root, () => renderActionTabs(root, snapshot, services));
 
   root.querySelectorAll("[data-plan-option]").forEach((button) => {
     button.addEventListener("click", async () => {

@@ -78,6 +78,7 @@ function renderActionRow(option, group) {
           ${renderRowCells(option, rowKind, selected)}
         </button>
       </div>
+      ${renderRecommendationSummary(option)}
       <div class="action-detail-panel" data-action-detail="${escapeHtml(option.id)}" hidden>
         ${renderActionDetail(option)}
       </div>
@@ -127,9 +128,24 @@ function renderActionDetail(option) {
       ${detailFact("Resource", resourceLabel(option))}
     </div>
     ${descriptionText(option) ? `<p>${escapeHtml(descriptionText(option))}</p>` : `<p>No additional description is available.</p>`}
+    ${option.recommendation?.reasons?.length ? `<p class="recommendation-detail"><strong>Recommendation:</strong> ${escapeHtml(option.recommendation.reasons.join(" · "))}</p>` : ""}
     ${option.meta?.length ? `<ul class="option-meta">${option.meta.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+    ${option.recommendation?.warnings?.length ? `<p class="inline-message warning">${escapeHtml(option.recommendation.warnings.join(" "))}</p>` : ""}
     ${option.warnings?.length ? `<p class="inline-message warning">${escapeHtml(option.warnings.join(" "))}</p>` : ""}
     ${option.available === false && option.unavailableReasons?.length ? `<p class="inline-message warning">${escapeHtml(option.unavailableReasons.join(" "))}</p>` : ""}
+  `;
+}
+
+function renderRecommendationSummary(option) {
+  const recommendation = option.recommendation;
+  if (!recommendation) return "";
+  const reasons = recommendation.reasons ?? [];
+  return `
+    <div class="recommendation-row-summary" aria-label="Recommendation details">
+      <span class="recommendation-rank">#${escapeHtml(recommendation.rank)}</span>
+      <span class="recommendation-score">${escapeHtml(recommendation.score)} pts</span>
+      ${reasons.slice(0, 3).map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
+    </div>
   `;
 }
 

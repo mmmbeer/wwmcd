@@ -1762,6 +1762,101 @@ body.has-turn-progress .app-shell {
   min-height: 0;
 }
 
+.option-tabs {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.recommendation-wizard {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-muted);
+  background:
+    linear-gradient(180deg, rgba(217, 164, 65, 0.08), rgba(0, 0, 0, 0.08)),
+    var(--bg-panel);
+}
+
+.recommendation-wizard__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.recommendation-wizard__header p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.recommendation-questions {
+  display: grid;
+  gap: 6px;
+}
+
+.recommendation-question {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.recommendation-question legend {
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recommendation-choice-group,
+.recommendation-topline {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.recommendation-choice,
+.recommendation-top-chip,
+.recommendation-reason,
+.recommendation-rank,
+.recommendation-score {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid rgba(190, 143, 72, 0.24);
+  border-radius: var(--radius-sm);
+  background: var(--bg-row);
+  color: var(--text-secondary);
+  padding: 5px 7px;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.recommendation-choice {
+  cursor: pointer;
+}
+
+.recommendation-choice:hover,
+.recommendation-choice:focus-visible {
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+
+.recommendation-choice.is-selected {
+  border-color: var(--border-strong);
+  background: rgba(217, 164, 65, 0.16);
+  color: var(--accent-gold-soft);
+}
+
+.recommendation-top-chip strong {
+  color: var(--accent-gold-soft);
+}
+
 .action-list-shell {
   display: grid;
   align-content: start;
@@ -1921,6 +2016,34 @@ body.has-turn-progress .app-shell {
 
 .action-detail-panel p {
   margin: 0;
+}
+
+.recommendation-row-summary {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0 var(--space-2) 6px 29px;
+}
+
+.recommendation-row-summary .recommendation-rank {
+  border-color: var(--border-strong);
+  color: var(--accent-gold-soft);
+}
+
+.recommendation-row-summary .recommendation-score {
+  color: var(--text-muted);
+}
+
+.recommendation-row-summary .recommendation-reason {
+  min-height: 22px;
+  padding-block: 3px;
+  background: rgba(217, 164, 65, 0.08);
+}
+
+.recommendation-detail strong {
+  color: var(--accent-gold-soft);
 }
 
 .action-icon,
