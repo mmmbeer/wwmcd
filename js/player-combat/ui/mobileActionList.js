@@ -1,5 +1,5 @@
 import { escapeHtml } from "./renderUtils.js";
-import { getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
+import { getPlannedOptionForSlot, getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
 
 export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false } = {}) {
   if (group === "log") return renderLog(label, combatState);
@@ -54,7 +54,7 @@ export function renderPlannedTurnBar(snapshot) {
       </div>
       <div class="planned-actions">
         <button class="btn btn-secondary" type="button" data-plan-clear ${hasPlan ? "" : "disabled"}>Clear</button>
-        <button class="btn btn-primary" type="button" data-plan-confirm ${hasPlan ? "" : "disabled"}>Confirm Turn</button>
+        <button class="btn btn-primary" type="button" data-plan-confirm ${hasPlan ? "" : "disabled"}>Act now</button>
       </div>
     </section>
   `;
@@ -87,6 +87,7 @@ function renderActionRow(option, group) {
 }
 
 function renderRowCells(option, rowKind, selected) {
+  const buttonLabel = plannedButtonLabel(option, rowKind, selected);
   if (rowKind === "spell") {
     return `
       ${renderConcentrationCell(option)}
@@ -95,7 +96,7 @@ function renderRowCells(option, rowKind, selected) {
       ${renderNameCell(option)}
       <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
       <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
-      ${renderActionButtonLabel("Cast", selected)}
+      ${renderActionButtonLabel(buttonLabel)}
     `;
   }
 
@@ -107,7 +108,7 @@ function renderRowCells(option, rowKind, selected) {
       <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
       <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
       ${renderDamageCell(option)}
-      ${renderActionButtonLabel("Attack", selected)}
+      ${renderActionButtonLabel(buttonLabel)}
     `;
   }
 
@@ -115,7 +116,7 @@ function renderRowCells(option, rowKind, selected) {
     ${renderSourceBadge(option)}
     ${renderNameCell(option)}
     <span class="action-fact action-fact--empty" aria-hidden="true"></span>
-    ${renderActionButtonLabel("Use", selected)}
+    ${renderActionButtonLabel(buttonLabel)}
   `;
 }
 
@@ -159,8 +160,16 @@ function renderNameCell(option) {
   `;
 }
 
-function renderActionButtonLabel(label, selected) {
-  return `<span class="action-select-mark">${escapeHtml(selected ? "Planned" : label)}</span>`;
+function renderActionButtonLabel(label) {
+  return `<span class="action-select-mark">${escapeHtml(label)}</span>`;
+}
+
+function plannedButtonLabel(option, rowKind, selected) {
+  if (selected) return "Planned";
+  if (option.cost?.movement) return "Add to turn";
+  const planned = getPlannedOptionForSlot(option);
+  if (planned && planned.id !== option.id) return `Replace ${planned.name}`;
+  return "Add to turn";
 }
 
 function renderCostBadge(option) {

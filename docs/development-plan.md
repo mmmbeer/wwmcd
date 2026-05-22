@@ -1,5 +1,52 @@
 # Development Plan
 
+## Current Session: Act Now Turn Queue Audit
+
+### Implemented
+
+- Changed the planned turn footer action from `Confirm Turn` to `Act now`.
+- Changed compact action row controls to stage choices with `Add to turn`.
+- When another action, bonus action, or reaction is already staged, matching rows now show `Replace [current option]` and replace that planned slot without spending resources.
+- Removed pre-roll behavior from action selection. Tapping an option now only queues it in the planned turn.
+- Moved attack roll prompts into the `Act now` flow. Queued attack options prompt for attack and damage rolls in sequence before the queued turn is committed.
+- Kept resources, concentration, active effects, Wild Shape, spell slots, Ki/Focus, and action economy spending at execution time through the existing `useCombatOptions` state path.
+- Updated the completion modal to `Actions Taken` with remaining unused turn features and `Start New Turn` / `Continue Turn` actions.
+- Let planned Attack actions satisfy planning-time prerequisites for follow-up bonus options such as Martial Arts, Flurry of Blows, and Shield Master without marking the action as spent until `Act now`.
+- Fixed the action roll modal OK path so a completed roll resolves before modal close handling runs.
+
+### Files Changed
+
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionRollModal.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/plannedTurnState.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Planned resource reservations are displayed in state but do not yet prevent selecting two queued options that would overspend the same remaining resource if they occupy compatible turn slots.
+- Attack execution prompts once per queued attack option; target-by-target multiattack sequencing and on-hit branch prompts are still future work.
+- Recommendation set cards still act as quick-add buttons; their labels are not yet expanded into full `Add to turn` button text.
+
+### Manual Test Checklist
+
+1. Import a spellcaster, tap a leveled spell, and confirm it is added to the planned footer without spending a spell slot.
+2. Tap `Act now`, complete any attack prompt if present, and confirm the spell slot and concentration update only after execution.
+3. Import a druid with Wild Shape, add Wild Shape to the turn, and confirm the Wild Shape resource is not spent until `Act now`.
+4. Import a monk, add an Attack action, and confirm Martial Arts or Flurry of Blows becomes available to add before execution.
+5. Add one action, then tap a different action and confirm the button says `Replace [current action]` and the footer updates.
+6. After `Act now`, choose `Continue Turn` and confirm spent actions or bonus actions are unavailable while unused reaction or movement remains available.
+
+### Verification Completed
+
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\plannedTurnState.js`
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: Multiattack Recommendation Sets
 
 ### Implemented

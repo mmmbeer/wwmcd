@@ -68,11 +68,11 @@ function showActionRollModal({ modalApi, stateManager, option }) {
           close: false,
           onClick: () => {
             if (!rolled) {
-              body.querySelector("[data-roll-feedback]").innerHTML = `<p class="inline-message warning">Roll before marking this action used.</p>`;
+              body.querySelector("[data-roll-feedback]").innerHTML = `<p class="inline-message warning">Roll before taking this action.</p>`;
               return;
             }
-            modalApi.close();
             resolveOnce(true);
+            modalApi.close();
           }
         }
       ]

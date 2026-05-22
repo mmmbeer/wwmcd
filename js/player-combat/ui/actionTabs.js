@@ -4,9 +4,8 @@ import {
   getRankedRecommendationSets
 } from "../recommendations/recommendationScoring.js";
 import { findOption } from "./actionOptionHandlers.js";
-import { resolveActionRoll } from "./actionRollModal.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
-import { selectPlannedOption, validatePlannedOption } from "./plannedTurnState.js";
+import { getPlannedTurn, selectPlannedOption, validatePlannedOption } from "./plannedTurnState.js";
 import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
@@ -37,6 +36,7 @@ let hideUnavailable = false;
 let lastRender = null;
 let cachedSnapshot = null;
 let cachedGroups = null;
+let cachedPlanKey = "";
 
 export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast }) {
   lastRender = () => renderActionTabs(root, snapshot, { stateManager, modalApi, showToast });
@@ -123,14 +123,6 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
         const confirmed = await confirmConcentrationChange(services.modalApi, option, combatState);
         if (!confirmed) return;
       }
-      if (option?.available !== false && hasRoll(option)) {
-        const rolled = await resolveActionRoll({
-          modalApi: services.modalApi,
-          stateManager: services.stateManager,
-          option
-        });
-        if (!rolled) return;
-      }
       const result = selectPlannedOption(option, { combatState });
       if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
     });
@@ -140,10 +132,6 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     button.addEventListener("click", () => toggleActionDetail(root, button.dataset.toggleActionDetail));
   });
 
-}
-
-function hasRoll(option) {
-  return Boolean(option?.rolls?.length);
 }
 
 function willReplaceConcentration(option, combatState) {
@@ -174,14 +162,71 @@ function confirmConcentrationChange(modalApi, option, combatState) {
 }
 
 function getCachedGroups(snapshot) {
-  if (cachedSnapshot === snapshot && cachedGroups) return cachedGroups;
+  const planKey = plannedPrerequisiteKey();
+  if (cachedSnapshot === snapshot && cachedPlanKey === planKey && cachedGroups) return cachedGroups;
   cachedSnapshot = snapshot;
+  cachedPlanKey = planKey;
   cachedGroups = getCombatOptions({
     character: snapshot.activeCharacter,
-    combatState: snapshot.combatState,
+    combatState: combatStateWithPlannedPrerequisites(snapshot.combatState),
     referenceData: snapshot.referenceData
   });
   return cachedGroups;
+}
+
+function plannedPrerequisiteKey() {
+  const plan = getPlannedTurn();
+  return [
+    plan.action?.id,
+    plan.bonusAction?.id,
+    plan.reaction?.id,
+    ...plan.freeActions.map((option) => option.id)
+  ].filter(Boolean).join("|");
+}
+
+function combatStateWithPlannedPrerequisites(combatState) {
+  const plan = getPlannedTurn();
+  const plannedOptions = [
+    plan.action,
+    plan.bonusAction,
+    plan.reaction,
+    ...plan.freeActions
+  ].filter(Boolean);
+  if (!plannedOptions.length) return combatState;
+
+  return {
+    ...combatState,
+    turn: {
+      ...combatState.turn,
+      attackActionUsed: Boolean(combatState.turn?.attackActionUsed || plannedOptions.some(isAttackAction)),
+      ...plannedTurnFlags(plannedOptions)
+    },
+    current: {
+      ...combatState.current,
+      activeEffects: plannedActiveEffects(combatState.current?.activeEffects, plannedOptions)
+    }
+  };
+}
+
+function isAttackAction(option) {
+  return Boolean(option?.cost?.action)
+    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+}
+
+function plannedTurnFlags(options) {
+  return options.reduce((flags, option) => {
+    if (option.effect?.turnFlag) flags[option.effect.turnFlag] = true;
+    return flags;
+  }, {});
+}
+
+function plannedActiveEffects(currentEffects = [], options) {
+  const effects = new Set(currentEffects);
+  options.forEach((option) => {
+    if (option.effect?.activeEffect) effects.add(option.effect.activeEffect);
+    if (option.effect?.clearEffect) effects.delete(option.effect.clearEffect);
+  });
+  return [...effects];
 }
 
 function bindGroupSelection() {

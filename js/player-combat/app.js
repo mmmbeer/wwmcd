@@ -2,11 +2,13 @@ import { createEventBus } from "./core/eventBus.js";
 import { createStateManager } from "./core/stateManager.js";
 import { createStorage } from "./core/storage.js";
 import { loadReferenceData } from "./data/referenceDataService.js";
+import { getEffectiveWalkSpeed } from "./rules/movementRules.js";
 import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
 import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
+import { resolveActionRoll } from "./ui/actionRollModal.js";
 import { renderPlannedTurnBar } from "./ui/mobileActionList.js";
 import { clearPlannedTurn, confirmPlannedTurn } from "./ui/plannedTurnState.js";
 import { createToast } from "./ui/toast.js";
@@ -78,25 +80,39 @@ function renderPlannedTurn(root, snapshot, { stateManager, modalApi, showToast, 
   root.innerHTML = renderPlannedTurnBar(snapshot);
   root.querySelector("[data-plan-clear]")?.addEventListener("click", () => clearPlannedTurn());
   root.querySelector("[data-plan-confirm]")?.addEventListener("click", async () => {
-    const result = await busyApi.run("Confirming turn...", () => confirmPlannedTurn(stateManager));
+    const result = await confirmPlannedTurn(stateManager, {
+      beforeUseOption: (option) => rollAttackBeforeUse(option, { modalApi, stateManager })
+    });
+    if (!result.ok) {
+      showToast({ type: "info", message: "Turn plan is still queued." });
+      return;
+    }
     showToast({
       type: "success",
-      message: result.optionCount || result.movementUsed ? "Turn confirmed." : "No planned actions to confirm."
+      message: result.optionCount || result.movementUsed ? "Actions taken." : "No planned actions to take."
     });
     showTurnCompleteModal({ modalApi, stateManager, busyApi });
   });
 }
 
+function rollAttackBeforeUse(option, { modalApi, stateManager }) {
+  if (!isAttackOption(option)) return Promise.resolve(true);
+  return resolveActionRoll({ modalApi, stateManager, option });
+}
+
+function isAttackOption(option) {
+  return option?.tags?.includes("attack")
+    || option?.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack");
+}
+
 function showTurnCompleteModal({ modalApi, stateManager, busyApi }) {
-  const reactionUsed = Boolean(stateManager.getSnapshot?.().combatState?.turn?.reactionUsed);
+  const snapshot = stateManager.getSnapshot?.();
+  const unused = unusedTurnFeatures(snapshot);
   const actions = [
-    ...(!reactionUsed ? [{
-      label: "Use a Reaction",
-      variant: "secondary",
-      onClick: () => {
-        window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: "reaction" } }));
-      }
-    }] : []),
+    {
+      label: "Continue Turn",
+      variant: "secondary"
+    },
     {
       label: "Start New Turn",
       variant: "primary",
@@ -109,12 +125,27 @@ function showTurnCompleteModal({ modalApi, stateManager, busyApi }) {
   ];
 
   modalApi.showModal({
-    title: "Turn Complete",
+    title: "Actions Taken",
     body: `
-      <p>Your planned actions have been committed. Start your next turn when the table returns to you, or keep reaction options handy for off-turn triggers.</p>
+      <p>Your queued actions have been taken.</p>
+      <p>You still have: ${escapeHeader(unused.length ? unused.join(", ") : "nothing unused this turn")}.</p>
     `,
     actions
   });
+}
+
+function unusedTurnFeatures(snapshot) {
+  const character = snapshot?.activeCharacter;
+  const state = snapshot?.combatState;
+  if (!character || !state) return [];
+  const speed = getEffectiveWalkSpeed(character, snapshot.referenceData);
+  const movementLeft = Math.max(0, speed - Number(state.turn?.movementUsed ?? 0));
+  return [
+    state.turn?.actionUsed ? null : "Action",
+    state.turn?.bonusActionUsed ? null : "Bonus Action",
+    state.turn?.reactionUsed ? null : "Reaction",
+    movementLeft > 0 ? `${movementLeft} ft movement` : null
+  ].filter(Boolean);
 }
 
 function renderHeaderIdentity(roots, snapshot) {

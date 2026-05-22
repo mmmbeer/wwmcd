@@ -22,6 +22,13 @@ export function getPlannedTurnOptions() {
   ].filter(Boolean);
 }
 
+export function getPlannedOptionForSlot(option) {
+  const slot = slotForOption(option);
+  if (!slot) return null;
+  if (slot === "freeActions") return plannedTurn.freeActions.find((entry) => entry?.id === option?.id) ?? null;
+  return plannedTurn[slot] ?? null;
+}
+
 export function clearPlannedTurn({ silent = false } = {}) {
   plannedTurn = clonePlan(EMPTY_PLAN);
   if (!silent) notifyPlanChanged();
@@ -71,7 +78,7 @@ export function selectPlannedOption(option, { combatState = null } = {}) {
   return { ok: true };
 }
 
-export function confirmPlannedTurn(stateManager) {
+export async function confirmPlannedTurn(stateManager, { beforeUseOption = null } = {}) {
   const plan = getPlannedTurn();
   const options = [
     plan.action,
@@ -79,6 +86,13 @@ export function confirmPlannedTurn(stateManager) {
     plan.reaction,
     ...plan.freeActions
   ].filter(Boolean);
+
+  for (const option of options) {
+    if (beforeUseOption) {
+      const ok = await beforeUseOption(option);
+      if (!ok) return { ok: false, canceled: true, optionCount: 0, movementUsed: 0 };
+    }
+  }
 
   if (stateManager.useCombatOptions) {
     stateManager.useCombatOptions(options, { movementUsed: plan.movementUsed });
@@ -88,7 +102,7 @@ export function confirmPlannedTurn(stateManager) {
   }
   clearPlannedTurn({ silent: true });
   notifyPlanChanged();
-  return { optionCount: options.length, movementUsed: plan.movementUsed };
+  return { ok: true, optionCount: options.length, movementUsed: plan.movementUsed };
 }
 
 function toggleFreeOption(plan, option) {
@@ -99,6 +113,14 @@ function toggleFreeOption(plan, option) {
       ? plan.freeActions.filter((entry) => entry.id !== option.id)
       : [...plan.freeActions, option]
   };
+}
+
+function slotForOption(option) {
+  if (!option || option.cost?.movement) return null;
+  if (option.cost?.bonus) return "bonusAction";
+  if (option.cost?.reaction) return "reaction";
+  if (option.cost?.object || !option.cost?.action) return "freeActions";
+  return "action";
 }
 
 function plannedResources(plan) {
