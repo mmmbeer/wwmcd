@@ -1,3 +1,5 @@
+import { CLASS_TACTICS } from "./classTactics.js";
+
 const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
 
 export function buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes }) {
@@ -10,6 +12,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     combatState: summarizeCombatState(combatState, character),
     turnRules: buildTurnRules(character, combatState),
     playerIntent: summarizePlayerIntent(answers, userNotes),
+    classTactics: summarizeClassTactics(character),
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups),
     optionIndex: buildOptionIndex(availableOptions),
@@ -22,6 +25,18 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
       unavailableOptionsAreForAwarenessOnly: true
     }
   };
+}
+
+export function summarizeClassTactics(character) {
+  const classNames = (character?.classes ?? [])
+    .map((entry) => normalizeClassName(entry?.name))
+    .filter(Boolean);
+
+  return Object.fromEntries(
+    [...new Set(classNames)]
+      .filter((className) => CLASS_TACTICS[className])
+      .map((className) => [className, CLASS_TACTICS[className]])
+  );
 }
 
 export function buildTurnRules(character, combatState) {
@@ -252,4 +267,12 @@ function summarizeList(items = [], max = 20) {
 function trimText(value, max) {
   const text = String(value ?? "").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+}
+
+function normalizeClassName(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z\s-]/g, "")
+    .trim()
+    .split(/\s+/)[0] ?? "";
 }

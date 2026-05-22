@@ -1,5 +1,51 @@
 # Development Plan
 
+## Current Session: Class-Specific AI Tactics
+
+### Implemented
+
+- Added `CLASS_TACTICS` guidance for artificer and the 12 core 5e classes.
+- Added `classTactics` to the AI recommendation context for only the active character's supported classes, including multiclass characters.
+- Preserved `classTactics` during oversized request context compaction.
+- Updated the AI system prompt and recommendation user message so class tactics influence ranking, warnings, assumptions, and missing information without creating actions or permissions.
+- Added regression coverage for active-class tactic injection and compaction preservation.
+
+### Files Changed
+
+- `js/player-combat/ai/classTactics.js`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/ai-enhancement.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Class tactics are broad class-level heuristics; subclass-specific tactics are only referenced when provided by character options or feature data.
+- The AI still depends on `availableOptions` and app metadata for legality. Tactics do not independently implement D&D rules.
+
+### Manual Test Checklist
+
+1. Import a rogue and confirm AI context includes `classTactics.rogue` but not unrelated classes.
+2. Import a multiclass character and confirm each supported class appears under `classTactics`.
+3. Request AI recommendations and confirm prompt context still requires option IDs from `availableOptions` or `optionIndex`.
+4. Confirm missing battlefield facts such as advantage, cover, or concentration are surfaced as conditional guidance rather than assumed.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\classTactics.js`
+- `node --check js\player-combat\ai\aiRecommendationContext.js`
+- `node --check js\player-combat\ai\aiRecommendationRequestContext.js`
+- `node --check js\player-combat\ai\aiRecommendationPrompt.js`
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check tests\aiRecommendationContext.test.mjs`
+- `node --check tests\aiRecommendationService.test.mjs`
+- `node --test tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: AI Recommendation Enhancement
 
 ### Implemented

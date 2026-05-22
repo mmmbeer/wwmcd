@@ -120,6 +120,7 @@ test("user message builder includes shared tactical instructions and context JSO
   const message = buildRecommendationUserMessage({ schemaVersion: "combat-turn-recommendation/v2" });
   assert.match(message, /complete turn plans/);
   assert.match(message, /optionIndex/);
+  assert.match(message, /classTactics/);
   assert.match(message, /combat-turn-recommendation\/v2/);
 });
 
@@ -129,6 +130,7 @@ test("user message builder compacts oversized tactical context", () => {
   const message = buildRecommendationUserMessage(context);
 
   assert.equal(compact.requestNotes.contextCompacted, true);
+  assert.equal(compact.classTactics.rogue.priorities[0], "Prioritize Sneak Attack.");
   assert.ok(JSON.stringify(compact).length < JSON.stringify(context).length);
   assert.ok(compact.availableOptions.spells.length < context.availableOptions.spells.length);
   assert.match(message, /contextCompacted/);
@@ -172,6 +174,15 @@ function largeContext() {
     combatState: { current: { concentration: null }, turn: {} },
     turnRules: {},
     playerIntent: {},
+    classTactics: {
+      rogue: {
+        priorities: ["Prioritize Sneak Attack."],
+        checks: ["Check advantage."],
+        resourceGuidance: [],
+        avoid: [],
+        reminderQuestions: ["Does the rogue have advantage?"]
+      }
+    },
     availableOptions: { spells: options },
     unavailableOptions: { spells: options.map((option) => ({ ...option, available: false })) },
     optionIndex: options.map((option) => ({ id: option.id, name: option.name, group: "spells" })),

@@ -15,6 +15,7 @@ The current implementation already summarizes character data, combat state, avai
 5. Surface missing battlefield information that would materially change the recommendation.
 6. Make the response easier to render as player-facing turn-plan cards.
 7. Preserve backward compatibility where practical with the current recommendation card structure.
+8. Bias AI ranking with class-specific tactical guidance without creating new legal options.
 
 ## Current Files
 
@@ -23,6 +24,7 @@ The relevant files are:
 - `aiRecommendationContext.js`
 - `aiRecommendationPrompt.js`
 - `aiRecommendationService.js`
+- `classTactics.js`
 
 ## Current Behavior
 
@@ -30,6 +32,7 @@ The existing implementation:
 
 - Builds an AI context from the active character, combat state, wizard answers, grouped options, and deterministic recommendation sets.
 - Summarizes character features, traits, equipment, spells, resources, combat state, and available option groups.
+- Includes class-specific tactics for only the active character's classes.
 - Sends the context to Groq using a structured JSON schema when available.
 - Falls back to a JSON-only prompt when structured outputs are unsupported.
 - Normalizes returned recommendations into ranked sets with pieces, reasons, and warnings.
@@ -39,6 +42,61 @@ This is a good baseline, but the AI response is still too permissive. The model 
 ---
 
 # Enhancement Plan
+
+## Class-Specific Tactical Instructions
+
+### Objective
+
+Give the model tactical priorities for the active character's class mix while preserving `availableOptions` as the source of truth.
+
+### Current Implementation
+
+`js/player-combat/ai/classTactics.js` exports `CLASS_TACTICS`, keyed by lowercase class name. Each class entry includes:
+
+- `priorities`
+- `checks`
+- `resourceGuidance`
+- `avoid`
+- `reminderQuestions`
+
+The AI context builder adds:
+
+```js
+classTactics: summarizeClassTactics(character)
+```
+
+Only classes present on the active normalized character are included. The current guidance covers:
+
+- artificer
+- barbarian
+- bard
+- cleric
+- druid
+- fighter
+- monk
+- paladin
+- ranger
+- rogue
+- sorcerer
+- warlock
+- wizard
+
+### Prompt Contract
+
+The system prompt tells the model:
+
+- Use `classTactics` as guidance for ranking and explaining plans.
+- Class tactics are not extra abilities and do not create actions, features, resources, spells, or permissions.
+- Confirm that character data and available options support a tactic before applying it.
+- If a tactic depends on missing battlefield information, mark the recommendation conditional and include the missing fact in `missingInfo`.
+
+### Acceptance Criteria
+
+- The context includes `classTactics` for active character classes only.
+- Multiclass characters include tactics for each supported class.
+- Unsupported class names are omitted.
+- Request context compaction preserves `classTactics`.
+- AI prompt and user message distinguish ranking guidance from legal options.
 
 ## Phase 1: Improve the AI Context Shape
 

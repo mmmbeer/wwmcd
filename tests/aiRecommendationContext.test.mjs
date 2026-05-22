@@ -20,7 +20,7 @@ test("AI recommendation context includes versioned tactical context", () => {
         name: "Mara",
         level: 5,
         race: { name: "Elf", features: [{ name: "Darkvision" }] },
-        classes: [{ name: "Fighter", level: 5 }],
+        classes: [{ name: "Fighter", level: 5 }, { name: "Rogue", level: 1 }],
         stats: { str: 10, dex: 18, con: 14, int: 10, wis: 12, cha: 8 },
         combat: { maxHp: 44, ac: 16, speed: { walk: 30 } },
         resources: {
@@ -79,6 +79,10 @@ test("AI recommendation context includes versioned tactical context", () => {
   assert.equal(context.playerIntent.userNotes, "Enemy is nearly defeated.");
   assert.equal(context.wizard, undefined);
   assert.equal(context.turnRules.actionEconomy.maxActions, 1);
+  assert.equal(Boolean(context.classTactics.fighter), true);
+  assert.equal(Boolean(context.classTactics.rogue), true);
+  assert.equal(context.classTactics.wizard, undefined);
+  assert.equal(context.classTactics.rogue.reminderQuestions.includes("Does the rogue have advantage?"), true);
   assert.equal(context.availableOptions.attacks[0].attack.count, 2);
   assert.equal(context.availableOptions.spells.length, 0);
   assert.equal(context.unavailableOptions.spells[0].id, "spell_fireball");

@@ -82,6 +82,7 @@ export function buildRecommendationUserMessage(context) {
     "Requirements:",
     "- Return ranked complete turn plans, not individual actions.",
     "- Use optionId values from optionIndex or availableOptions whenever possible.",
+    "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
     "- Include different tactical categories when possible.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
     "- Include missingInfo for facts that would materially change the recommendation.",
