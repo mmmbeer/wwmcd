@@ -4,6 +4,9 @@
 
 ### Implemented
 
+- Moved the Recommendation wizard Reset control into the wizard header and aligned it to the top right.
+- Restored full spell/feature descriptions inside recommended turn-set cards using expandable detail sections.
+- Stabilized `app-main`, action panels, and option tab widths so wide table/card content scrolls instead of resizing the main area.
 - Changed the Recommendation wizard controls from chip groups to horizontal dropdowns with Reset at the end.
 - Replaced the individual recommendation list on the Recommendation tab with ranked turn-set cards that combine compatible action, bonus, free, movement, and relevant reaction options.
 - Moved Import / Replace Character out of the header action group and into the upper-left hamburger menu.
@@ -33,12 +36,15 @@
 ### Manual Test Checklist
 
 1. Open the Recommendation tab and confirm the wizard appears above the ranked action list.
-2. Change Goal, Situation, Range, Resources, Rolls, and Concentration dropdowns and confirm ranked turn sets update immediately.
-3. Select a recommended attack inside a turn set and confirm the existing roll modal opens before the option is added to the planned turn.
-4. Select a recommended concentration spell inside a turn set while concentrating and confirm the concentration warning still appears.
-5. Toggle Available only and confirm unavailable recommendations hide without breaking rankings.
-6. Open the upper-left hamburger menu and confirm Import / Replace Character opens the import modal.
-7. Confirm the UI remains usable on a narrow mobile viewport.
+2. Confirm Reset sits in the wizard header at the top right.
+3. Change Goal, Situation, Range, Resources, Rolls, and Concentration dropdowns and confirm ranked turn sets update immediately.
+4. Expand a spell or feature detail inside a recommended turn set and confirm the full description is visible.
+5. Select a recommended attack inside a turn set and confirm the existing roll modal opens before the option is added to the planned turn.
+6. Select a recommended concentration spell inside a turn set while concentrating and confirm the concentration warning still appears.
+7. Toggle Available only and confirm unavailable recommendations hide without breaking rankings.
+8. Open the upper-left hamburger menu and confirm Import / Replace Character opens the import modal.
+9. Confirm `app-main` keeps a stable full width while wide tables/cards scroll internally.
+10. Confirm the UI remains usable on a narrow mobile viewport.
 
 ### Verification Completed
 
@@ -52,7 +58,7 @@
 - `node --test tests\playerCombatImport.test.mjs`
 - `node --test tests\*.test.mjs`
 - `rg -n "alert\(|prompt\(|confirm\(" js\player-combat -S` returned no matches.
-- Confirmed touched UI/rules files remain under 500 lines: `recommendationScoring.js` 309, `recommendationWizardPanel.js` 102, `app.js` 229, `actionTabs.js` 204, `mobileActionList.js` 304.
+- Confirmed touched UI/rules files remain under 500 lines: `recommendationScoring.js` 309, `recommendationWizardPanel.js` 126, `app.js` 229, `actionTabs.js` 204, `mobileActionList.js` 304.
 
 ## Current Session: Rest and Turn Transition Notices
 

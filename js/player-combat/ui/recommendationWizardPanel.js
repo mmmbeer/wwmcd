@@ -27,10 +27,10 @@ export function renderRecommendationWizardPanel(groups, rankedEntries) {
     <section class="recommendation-wizard" aria-label="Recommendation wizard">
       <div class="recommendation-wizard__header">
         <span class="section-label">Recommendation Wizard</span>
+        <button class="btn btn-secondary recommendation-reset" type="button" data-recommendation-reset>Reset</button>
       </div>
       <div class="recommendation-questions" aria-label="Recommendation filters">
         ${questions.map(renderQuestion).join("")}
-        <button class="btn btn-secondary recommendation-reset" type="button" data-recommendation-reset>Reset</button>
       </div>
     </section>
   `;
@@ -92,6 +92,7 @@ function renderRecommendationSet(set) {
       <div class="recommendation-set-pieces">
         ${set.pieces.map(renderSetPiece).join("")}
       </div>
+      ${renderSetDetails(set)}
       ${set.reasons.length ? `
         <div class="recommendation-set-reasons">
           ${set.reasons.map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
@@ -99,6 +100,23 @@ function renderRecommendationSet(set) {
       ` : ""}
       ${set.warnings.length ? `<p class="inline-message warning">${escapeHtml(set.warnings.join(" "))}</p>` : ""}
     </article>
+  `;
+}
+
+function renderSetDetails(set) {
+  const details = set.pieces
+    .map((piece) => ({ piece, text: descriptionText(piece.entry.option) }))
+    .filter(({ text }) => text);
+  if (!details.length) return "";
+  return `
+    <div class="recommendation-set-details">
+      ${details.map(({ piece, text }) => `
+        <details>
+          <summary>${escapeHtml(piece.slot)}: ${escapeHtml(piece.entry.option.name)}</summary>
+          <p>${escapeHtml(text)}</p>
+        </details>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -110,4 +128,12 @@ function renderSetPiece(piece) {
       <strong>${escapeHtml(option.name)}</strong>
     </button>
   `;
+}
+
+function descriptionText(option) {
+  return option.longDescription
+    ?? option.spell?.reference?.description
+    ?? option.featureAction?.description
+    ?? option.description
+    ?? "";
 }
