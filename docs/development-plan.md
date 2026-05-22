@@ -1,6 +1,48 @@
 # Development Plan
 
-## Current Session: Groq AI Recommendation Support
+## Current Session: Planned Multi-Attack Actions
+
+### Implemented
+
+- Added mixed attack sequencing inside one planned Attack action, so a player can stage combinations such as `Longsword`, then `Shove`, within the same action.
+- Updated the planned turn footer to show each attack slot as `Atk 1`, `Atk 2`, and so on, including empty remaining slots.
+- Updated the action economy bar so a staged multi-attack action shows filled attack slots such as `Planned 1/2` or `Planned 2/2`.
+- Updated action roll resolution so confirming one planned Attack action prompts once per planned attack piece, while still spending only one action.
+
+### Files Changed
+
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `js/player-combat/ui/actionRollModal.js`
+- `js/player-combat/ui/plannedTurnState.js`
+- `js/player-combat/ui/actionTabs.js`
+- `tests/plannedTurnState.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Replacing one specific attack slot is not yet supported. Once all attack slots are full, tapping a different Attack option starts a new Attack sequence.
+- Extra attacks from temporary effects or subclass-specific exceptions still depend on the existing `attack.count` metadata being present on the option selected to start the Attack action.
+
+### Manual Test Checklist
+
+1. Import or simulate a character with `Extra Attack`.
+2. Add a weapon Attack action to the planned turn and confirm the footer shows `Atk 1` filled and the remaining attack slot empty.
+3. Add Grapple or Shove and confirm it fills the next attack slot without replacing the first attack.
+4. Confirm the action economy bar shows staged attack slots while still using one Action segment.
+5. Click `Act now` and confirm the roll modal prompts once per staged attack before committing the single Attack action.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --check js\player-combat\ui\plannedTurnState.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check tests\plannedTurnState.test.mjs`
+- `node --test tests\plannedTurnState.test.mjs`
+
+## Previous Session: Groq AI Recommendation Support
 
 ### Implemented
 

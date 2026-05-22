@@ -225,6 +225,7 @@ function plannedPrerequisiteKey() {
   const plan = getPlannedTurn();
   return [
     plan.action?.id,
+    ...plan.actionAttacks.map((option) => option.id),
     plan.bonusAction?.id,
     plan.reaction?.id,
     ...plan.freeActions.map((option) => option.id)
@@ -235,6 +236,7 @@ function combatStateWithPlannedPrerequisites(combatState) {
   const plan = getPlannedTurn();
   const plannedOptions = [
     plan.action,
+    ...plan.actionAttacks,
     plan.bonusAction,
     plan.reaction,
     ...plan.freeActions

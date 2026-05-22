@@ -1,5 +1,6 @@
 const EMPTY_PLAN = Object.freeze({
   action: null,
+  actionAttacks: [],
   bonusAction: null,
   reaction: null,
   freeActions: [],
@@ -26,6 +27,9 @@ export function getPlannedOptionForSlot(option) {
   const slot = slotForOption(option);
   if (!slot) return null;
   if (slot === "freeActions") return plannedTurn.freeActions.find((entry) => entry?.id === option?.id) ?? null;
+  if (slot === "action" && isAttackAction(option) && hasAttackSequence(plannedTurn)) {
+    return plannedTurn.actionAttacks.find((entry) => entry?.id === option?.id) ?? plannedTurn.action;
+  }
   return plannedTurn[slot] ?? null;
 }
 
@@ -38,6 +42,7 @@ export function isOptionPlanned(option) {
   if (!option) return false;
   return [
     plannedTurn.action,
+    ...plannedTurn.actionAttacks,
     plannedTurn.bonusAction,
     plannedTurn.reaction,
     ...plannedTurn.freeActions
@@ -68,7 +73,7 @@ export function selectPlannedOption(option, { combatState = null } = {}) {
   if (option.cost?.bonus) plannedTurn = { ...plannedTurn, bonusAction: option };
   else if (option.cost?.reaction) plannedTurn = { ...plannedTurn, reaction: option };
   else if (option.cost?.object || !option.cost?.action) plannedTurn = toggleFreeOption(plannedTurn, option);
-  else plannedTurn = { ...plannedTurn, action: option };
+  else plannedTurn = selectActionOption(plannedTurn, option);
 
   plannedTurn = {
     ...plannedTurn,
@@ -86,8 +91,14 @@ export async function confirmPlannedTurn(stateManager, { beforeUseOption = null 
     plan.reaction,
     ...plan.freeActions
   ].filter(Boolean);
+  const rollOptions = [
+    ...(plan.actionAttacks.length ? plan.actionAttacks.map(singleAttackRollOption) : [plan.action]),
+    plan.bonusAction,
+    plan.reaction,
+    ...plan.freeActions
+  ].filter(Boolean);
 
-  for (const option of options) {
+  for (const option of rollOptions) {
     if (beforeUseOption) {
       const ok = await beforeUseOption(option);
       if (!ok) return { ok: false, canceled: true, optionCount: 0, movementUsed: 0 };
@@ -103,6 +114,23 @@ export async function confirmPlannedTurn(stateManager, { beforeUseOption = null 
   clearPlannedTurn({ silent: true });
   notifyPlanChanged();
   return { ok: true, optionCount: options.length, movementUsed: plan.movementUsed };
+}
+
+function singleAttackRollOption(option) {
+  return {
+    ...option,
+    attack: { ...(option.attack ?? {}), count: 1 }
+  };
+}
+
+function selectActionOption(plan, option) {
+  if (!isAttackAction(option)) return { ...plan, action: option, actionAttacks: [] };
+  if (!isAttackAction(plan.action)) return { ...plan, action: option, actionAttacks: [option] };
+
+  const capacity = attackCapacity(plan.action);
+  const current = hasAttackSequence(plan) ? plan.actionAttacks : [plan.action];
+  if (current.length >= capacity) return { ...plan, action: option, actionAttacks: [option] };
+  return { ...plan, action: plan.action, actionAttacks: [...current, option] };
 }
 
 function toggleFreeOption(plan, option) {
@@ -132,6 +160,19 @@ function plannedResources(plan) {
   ].map((option) => option?.cost?.resource).filter(Boolean);
 }
 
+function hasAttackSequence(plan) {
+  return (plan.actionAttacks?.length ?? 0) > 0;
+}
+
+function isAttackAction(option) {
+  return Boolean(option?.cost?.action)
+    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+}
+
+function attackCapacity(option) {
+  return Math.max(1, Number(option?.attack?.count ?? 1));
+}
+
 function unavailableMessage(option) {
   return option.unavailableReasons?.join(" ") || `${option.name} is unavailable right now.`;
 }
@@ -159,6 +200,7 @@ function notifyPlanChanged() {
 function clonePlan(plan) {
   return {
     action: plan.action,
+    actionAttacks: [...(plan.actionAttacks ?? [])],
     bonusAction: plan.bonusAction,
     reaction: plan.reaction,
     freeActions: [...(plan.freeActions ?? [])],

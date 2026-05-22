@@ -17,9 +17,10 @@ export function renderTurnEconomyPanel(root, snapshot, { modalApi }) {
   const plannedMovement = Number(plan.movementUsed ?? 0);
   const movement = `${formatFeet(Math.min(movementUsed + plannedMovement, speed))}/${formatFeet(speed)}`;
   const actionsAvailable = getAttackCount(character, snapshot.referenceData);
+  const actionStatus = plannedActionStatus(plan.action);
   root.innerHTML = `
     <nav class="turn-progress" aria-label="Action economy">
-      ${segment("actions", "Action", state.turn.actionUsed, Boolean(plan.action), actionsAvailable)}
+      ${segment("actions", "Action", state.turn.actionUsed, Boolean(plan.action), actionsAvailable, actionStatus)}
       ${segment("bonus", "Bonus", state.turn.bonusActionUsed, Boolean(plan.bonusAction))}
       ${segment("reaction", "React", state.turn.reactionUsed, Boolean(plan.reaction))}
       ${segment("free", "Free", false, Boolean(plan.freeActions.length), 1, "Unlimited")}
@@ -98,6 +99,26 @@ function segment(group, label, spent, planned = false, total = 1, overrideStatus
       <strong>${escapeHtml(status)}${total > 1 && !spent && !planned ? ` x${escapeHtml(total)}` : ""}</strong>
     </button>
   `;
+}
+
+function plannedActionStatus(option) {
+  const plan = getPlannedTurn();
+  if (plan.actionAttacks?.length) {
+    const capacity = attackCapacity(option);
+    return `Planned ${plan.actionAttacks.length}/${capacity}`;
+  }
+  if (!option || !isAttackAction(option)) return null;
+  const attackCount = attackCapacity(option);
+  return attackCount > 1 ? `Planned x${attackCount}` : null;
+}
+
+function isAttackAction(option) {
+  return Boolean(option?.cost?.action)
+    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+}
+
+function attackCapacity(option) {
+  return Math.max(1, Number(option?.attack?.count ?? 1));
 }
 
 function iconFor(group) {

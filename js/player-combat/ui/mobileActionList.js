@@ -46,7 +46,7 @@ export function renderPlannedTurnBar(snapshot) {
         ${hasPlan ? "" : `<small>Tap actions to build your turn.</small>`}
       </div>
       <div class="planned-chips">
-        ${chip("Action", plan.action?.name)}
+        ${plannedActionChips(plan)}
         ${chip("Bonus", plan.bonusAction?.name)}
         ${chip("React", plan.reaction?.name)}
         ${plan.freeActions.map((option) => chip("Free", option.name)).join("")}
@@ -165,6 +165,7 @@ function renderActionButtonLabel(label) {
 }
 
 function plannedButtonLabel(option, rowKind, selected) {
+  if (isSequencedAttackOption(option)) return attackSequenceButtonLabel(option, selected);
   if (selected) return "Planned";
   if (option.cost?.movement) return "Add to turn";
   const planned = getPlannedOptionForSlot(option);
@@ -220,6 +221,40 @@ function chip(label, value) {
       <strong>${escapeHtml(value || "-")}</strong>
     </span>
   `;
+}
+
+function plannedActionChips(plan) {
+  const attacks = plan.actionAttacks ?? [];
+  if (!attacks.length) return chip("Action", plan.action?.name);
+  const capacity = attackCapacity(plan.action);
+  const planned = attacks.map((option, index) => chip(`Atk ${index + 1}`, option.name)).join("");
+  const empty = Array.from({ length: Math.max(0, capacity - attacks.length) }, (_, index) => {
+    return chip(`Atk ${attacks.length + index + 1}`, "-");
+  }).join("");
+  return `${planned}${empty}`;
+}
+
+function isSequencedAttackOption(option) {
+  const plan = getPlannedTurn();
+  return isAttackAction(option) && (plan.actionAttacks?.length || isAttackAction(plan.action));
+}
+
+function attackSequenceButtonLabel(option, selected) {
+  const plan = getPlannedTurn();
+  const capacity = attackCapacity(plan.action ?? option);
+  const count = Number(plan.actionAttacks?.length ?? 0);
+  if (count < capacity) return selected ? `Add again (${count + 1}/${capacity})` : `Add attack ${count + 1}/${capacity}`;
+  if (selected) return "Planned";
+  return `Start new Attack`;
+}
+
+function isAttackAction(option) {
+  return Boolean(option?.cost?.action)
+    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+}
+
+function attackCapacity(option) {
+  return Math.max(1, Number(option?.attack?.count ?? 1));
 }
 
 function detailFact(label, value) {

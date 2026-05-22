@@ -4,16 +4,32 @@ import { escapeHtml } from "./renderUtils.js";
 
 export function resolveActionRoll({ modalApi, stateManager, option }) {
   if (!rollBundle(option).length) return Promise.resolve(true);
-  return showActionRollModal({ modalApi, stateManager, option });
+  return resolveActionRolls({ modalApi, stateManager, option });
 }
 
-function showActionRollModal({ modalApi, stateManager, option }) {
+async function resolveActionRolls({ modalApi, stateManager, option }) {
+  const repeat = rollRepeatCount(option);
+  for (let index = 1; index <= repeat; index += 1) {
+    const ok = await showActionRollModal({
+      modalApi,
+      stateManager,
+      option,
+      rollIndex: repeat > 1 ? index : null,
+      rollTotal: repeat > 1 ? repeat : null
+    });
+    if (!ok) return false;
+  }
+  return true;
+}
+
+function showActionRollModal({ modalApi, stateManager, option, rollIndex = null, rollTotal = null }) {
   return new Promise((resolve) => {
     const rolls = rollBundle(option);
     const body = document.createElement("div");
+    const title = rollIndex ? `${option.name} Attack ${rollIndex} of ${rollTotal}` : option.name;
     body.className = "action-roll-form";
     body.innerHTML = `
-      <p class="roll-modal-summary">${escapeHtml(option.name)}</p>
+      <p class="roll-modal-summary">${escapeHtml(title)}</p>
       <div class="roll-core">
         <span>Core rolls</span>
         ${rolls.map((roll) => `<strong>${escapeHtml(roll.label)}: ${escapeHtml(roll.formula)}</strong>`).join("")}
@@ -43,7 +59,7 @@ function showActionRollModal({ modalApi, stateManager, option }) {
     };
 
     modalApi.showModal({
-      title: `Roll ${option.name}`,
+      title: `Roll ${title}`,
       body,
       onClose: () => resolveOnce(false),
       actions: [
@@ -53,7 +69,7 @@ function showActionRollModal({ modalApi, stateManager, option }) {
           variant: "primary",
           close: false,
           onClick: () => {
-            const result = rollForForm(body, option, rolls);
+            const result = rollForForm(body, option, rolls, { rollIndex, rollTotal });
             const summary = formatBundleSummary(result);
             if (result.ok) {
               stateManager.logRoll(result, summary);
@@ -80,13 +96,14 @@ function showActionRollModal({ modalApi, stateManager, option }) {
   });
 }
 
-function rollForForm(body, option, rolls) {
+function rollForForm(body, option, rolls, { rollIndex = null, rollTotal = null } = {}) {
   const extra = normalizeExtraDice(body.querySelector("[data-extra-dice]")?.value);
   const mode = body.querySelector("[data-roll-mode]")?.value ?? "normal";
+  const rollLabel = rollIndex ? `${option.name} Attack ${rollIndex}/${rollTotal}` : option.name;
   const results = rolls.map((roll, index) => {
     const formula = [roll.formula, index === 0 ? extra : ""].filter(Boolean).join("+");
-    return supportsD20Mode(formula) ? rollD20Mode(formula, `${option.name} ${roll.label}`, roll.type, mode) : rollDice(formula, {
-      label: `${option.name} ${roll.label}`,
+    return supportsD20Mode(formula) ? rollD20Mode(formula, `${rollLabel} ${roll.label}`, roll.type, mode) : rollDice(formula, {
+      label: `${rollLabel} ${roll.label}`,
       type: roll.type
     });
   });
@@ -94,12 +111,23 @@ function rollForForm(body, option, rolls) {
   if (failed) return failed;
   return {
     ok: true,
-    label: option.name,
+    label: rollLabel,
     type: "actionRoll",
     formula: results.map((result) => result.formula).join(" + "),
     total: results.reduce((sum, result) => sum + Number(result.total ?? 0), 0),
     results
   };
+}
+
+function rollRepeatCount(option) {
+  if (!isAttackAction(option)) return 1;
+  if (!option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack")) return 1;
+  return Math.max(1, Number(option.attack?.count ?? 1));
+}
+
+function isAttackAction(option) {
+  return Boolean(option?.cost?.action)
+    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
 }
 
 function rollD20Mode(formula, label, type, mode) {
