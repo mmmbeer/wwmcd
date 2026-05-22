@@ -7,8 +7,54 @@ Respect action economy, availability, spell-slot limits, limited resources, conc
 Do not invent actions, spells, features, equipment, resources, or character facts.
 Return concise explanations that help the player understand why each plan is recommended.`;
 
-export async function getAiRecommendations({ apiKey, model, context }) {
-  const payload = await requestGroqChat({
+const FALLBACK_JSON_PROMPT = `The selected model does not support Groq structured outputs.
+Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
+The response must be a single JSON object with this exact shape:
+{
+  "recommendations": [
+    {
+      "rank": 1,
+      "title": "short turn-plan title",
+      "score": 100,
+      "explanation": "why this complete turn plan is recommended",
+      "actions": [
+        {
+          "slot": "Action, Bonus, Reaction, Move, Free, Attack 1, Attack 2, Rider, or Special",
+          "optionId": "copy the exact id from an available option when possible",
+          "name": "copy the exact option name",
+          "explanation": "why this piece belongs in the plan"
+        }
+      ],
+      "reasons": ["short reason"],
+      "warnings": ["short warning, or empty array"]
+    }
+  ]
+}
+Use one to six recommendations. Use one to eight actions per recommendation.`;
+
+export async function getAiRecommendations({ apiKey, model, context, chatClient = requestGroqChat }) {
+  const request = structuredRecommendationRequest({ apiKey, model, context });
+  let payload;
+  try {
+    payload = await chatClient(request);
+  } catch (error) {
+    if (!isStructuredOutputUnsupportedError(error)) throw error;
+    payload = await chatClient(fallbackRecommendationRequest({ apiKey, model, context }));
+  }
+
+  return normalizeAiResponse(payload.text, context.availableOptions);
+}
+
+export function isStructuredOutputUnsupportedError(error) {
+  const message = String(error?.message ?? error ?? "").toLowerCase();
+  return message.includes("json_schema")
+    || message.includes("structured output")
+    || message.includes("structured outputs")
+    || message.includes("response format");
+}
+
+function structuredRecommendationRequest({ apiKey, model, context }) {
+  return {
     apiKey,
     model,
     temperature: 0.2,
@@ -24,9 +70,26 @@ export async function getAiRecommendations({ apiKey, model, context }) {
         ].join("\n\n")
       }
     ]
-  });
+  };
+}
 
-  return normalizeAiResponse(payload.text, context.availableOptions);
+function fallbackRecommendationRequest({ apiKey, model, context }) {
+  return {
+    apiKey,
+    model,
+    temperature: 0.1,
+    messages: [
+      { role: "system", content: `${SYSTEM_PROMPT}\n${FALLBACK_JSON_PROMPT}` },
+      {
+        role: "user",
+        content: [
+          "Recommend the best D&D 5e turn plans for the current player character.",
+          "Use the fallback JSON-only response contract exactly.",
+          JSON.stringify(context)
+        ].join("\n\n")
+      }
+    ]
+  };
 }
 
 function normalizeAiResponse(text, availableOptions) {

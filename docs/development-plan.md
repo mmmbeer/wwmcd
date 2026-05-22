@@ -9,6 +9,7 @@
 - Added an `AI` button to the Recommendation Wizard header after a Groq key is saved.
 - Added an AI recommendation modal that captures user tactical notes, includes the wizard answers, and sends a compact app context covering combat state, resources, conditions, spell slots, features, traits, equipment, spell lists, attacks, available options, and deterministic turn-set recommendations.
 - Added a Groq chat service that requests structured ranked turn-plan JSON with actions, bonus actions, reactions, explanations, reasons, and warnings.
+- Added an automatic fallback for models that reject Groq `json_schema` structured output. The fallback retries without `responseFormat` and uses a stricter JSON-only prompt with the same response contract.
 - Rendered AI results directly in the Recommendation tab after the request completes, replacing the deterministic recommendation list until the wizard answers change.
 - Marked AI-sourced turn sets and pieces with visible `AI` / `AI Recommendation` labels.
 - Kept the `Getting recommendations...` spinner hidden until the player clicks `Get Recommendations`.
@@ -28,6 +29,7 @@
 - `js/player-combat/ui/recommendationWizardPanel.js`
 - `css/player-combat.css`
 - `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
 - `docs/development-plan.md`
 
 ### Known Limitations
@@ -52,12 +54,14 @@
 - `node --check js\player-combat\ai\groqClient.js`
 - `node --check js\player-combat\ai\aiRecommendationContext.js`
 - `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check tests\aiRecommendationService.test.mjs`
 - `node --check js\player-combat\ui\aiOptionsModal.js`
 - `node --check js\player-combat\ui\aiRecommendationModal.js`
 - `node --check js\player-combat\app.js`
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\ui\recommendationWizardPanel.js`
 - `node --test tests\aiRecommendationContext.test.mjs`
+- `node --test tests\aiRecommendationService.test.mjs`
 - `node --test tests\recommendationScoring.test.mjs`
 - `node --test tests\*.test.mjs`
 
