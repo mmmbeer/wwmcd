@@ -2075,3 +2075,15 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 
 - `node --check js\player-combat\ui\mobileActionList.js`
 - `node --test tests\*.test.mjs`
+
+### Attack Roll Modal Update
+
+- Attack actions now roll both the attack roll and the primary damage roll in the same modal.
+- Replaced the advantage checkbox with a `Normal / Advantage / Disadvantage` dropdown for d20 rolls.
+- Roll results now display every component roll, including all d20 alternatives for advantage/disadvantage, and the combat log summary includes each rolled result.
+
+### Attack Roll Modal Verification
+
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --test tests\*.test.mjs`
+- `git diff --check`
