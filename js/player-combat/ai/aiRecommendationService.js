@@ -1,11 +1,5 @@
 import { requestGroqChat } from "./groqClient.js";
-
-const SYSTEM_PROMPT = `You are a D&D 5e combat recommendation assistant for a player-facing turn helper.
-Use only the provided character, combat state, available options, resources, spell slots, equipment, traits, features, conditions, and wizard answers.
-Rank complete turn plans from best to worst for the current tactical goal.
-Respect action economy, availability, spell-slot limits, limited resources, concentration, range, rolls, and current conditions.
-Do not invent actions, spells, features, equipment, resources, or character facts.
-Return concise explanations that help the player understand why each plan is recommended.`;
+import { AI_RECOMMENDATION_SYSTEM_PROMPT } from "./aiRecommendationPrompt.js";
 
 const FALLBACK_JSON_PROMPT = `The selected model does not support Groq structured outputs.
 Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
@@ -60,7 +54,7 @@ function structuredRecommendationRequest({ apiKey, model, context }) {
     temperature: 0.2,
     responseFormat: recommendationResponseFormat(),
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: AI_RECOMMENDATION_SYSTEM_PROMPT },
       {
         role: "user",
         content: [
@@ -79,7 +73,7 @@ function fallbackRecommendationRequest({ apiKey, model, context }) {
     model,
     temperature: 0.1,
     messages: [
-      { role: "system", content: `${SYSTEM_PROMPT}\n${FALLBACK_JSON_PROMPT}` },
+      { role: "system", content: `${AI_RECOMMENDATION_SYSTEM_PROMPT}\n${FALLBACK_JSON_PROMPT}` },
       {
         role: "user",
         content: [

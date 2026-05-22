@@ -1,6 +1,36 @@
 # Development Plan
 
-## Current Session: Planned Multi-Attack Actions
+## Current Session: AI Recommendation Prompt Module
+
+### Implemented
+
+- Moved the standard AI recommendation system prompt into `js/player-combat/ai/aiRecommendationPrompt.js` so it can be edited independently.
+- Updated the AI recommendation service to import the prompt for both structured-output and fallback requests.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The fallback JSON-only response contract still lives in `aiRecommendationService.js` because it is specific to the retry behavior.
+
+### Manual Test Checklist
+
+1. Edit `AI_RECOMMENDATION_SYSTEM_PROMPT` in `js/player-combat/ai/aiRecommendationPrompt.js`.
+2. Open AI recommendations and confirm requests still complete with the updated prompt text.
+3. Use a model without structured output support and confirm fallback requests still include the standard prompt plus the JSON-only contract.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\aiRecommendationPrompt.js`
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check tests\aiRecommendationService.test.mjs`
+- `node --test tests\aiRecommendationService.test.mjs`
+
+## Previous Session: Planned Multi-Attack Actions
 
 ### Implemented
 
