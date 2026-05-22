@@ -108,6 +108,82 @@ test("wizard questions adapt to available spells, resources, and concentration",
   assert.ok(questions.some((question) => question.id === "resources"));
   assert.ok(questions.some((question) => question.id === "concentration"));
   assert.ok(questions.find((question) => question.id === "goal").options.some(([value]) => value === "support"));
+  assert.ok(questions.find((question) => question.id === "situation").options.some(([value]) => value === "bigBad"));
+  assert.ok(questions.find((question) => question.id === "situation").options.some(([value]) => value === "bigBadMinions"));
+  assert.ok(questions.find((question) => question.id === "distance").options.some(([value]) => value === "long"));
+  assert.ok(questions.some((question) => question.id === "difficulty"));
+});
+
+test("big bad plus minions favors area pressure over single-target damage", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "burning-hands",
+        name: "Burning Hands",
+        source: "spell",
+        description: "Each creature in a cone takes fire damage.",
+        spell: { level: 1, range: "Self" },
+        cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [{ id: "damage", type: "damage", formula: "3d6" }],
+        available: true
+      },
+      {
+        id: "guiding-bolt",
+        name: "Guiding Bolt",
+        source: "spell",
+        description: "A ranged spell attack against one target.",
+        spell: { level: 1, range: "120 feet" },
+        cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [
+          { id: "attack", type: "attack", formula: "1d20+6" },
+          { id: "damage", type: "damage", formula: "4d6" }
+        ],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", situation: "bigBadMinions", resources: "normal" }
+  });
+
+  assert.equal(ranked[0].option.name, "Burning Hands");
+  assert.ok(ranked[0].reasons.includes("Handles minions"));
+});
+
+test("long range favors options in the 30-90 ft band over melee", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4"),
+      rangedAttack("shortbow", "Shortbow", "1d6+4", 80)
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", distance: "long" }
+  });
+
+  assert.equal(ranked[0].option.name, "Shortbow");
+  assert.ok(ranked[0].reasons.includes("Range fit"));
+});
+
+test("deadly DC pulls defensive reactions into balanced turn sets", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4"),
+      {
+        id: "shield",
+        name: "Shield",
+        source: "spell",
+        description: "Reaction protection that increases AC.",
+        spell: { level: 1, range: "Self" },
+        cost: { reaction: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "balanced", difficulty: "deadly" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "balanced", difficulty: "deadly" } });
+
+  assert.ok(sets[0].pieces.some((piece) => piece.slot === "Reaction" && piece.entry.option.name === "Shield"));
 });
 
 test("recommendation sets combine compatible action economy pieces", () => {
@@ -171,6 +247,23 @@ function attack(id, name, damage) {
     rolls: [
       { id: "attack", type: "attack", formula: "1d20+7" },
       { id: "damage", type: "damage", formula: damage, damageType: "slashing" }
+    ],
+    available: true
+  };
+}
+
+function rangedAttack(id, name, damage, range) {
+  return {
+    id,
+    name,
+    source: "weapon",
+    description: "Ranged weapon attack.",
+    tags: ["attack", "weapon", "ranged"],
+    cost: { action: true },
+    range: { type: "ranged", label: `${range} ft`, normal: range },
+    rolls: [
+      { id: "attack", type: "attack", formula: "1d20+7" },
+      { id: "damage", type: "damage", formula: damage, damageType: "piercing" }
     ],
     available: true
   };

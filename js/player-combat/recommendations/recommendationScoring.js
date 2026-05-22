@@ -2,6 +2,7 @@ const DEFAULT_ANSWERS = {
   goal: "balanced",
   situation: "single",
   distance: "unknown",
+  difficulty: "medium",
   resources: "normal",
   rollMode: "normal",
   concentration: "allow"
@@ -21,6 +22,7 @@ const CONTROL_TERMS = /\b(stun|restrain|prone|grapple|shove|push|pull|frighten|c
 const DEFENSE_TERMS = /\b(dodge|shield|disengage|resistance|resist|ac|armor class|deflect|uncanny|protect|sanctuary|blur|mirror image)\b/i;
 const MOBILITY_TERMS = /\b(move|dash|disengage|teleport|misty step|fly|climb|swim|speed|jump)\b/i;
 const AREA_TERMS = /\b(cone|cube|sphere|radius|line|each creature|creatures of your choice|area)\b/i;
+const SAVE_OR_SUCK_TERMS = /\b(stun|restrain|paralyze|banish|hold|incapacitated|frighten|charm|restrained|prone)\b/i;
 
 export function getDefaultRecommendationAnswers() {
   return { ...DEFAULT_ANSWERS };
@@ -54,6 +56,8 @@ export function getRecommendationQuestionConfig(groups, answers = DEFAULT_ANSWER
       options: [
         ["single", "Single target"],
         ["multiple", "Multiple foes"],
+        ["bigBad", "Big Bad"],
+        ["bigBadMinions", "Big Bad + Minions"],
         ["ally", "Ally in danger"],
         ["self", "Self in danger"]
       ]
@@ -64,8 +68,19 @@ export function getRecommendationQuestionConfig(groups, answers = DEFAULT_ANSWER
       options: [
         ["unknown", "Any"],
         ["melee", "Melee"],
-        ["near", "Near"],
-        ["far", "Far"]
+        ["near", "Near (< 30 ft)"],
+        ["long", "Long (30-90 ft)"],
+        ["far", "Far (> 90 ft)"]
+      ]
+    },
+    {
+      id: "difficulty",
+      label: "DC",
+      options: [
+        ["easy", "Easy"],
+        ["medium", "Medium"],
+        ["hard", "Hard"],
+        ["deadly", "Deadly"]
       ]
     },
     hasResources || hasSpells ? {
@@ -138,7 +153,11 @@ export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
     const nextBonus = firstDifferent(bonus, pieces);
     const nextMove = firstDifferent(movement, pieces);
     const nextFree = free.filter((entry) => !pieces.some((item) => item.entry.option.id === entry.option.id)).slice(0, 2);
-    const nextReaction = resolvedAnswers.goal === "defense" ? firstDifferent(reactions, pieces) : null;
+    const wantsReaction = resolvedAnswers.goal === "defense"
+      || resolvedAnswers.situation === "self"
+      || resolvedAnswers.difficulty === "hard"
+      || resolvedAnswers.difficulty === "deadly";
+    const nextReaction = wantsReaction ? firstDifferent(reactions, pieces) : null;
 
     if (nextBonus) pieces.push(piece("Bonus", nextBonus));
     nextFree.forEach((entry) => pieces.push(piece("Free", entry)));
@@ -169,6 +188,7 @@ function scoreOption(option, context) {
   };
   applySituationAdjustments(categoryScores, option, context);
   applyDistanceAdjustments(categoryScores, option, context.answers);
+  applyDifficultyAdjustments(categoryScores, option, context.answers);
   applyRollModeAdjustments(categoryScores, option, context.answers);
   applyConcentrationAdjustments(categoryScores, option, context);
 
@@ -231,7 +251,10 @@ function damageScore(option, context) {
   const average = damageRolls.reduce((total, roll) => total + averageFormula(roll.formula), 0);
   let score = Math.min(60, average * 4);
   if (option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack")) score += 8;
-  if (AREA_TERMS.test(optionText(option))) score += context.answers.situation === "multiple" ? 18 : 4;
+  if (isAreaOption(option)) {
+    const areaBonus = context.answers.situation === "multiple" || context.answers.situation === "bigBadMinions" ? 18 : 4;
+    score += areaBonus;
+  }
   if (option.spell && Number(option.spell.level ?? 0) === 0) score += 4;
   return score;
 }
@@ -257,21 +280,71 @@ function resourceFitScore(option, answers) {
 }
 
 function applySituationAdjustments(scores, option, context) {
+  const text = optionText(option);
   if (context.answers.situation === "ally") scores.support += 28;
   if (context.answers.situation === "self") scores.defense += 26;
-  if (context.answers.situation === "multiple" && AREA_TERMS.test(optionText(option))) {
+  if (context.answers.situation === "multiple" && isAreaOption(option)) {
     scores.damage += 14;
     scores.control += 12;
+  }
+  if (context.answers.situation === "bigBad") {
+    scores.damage += isAreaOption(option) ? -4 : 12;
+    scores.control += SAVE_OR_SUCK_TERMS.test(text) ? 22 : 8;
+    scores.resourceFit += hasResourceCost(option) ? 10 : 0;
+  }
+  if (context.answers.situation === "bigBadMinions") {
+    scores.damage += isAreaOption(option) ? 18 : 8;
+    scores.control += isAreaOption(option) || SAVE_OR_SUCK_TERMS.test(text) ? 16 : 6;
+    scores.resourceFit += hasResourceCost(option) ? 8 : 0;
   }
 }
 
 function applyDistanceAdjustments(scores, option, answers) {
-  const type = option.range?.type ?? "";
-  const range = Number(option.range?.normal ?? 0);
-  if (answers.distance === "melee" && type === "melee") scores.damage += 12;
-  if (answers.distance === "melee" && type === "ranged") scores.damage -= 10;
-  if (answers.distance === "far" && (type === "ranged" || range >= 60 || /feet|ft/i.test(String(option.spell?.range)))) scores.damage += 12;
-  if (answers.distance === "far" && type === "melee") scores.damage -= 12;
+  const selected = answers.distance;
+  if (!selected || selected === "unknown") return;
+  const band = optionRangeBand(option);
+  if (selected === band) {
+    scores.damage += 14;
+    scores.control += 6;
+    return;
+  }
+  if (selected === "melee") {
+    scores.damage -= band === "melee" ? 0 : 18;
+    scores.control -= band === "far" ? 8 : 0;
+  }
+  if (selected === "near") {
+    if (band === "melee") scores.damage += 4;
+    if (band === "far") scores.damage -= 14;
+  }
+  if (selected === "long") {
+    if (band === "melee" || band === "near") scores.damage -= 14;
+    if (band === "far") scores.damage += 4;
+  }
+  if (selected === "far") {
+    if (band === "far") scores.damage += 16;
+    if (band === "melee" || band === "near") scores.damage -= 24;
+    if (band === "long") scores.damage -= 8;
+  }
+}
+
+function applyDifficultyAdjustments(scores, option, answers) {
+  if (answers.difficulty === "easy") {
+    scores.resourceFit += hasResourceCost(option) ? -18 : 8;
+    scores.defense -= 4;
+    return;
+  }
+  if (answers.difficulty === "hard") {
+    scores.control += 8;
+    scores.defense += 8;
+    scores.resourceFit += hasResourceCost(option) ? 8 : 0;
+    if (isAttackOption(option)) scores.damage += 4;
+  }
+  if (answers.difficulty === "deadly") {
+    scores.control += 14;
+    scores.defense += 16;
+    scores.resourceFit += hasResourceCost(option) ? 18 : -2;
+    if (isAttackOption(option)) scores.damage += 8;
+  }
 }
 
 function applyRollModeAdjustments(scores, option, answers) {
@@ -299,6 +372,12 @@ function recommendationReasons(option, scores, context) {
   if (option.cost?.bonus) reasons.push("Uses bonus action");
   if (option.cost?.reaction) reasons.push("Reaction option");
   if (context.answers.resources === "spend" && (option.cost?.resource || option.resource)) reasons.push("Resource spend fits");
+  if (context.answers.situation === "bigBad" && (scores.damage >= 30 || scores.control >= 28)) reasons.push("Big Bad pressure");
+  if (context.answers.situation === "bigBadMinions" && isAreaOption(option)) reasons.push("Handles minions");
+  if ((context.answers.difficulty === "hard" || context.answers.difficulty === "deadly") && (scores.defense >= 28 || scores.control >= 28)) {
+    reasons.push(`${capitalize(context.answers.difficulty)} encounter fit`);
+  }
+  if (context.answers.distance !== "unknown" && optionRangeBand(option) === context.answers.distance) reasons.push("Range fit");
   if (option.available === false) reasons.push("Currently unavailable");
   return [...new Set(reasons)].slice(0, 4);
 }
@@ -322,6 +401,44 @@ function optionText(option) {
     ...(option.meta ?? []),
     ...(option.tags ?? [])
   ].filter(Boolean).join(" ");
+}
+
+function hasResourceCost(option) {
+  return Boolean(option.cost?.resource || option.resource);
+}
+
+function isAttackOption(option) {
+  return option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack");
+}
+
+function isAreaOption(option) {
+  return AREA_TERMS.test(optionText(option));
+}
+
+function optionRangeBand(option) {
+  const type = option.range?.type ?? "";
+  if (type === "melee" || /\btouch\b/i.test(String(option.spell?.range))) return "melee";
+
+  const range = rangeFeet(option);
+  if (range > 0 && range <= 5 && type !== "ranged") return "melee";
+  if (range > 0 && range < 30) return "near";
+  if (range >= 30 && range <= 90) return "long";
+  if (range > 90) return "far";
+  if (type === "ranged") return "long";
+  return "unknown";
+}
+
+function rangeFeet(option) {
+  const explicit = Number(option.range?.normal ?? 0);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const text = [option.range?.label, option.spell?.range].filter(Boolean).join(" ");
+  const match = String(text).match(/(\d+)\s*(?:feet|foot|ft\.?)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function capitalize(value) {
+  const text = String(value ?? "");
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}` : "";
 }
 
 function averageFormula(formula) {

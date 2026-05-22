@@ -33,11 +33,8 @@ function paragraphs(value) {
     .split(/\n{2,}/)
     .map((entry) => entry.trim())
     .filter(Boolean);
-  const visible = entries.slice(0, 4).map((entry) => `<p>${escapeHtml(entry)}</p>`).join("");
-  const more = entries.length > 4
-    ? `<p class="srd-hover-card__more">+${entries.length - 4} more paragraph${entries.length - 4 === 1 ? "" : "s"}</p>`
-    : "";
-  return visible || `<p>${escapeHtml("No spell description available.")}</p>` + more;
+  return entries.map((entry) => `<p>${escapeHtml(entry)}</p>`).join("")
+    || `<p>${escapeHtml("No spell description available.")}</p>`;
 }
 
 function normalizeDescription(value) {

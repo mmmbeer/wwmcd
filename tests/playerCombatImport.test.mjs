@@ -14,6 +14,7 @@ import { resetsOnShortRest } from "../js/player-combat/rules/restRules.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
 import { getWeaponActions } from "../js/player-combat/rules/weaponActions.js";
 import { renderGroup } from "../js/player-combat/ui/actionOptionRenderers.js";
+import { renderSpellDetailCard } from "../js/player-combat/ui/spellDetailCard.js";
 
 test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", () => {
   const raw = {
@@ -250,6 +251,53 @@ test("weapon actions use finesse and spell actions expose attack metadata", () =
   const cantrip = getSpellActions(character, combatState, null)[1];
   assert.equal(cantrip.cost.bonus, true);
   assert.equal(cantrip.spell.range, "Touch");
+});
+
+test("spell long descriptions prefer the full reference spell effect", () => {
+  const character = {
+    stats: { wis: 16 },
+    combat: { proficiencyBonus: 2 },
+    resources: { spellSlots: { 1: 2 } },
+    spells: {
+      spellcastingAbility: "wis",
+      saveDc: 13,
+      prepared: [{
+        name: "Bless",
+        level: 1,
+        castingTime: "1 action",
+        description: "Level 1 - V, S, M - Concentration"
+      }],
+      known: [],
+      cantrips: []
+    }
+  };
+  const referenceData = {
+    indexes: {
+      spellIndexByName: new Map([["bless", {
+        name: "Bless",
+        level: 1,
+        type: "1st-level enchantment",
+        casting_time: "1 action",
+        range: "30 feet",
+        components: { raw: "V, S, M" },
+        duration: "Concentration, up to 1 minute",
+        description: [
+          "You bless up to three creatures of your choice within range.",
+          "Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled."
+        ].join("\n\n"),
+        higher_levels: "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature."
+      }]])
+    }
+  };
+
+  const [spell] = getSpellActions(character, baseCombatState(), referenceData);
+  const detailHtml = renderSpellDetailCard(spell);
+
+  assert.ok(spell.spell.reference.description.includes("roll a d4"));
+  assert.equal(spell.spell.reference.description.includes("Level 1 - V, S, M"), false);
+  assert.ok(detailHtml.includes("roll a d4"));
+  assert.ok(detailHtml.includes("At Higher Levels"));
+  assert.equal(detailHtml.includes("srd-hover-card__more"), false);
 });
 
 test("condition rules block movement and add simple roll warnings", () => {

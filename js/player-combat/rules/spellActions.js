@@ -19,7 +19,9 @@ function createSpellOption(character, combatState, referenceData, spell, referen
   const level = normalizeSpellLevel(spell.level ?? reference.level);
   const castingTime = normalizeCastingTime(spell.castingTime ?? reference.casting_time ?? spell.activation ?? spell.activationType ?? "1 action");
   const cost = costFromCastingTime(castingTime);
-  const description = String(spell.description ?? reference.description ?? "");
+  const importedDescription = normalizeDescription(spell.description);
+  const referenceDescription = normalizeDescription(reference.description);
+  const description = referenceDescription || importedDescription;
   const attackBonus = spell.attackBonus ?? character?.spells?.attackBonus ?? spellAttackBonus(character);
   const saveDc = spell.saveDc ?? character?.spells?.saveDc ?? null;
   const roll = spellRoll(character, spell, description, attackBonus);
@@ -69,11 +71,17 @@ function createSpellOption(character, combatState, referenceData, spell, referen
         components: reference.components,
         duration,
         description,
-        higher_levels: reference.higher_levels
+        higher_levels: reference.higher_levels ?? spell.higher_levels
       }
     }
   };
   return applySpellFeatureRiders(option, { character, combatState, referenceData });
+}
+
+function normalizeDescription(value) {
+  if (Array.isArray(value)) return value.map(normalizeDescription).filter(Boolean).join("\n\n");
+  if (value && typeof value === "object") return normalizeDescription(value.content ?? value.description ?? value.text ?? "");
+  return String(value ?? "");
 }
 
 function normalizeCastingTime(value) {

@@ -1,6 +1,111 @@
 # Development Plan
 
-## Current Session: Recommendation Wizard
+## Current Session: Recommendation Wizard Decision Tree
+
+### Implemented
+
+- Added Big Bad and Big Bad + Minions to the live Recommendation wizard Situation dropdown.
+- Updated the live Range dropdown to Melee, Near (< 30 ft), Long (30-90 ft), and Far (> 90 ft).
+- Added the live DC dropdown with Easy, Medium, Hard, and Deadly.
+- Flowed the new situation answers into recommendation scoring:
+  - Big Bad boosts reliable single-target pressure, control, and meaningful resource use.
+  - Big Bad + Minions boosts area damage/control and mixed priority-target pressure.
+- Flowed the new range bands into scoring with numeric range parsing from option and spell metadata.
+- Flowed DC into scoring and turn-set composition:
+  - Easy favors low-resource options.
+  - Hard and Deadly raise the value of control, defense, attacks, and impactful resource use.
+  - Hard and Deadly can include defensive reactions in balanced turn sets.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Range classification still depends on available normalized range metadata or parseable range text.
+- DC is treated as encounter difficulty pressure, not a monster saving throw DC or enemy AC model.
+- Tactical source metadata sidecar files are still planned but not implemented in this session.
+
+### Manual Test Checklist
+
+1. Open the Recommendation tab and confirm Situation includes Big Bad and Big Bad + Minions.
+2. Confirm Range includes Melee, Near (< 30 ft), Long (30-90 ft), and Far (> 90 ft).
+3. Confirm DC includes Easy, Medium, Hard, and Deadly.
+4. Compare Big Bad + Minions against Multiple foes and confirm area/control options become more prominent.
+5. Set Range to Long and confirm melee-only options drop below compatible ranged options.
+6. Set DC to Deadly and confirm defensive/control/resource options are more likely to appear in recommended turn sets.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationScoring.js`
+- `node --test tests\recommendationScoring.test.mjs`
+
+## Current Session: Recommendation Wizard Extension Plan
+
+### Implemented
+
+- Extended the recommendation wizard plan with Big Bad and Big Bad + Minions situations.
+- Updated range planning to use Melee, Near (< 30 ft), Long (30-90 ft), and Far (> 90 ft).
+- Added an encounter DC selector concept for Easy, Medium, Hard, and Deadly recommendation pressure.
+- Added a tactical source-metadata plan for enriching spells, feats, items, equipment, class features, and race features without mutating generated source datasets directly.
+- Documented examples for penalizing low-combat utility spells such as Light and boosting rogue advantage/Sneak Attack/Elven Accuracy workflows.
+
+### Files Changed
+
+- `docs/recommendation-wizard-plan.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- This session updated planning documentation only; scorer implementation and JSON metadata files remain future work.
+
+### Manual Test Checklist
+
+1. Open `docs/recommendation-wizard-plan.md` and confirm the wizard controls include Situation, Range, DC, Resources, Rolls, and Concentration.
+2. Confirm the tactical metadata section describes sidecar JSON files and example metadata for Light, Hide, and Elven Accuracy.
+3. During implementation, verify the scorer degrades to existing heuristic behavior when tactical metadata is missing.
+
+### Verification Completed
+
+- Documentation-only change; no automated tests were run.
+
+## Current Session: Full Spell Long Descriptions
+
+### Implemented
+
+- Spell action options now prefer the full `data/spells.json` reference description for long-form spell details when a matching reference spell is available.
+- Expanded spell details, recommendation set details, and spell tab details now use the actual spell effect text instead of imported metadata-only descriptions.
+- Spell reference cards no longer truncate descriptions after four paragraphs.
+
+### Files Changed
+
+- `js/player-combat/rules/spellActions.js`
+- `js/player-combat/ui/spellDetailCard.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Full reference descriptions depend on a name match between the imported spell and `data/spells.json`; unmatched spells still fall back to the imported description.
+
+### Manual Test Checklist
+
+1. Import a spellcaster with prepared spells that match `data/spells.json`.
+2. Open Recommendation and expand a recommended turn set containing a spell; confirm the spell effect text is visible.
+3. Open Actions/Bonus/Reaction for spell options and expand the row; confirm Long Description shows the spell effect.
+4. Open the Spells tab and expand a spell; confirm Long Description and Spell Reference include the full effect and higher-level text when available.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\spellActions.js`
+- `node --check js\player-combat\ui\spellDetailCard.js`
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg -n "alert\(|prompt\(|confirm\(" js\player-combat -S` returned no matches.
+
+## Previous Session: Recommendation Wizard
 
 ### Implemented
 
