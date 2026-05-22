@@ -134,7 +134,7 @@ test("imports fillable PDF form fields into the player normalizer shape", () => 
   assert.equal(character.classes[0].name, "Cleric");
   assert.equal(character.classes[0].level, 3);
   assert.equal(character.combat.maxHp, 24);
-  assert.equal(character.combat.currentHp, 18);
+  assert.equal(character.combat.currentHp, 24);
   assert.equal(character.combat.tempHp, 5);
   assert.equal(character.combat.ac, 17);
   assert.equal(character.combat.speed.walk, 25);
@@ -743,10 +743,12 @@ test("long rest resets tracked spell slots and limited resources", () => {
   };
 
   stateManager.importCharacter(character);
+  stateManager.updateCombatState({ current: { hp: 3 } });
   stateManager.setSpellSlotUsed(1, 1);
   stateManager.setClassResourceUsed("resource-arcane-recovery", 1);
   stateManager.takeLongRest();
 
+  assert.equal(stateManager.getCombatState().current.hp, 20);
   assert.deepEqual(stateManager.getCombatState().resourcesUsed.spellSlots, {});
   assert.deepEqual(stateManager.getCombatState().resourcesUsed.classResources, {});
   assert.ok(stateManager.getCombatState().log[0].message.includes("Long rest"));

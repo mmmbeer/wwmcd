@@ -117,12 +117,11 @@ function extractStats(root, warnings) {
 function extractCombat(root, stats, level) {
   const dexModifier = Math.floor((stats.dex - 10) / 2);
   const maxHp = numberAt(root, ["baseHitPoints", "hitPoints.max", "combat.hitPoints.max", "combat.maxHp"], 0);
-  const currentHp = numberAt(root, ["currentHp", "hitPoints.current", "combat.hitPoints.current", "combat.currentHp"], maxHp);
   const speed = extractSpeed(root);
 
   return {
     maxHp,
-    currentHp,
+    currentHp: maxHp,
     tempHp: numberAt(root, ["temporaryHitPoints", "hitPoints.temp", "combat.hitPoints.temp", "combat.tempHp"], 0),
     ac: numberAt(root, ["armorClass", "combat.armorClass", "combat.ac"], 10 + dexModifier),
     initiativeBonus: numberAt(root, ["initiative", "combat.initiative"], dexModifier),

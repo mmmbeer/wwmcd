@@ -2754,3 +2754,29 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --test tests\*.test.mjs`
 - `git diff --check`
+
+### Long Rest HP Restore and Import HP Initialization
+
+- Character imports now initialize current HP from the sheet's total/max HP instead of preserving a lower current-HP field from the sheet.
+- Long Rest now restores current combat-state HP to the active character's max HP while continuing to reset spell slots and limited resources.
+- The base normalized character remains separate from combat state; damage and healing still update only `combatState.current.hp`.
+
+### Files Changed
+
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/core/stateManager.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Long Rest restores normal hit points only; temporary HP is left unchanged by this change.
+- Import-time current HP intentionally ignores sheet damage. Players can still adjust current HP after import through the combat controls.
+
+### Manual Test Steps
+
+1. Import a fillable character sheet where `CurrentHP` is lower than `MaxHP`.
+2. Confirm the status bar and combat state show current HP equal to max HP after import.
+3. Lower current HP in the combat controls.
+4. Tap `Long Rest` and confirm current HP returns to max HP.
+5. Confirm spell slots and limited resources still reset after Long Rest.

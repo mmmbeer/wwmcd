@@ -265,11 +265,17 @@ export function createStateManager({ storage, eventBus }) {
 
   function takeLongRest() {
     const state = getCombatState();
-    if (!state) return;
+    const character = getActiveCharacter();
+    if (!state || !character) return;
+    const maxHp = Number(character.combat?.maxHp ?? 0);
     combatStates[activeCharacterId] = addLogEntry({
       ...state,
+      current: {
+        ...state.current,
+        hp: Number.isFinite(maxHp) ? maxHp : state.current.hp
+      },
       resourcesUsed: resetLongRestResources(state.resourcesUsed)
-    }, "Long rest: spell slots and limited resources reset.");
+    }, "Long rest: hit points, spell slots, and limited resources reset.");
     persistCombatStates();
     emitChange();
   }
