@@ -101,7 +101,7 @@ function renderRowCells(option, rowKind, selected) {
   if (rowKind === "attack") {
     return `
       ${renderCostBadge(option)}
-      <span class="type-badge type-free">${escapeHtml(attackModeLabel(option).toLowerCase())}</span>
+      ${renderTypeBadge(attackModeLabel(option).toLowerCase())}
       ${renderNameCell(option)}
       <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
       <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
@@ -154,12 +154,17 @@ function renderCostBadge(option) {
 
 function renderSourceBadge(option) {
   const source = option.source === "basic" ? "basic" : option.source === "feature" ? "feature" : option.spell ? "spell" : String(option.source || "basic").toLowerCase();
-  return `<span class="type-badge type-free">${escapeHtml(source)}</span>`;
+  return renderTypeBadge(source);
 }
 
 function renderConcentrationCell(option) {
   if (!option.spell?.concentration) return `<span class="concentration-cell" aria-hidden="true"></span>`;
   return `<span class="concentration-cell concentration-badge" title="Requires concentration" aria-label="Requires concentration">C</span>`;
+}
+
+function renderTypeBadge(type) {
+  const key = String(type || "basic").toLowerCase();
+  return `<span class="type-badge type-${escapeHtml(key)}">${escapeHtml(key)}</span>`;
 }
 
 function renderLog(label, combatState) {
