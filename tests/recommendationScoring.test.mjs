@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  getDefaultRecommendationAnswers,
   getRankedRecommendations,
   getRankedRecommendationSets,
   getRecommendationQuestionConfig
@@ -22,6 +23,10 @@ test("damage goal ranks damaging attacks above support options", () => {
 
   assert.equal(ranked[0].option.name, "Greataxe");
   assert.ok(ranked[0].reasons.includes("High damage"));
+});
+
+test("default recommendation goal is damage", () => {
+  assert.equal(getDefaultRecommendationAnswers().goal, "damage");
 });
 
 test("support goal ranks healing and aid effects above weapon damage", () => {
@@ -345,6 +350,49 @@ test("hit prerequisites block misclassified bonus riders after non-attack action
 
   assert.ok(holdPersonSet);
   assert.ok(!holdPersonSet.pieces.some((piece) => piece.entry.option.name === "Divine Smite"));
+});
+
+test("recommendation sets do not pair two leveled spells in one turn", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_hold_person",
+        name: "Hold Person",
+        source: "spell",
+        description: "Paralyze a humanoid that fails a Wisdom saving throw.",
+        spell: { level: 2, castingTime: "1 action", castingCost: "action", range: "60 feet", concentration: true },
+        cost: { action: true, resource: { type: "spellSlot", level: 2 } },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "spell_misty_step",
+        name: "Misty Step",
+        source: "spell",
+        description: "Briefly surrounded by silvery mist, you teleport up to 30 feet.",
+        spell: { level: 2, castingTime: "1 bonus action", castingCost: "bonus", range: "Self" },
+        cost: { bonus: true, resource: { type: "spellSlot", level: 2 } },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "feature_quick_rally",
+        name: "Quick Rally",
+        source: "feature",
+        description: "Use a bonus action to help an ally.",
+        cost: { bonus: true },
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "control", resources: "spend" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "control", resources: "spend" } });
+  const holdPersonSet = sets.find((set) => set.pieces[0].entry.option.name === "Hold Person");
+
+  assert.ok(holdPersonSet);
+  assert.ok(!holdPersonSet.pieces.some((piece) => piece.entry.option.name === "Misty Step"));
 });
 
 test("attack-action prerequisite bonus features only pair after attacks", () => {

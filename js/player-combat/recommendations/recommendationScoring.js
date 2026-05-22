@@ -6,7 +6,7 @@ import {
 export { getRankedRecommendationSets } from "./recommendationSets.js";
 
 const DEFAULT_ANSWERS = {
-  goal: "balanced",
+  goal: "damage",
   situation: "single",
   distance: "unknown",
   difficulty: "medium",

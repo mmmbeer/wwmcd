@@ -1,5 +1,65 @@
 # Development Plan
 
+## Current Session: Leveled Spell Recommendation Pairing
+
+### Implemented
+
+- Added a recommendation-set compatibility check that prevents any set from containing more than one leveled spell.
+- Applied the check to bonus actions, reactions, free/special pieces, movement, and extra attack selection through a shared helper.
+- Added regression coverage for the reported `Hold Person` plus bonus-action `Misty Step` pairing.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationSets.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- This follows the app's existing simplified rule of one leveled spell per turn. It does not model the full 5e bonus-action spell rule separately.
+
+### Manual Test Checklist
+
+1. Open recommendations for a character with `Hold Person` and `Misty Step`.
+2. Confirm a `Hold Person` turn set does not include `Misty Step` as a bonus action.
+3. Confirm non-spell bonus actions can still pair with `Hold Person` when otherwise compatible.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationSets.js`
+- `node --test tests\recommendationScoring.test.mjs`
+
+## Current Session: Damage Recommendation Default
+
+### Implemented
+
+- Changed the Recommendation wizard default goal from `Balanced` to `Damage`.
+- Updated recommendation turn-set defaults so generated set titles and reaction inclusion behavior use the same damage-first default.
+- Added regression coverage for the default recommendation goal.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `js/player-combat/recommendations/recommendationSets.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Users can still switch the wizard goal back to Balanced, Support, Control, Defense, or Mobility when those options are available.
+
+### Manual Test Checklist
+
+1. Open the Recommendation tab on a fresh page load.
+2. Confirm the Goal dropdown defaults to `Damage`.
+3. Confirm initial recommended turn sets are titled as damage turns when applicable.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationScoring.js`
+- `node --check js\player-combat\recommendations\recommendationSets.js`
+- `node --test tests\recommendationScoring.test.mjs`
+
 ## Current Session: Act Now Turn Queue Audit
 
 ### Implemented

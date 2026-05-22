@@ -6,7 +6,7 @@ import {
 } from "./recommendationPrerequisites.js";
 
 const DEFAULT_ANSWERS = {
-  goal: "balanced",
+  goal: "damage",
   situation: "single",
   difficulty: "medium"
 };
@@ -30,16 +30,16 @@ export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
     const attackCount = attackActionCount(primary.option);
     const pieces = [piece(attackCount > 1 ? "Attack 1" : slotForOption(primary.option), primary)];
     addExtraAttacks(pieces, primary, attackActions, attackCount);
-    const nextBonus = firstDifferent(bonus.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
-    const nextRider = firstDifferent(riders.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
-    const nextSpecial = firstDifferent(special.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
-    const nextMove = firstDifferent(movement, pieces);
-    const nextFree = free.filter((entry) => !pieces.some((item) => item.entry.option.id === entry.option.id)).slice(0, 2);
+    const nextBonus = firstCompatible(bonus.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
+    const nextRider = firstCompatible(riders.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
+    const nextSpecial = firstCompatible(special.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
+    const nextMove = firstCompatible(movement, pieces);
+    const nextFree = free.filter((entry) => canAddEntry(entry, pieces)).slice(0, 2);
     const wantsReaction = resolvedAnswers.goal === "defense"
       || resolvedAnswers.situation === "self"
       || resolvedAnswers.difficulty === "hard"
       || resolvedAnswers.difficulty === "deadly";
-    const nextReaction = wantsReaction ? firstDifferent(reactions, pieces) : null;
+    const nextReaction = wantsReaction ? firstCompatible(reactions, pieces) : null;
 
     if (nextRider) pieces.push(piece("Rider", nextRider));
     if (nextSpecial) pieces.push(piece("Special", nextSpecial));
@@ -64,7 +64,7 @@ export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
 function addExtraAttacks(pieces, primary, attackActions, attackCount) {
   if (attackCount <= 1 || !isAttackAction(primary.option)) return;
   for (let index = 2; index <= attackCount; index += 1) {
-    const next = firstDifferent(attackActions, pieces) ?? primary;
+    const next = firstCompatible(attackActions, pieces) ?? primary;
     pieces.push(piece(`Attack ${index}`, next));
   }
 }
@@ -97,8 +97,18 @@ function isTrueFreeOption(option) {
   return TRUE_FREE_ACTIONS.test(option.name);
 }
 
-function firstDifferent(entries, pieces) {
-  return entries.find((entry) => !pieces.some((piece) => piece.entry.option.id === entry.option.id));
+function firstCompatible(entries, pieces) {
+  return entries.find((entry) => canAddEntry(entry, pieces));
+}
+
+function canAddEntry(entry, pieces) {
+  if (pieces.some((piece) => piece.entry.option.id === entry.option.id)) return false;
+  if (isLeveledSpell(entry.option) && pieces.some((piece) => isLeveledSpell(piece.entry.option))) return false;
+  return true;
+}
+
+function isLeveledSpell(option) {
+  return Boolean(option?.spell) && Number(option.spell?.level ?? 0) > 0;
 }
 
 function piece(slot, entry) {
