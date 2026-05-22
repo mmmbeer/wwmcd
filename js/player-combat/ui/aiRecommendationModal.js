@@ -12,12 +12,12 @@ export function openAiRecommendationModal({
   answers,
   showToast,
   openSettings,
-  onPlanOption
+  onRecommendations
 }) {
   const body = document.createElement("div");
   body.className = "ai-recommendation-modal";
   body.innerHTML = renderInitialBody({ settings: getAiSettings(storage), answers });
-  bindEvents(body, { storage, snapshot, groups, recommendationSets, answers, showToast, openSettings, onPlanOption });
+  bindEvents(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, openSettings, onRecommendations });
   modalApi.showModal({
     title: "AI Recommendations",
     body,
@@ -50,29 +50,24 @@ function renderInitialBody({ settings, answers }) {
       <span class="busy-spinner" aria-hidden="true"></span>
       <strong>Getting recommendations...</strong>
     </div>
-    <div data-ai-results></div>
+    <div data-ai-status></div>
   `;
 }
 
 function bindEvents(body, services) {
   body.querySelector("[data-ai-open-settings]")?.addEventListener("click", () => services.openSettings?.());
   body.querySelector("[data-ai-get-recommendations]")?.addEventListener("click", () => requestRecommendations(body, services));
-  body.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-ai-plan-option]");
-    if (!button) return;
-    services.onPlanOption?.(button.dataset.aiPlanOption);
-  });
 }
 
-async function requestRecommendations(body, { storage, snapshot, groups, recommendationSets, answers, showToast }) {
+async function requestRecommendations(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, onRecommendations }) {
   const settings = getAiSettings(storage);
   const button = body.querySelector("[data-ai-get-recommendations]");
   const loading = body.querySelector("[data-ai-loading]");
-  const results = body.querySelector("[data-ai-results]");
+  const status = body.querySelector("[data-ai-status]");
   const notes = body.querySelector("[data-ai-notes]")?.value ?? "";
 
   setBusy({ button, loading, busy: true });
-  results.innerHTML = "";
+  status.innerHTML = "";
 
   try {
     const context = buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes: notes });
@@ -81,62 +76,15 @@ async function requestRecommendations(body, { storage, snapshot, groups, recomme
       model: settings.groqModel,
       context
     });
-    results.innerHTML = renderAiRecommendationSets(recommendations);
+    onRecommendations?.(recommendations);
+    modalApi.close();
+    showToast?.({ type: "success", message: "AI recommendations updated." });
   } catch (error) {
-    results.innerHTML = `<p class="inline-message error">${escapeHtml(error.message)}</p>`;
+    status.innerHTML = `<p class="inline-message error">${escapeHtml(error.message)}</p>`;
     showToast?.({ type: "error", message: error.message });
   } finally {
     setBusy({ button, loading, busy: false });
   }
-}
-
-function renderAiRecommendationSets(sets) {
-  if (!sets.length) return `<p class="inline-message">AI did not return any recommendation sets.</p>`;
-  return `
-    <section class="recommendation-sets ai-recommendation-results" aria-label="AI recommended turn sets">
-      <div class="action-list-toolbar">
-        <span class="section-label">AI Ranked Turn Sets</span>
-      </div>
-      <div class="recommendation-set-list">
-        ${sets.map(renderAiSet).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderAiSet(set) {
-  return `
-    <article class="recommendation-set-card">
-      <div class="recommendation-set-card__head">
-        <span class="recommendation-rank">#${escapeHtml(set.rank)}</span>
-        <div>
-          <strong>${escapeHtml(set.title)}</strong>
-          <small>${escapeHtml(set.score)} pts</small>
-        </div>
-      </div>
-      ${set.summary ? `<p class="ai-recommendation-summary">${escapeHtml(set.summary)}</p>` : ""}
-      <div class="recommendation-set-pieces">
-        ${set.pieces.map(renderAiPiece).join("")}
-      </div>
-      ${set.reasons.length ? `
-        <div class="recommendation-set-reasons">
-          ${set.reasons.map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
-        </div>
-      ` : ""}
-      ${set.warnings.length ? `<p class="inline-message warning">${escapeHtml(set.warnings.join(" "))}</p>` : ""}
-    </article>
-  `;
-}
-
-function renderAiPiece(piece) {
-  const canPlan = Boolean(piece.optionId);
-  return `
-    <button class="recommendation-set-piece" type="button" ${canPlan ? `data-ai-plan-option="${escapeHtml(piece.optionId)}"` : "disabled"}>
-      <span>${escapeHtml(piece.slot)}</span>
-      <strong>${escapeHtml(piece.name)}</strong>
-      ${piece.explanation ? `<small>${escapeHtml(piece.explanation)}</small>` : ""}
-    </button>
-  `;
 }
 
 function summaryItem(label, value) {

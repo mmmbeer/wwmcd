@@ -9,7 +9,10 @@
 - Added an `AI` button to the Recommendation Wizard header after a Groq key is saved.
 - Added an AI recommendation modal that captures user tactical notes, includes the wizard answers, and sends a compact app context covering combat state, resources, conditions, spell slots, features, traits, equipment, spell lists, attacks, available options, and deterministic turn-set recommendations.
 - Added a Groq chat service that requests structured ranked turn-plan JSON with actions, bonus actions, reactions, explanations, reasons, and warnings.
-- Rendered AI results with the existing recommendation set card pattern; matched AI action pieces can be added to the planned turn through the existing validation path.
+- Rendered AI results directly in the Recommendation tab after the request completes, replacing the deterministic recommendation list until the wizard answers change.
+- Marked AI-sourced turn sets and pieces with visible `AI` / `AI Recommendation` labels.
+- Kept the `Getting recommendations...` spinner hidden until the player clicks `Get Recommendations`.
+- Matched AI action pieces can be added to the planned turn through the existing validation path.
 - Added focused test coverage for the AI context payload shape.
 
 ### Files Changed
@@ -39,7 +42,7 @@
 2. Save a Groq API key and confirm the menu shows `AI Options (saved)`.
 3. Load models, select a model, close the modal, and confirm the Recommendation Wizard header shows the `AI` button.
 4. Open AI recommendations, enter tactical notes, click `Get Recommendations`, and confirm the inline spinner appears while the request is in flight.
-5. Confirm ranked AI turn sets render with explanations, reasons, warnings, and action pieces.
+5. Confirm ranked AI turn sets render in the Recommendation tab, not only inside the modal, with explanations, reasons, warnings, and action pieces.
 6. Click a matched AI action piece and confirm it stages in the planned turn using the same availability and concentration validation as normal recommendations.
 7. Refresh the page and confirm the saved key/model remain available locally.
 

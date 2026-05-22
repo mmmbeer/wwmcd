@@ -10,6 +10,7 @@ import { getPlannedTurn, selectPlannedOption, validatePlannedOption } from "./pl
 import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
+  renderAiRecommendationSets,
   renderRecommendationSets,
   renderRecommendationWizardPanel
 } from "./recommendationWizardPanel.js";
@@ -39,6 +40,8 @@ let lastRender = null;
 let cachedSnapshot = null;
 let cachedGroups = null;
 let cachedPlanKey = "";
+let aiRecommendationSets = [];
+let aiRecommendationCharacterId = null;
 
 export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast, storage, openAiSettings }) {
   const services = { stateManager, modalApi, showToast, storage, openAiSettings };
@@ -48,8 +51,14 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   const combatState = snapshot.combatState;
 
   if (!character || !combatState) {
+    aiRecommendationSets = [];
+    aiRecommendationCharacterId = null;
     root.innerHTML = `<p class="inline-message">Combat options appear after character import.</p>`;
     return;
+  }
+  if (aiRecommendationCharacterId && aiRecommendationCharacterId !== character.id) {
+    aiRecommendationSets = [];
+    aiRecommendationCharacterId = null;
   }
 
   const groups = getCachedGroups(snapshot);
@@ -71,7 +80,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     <div class="option-tabs">
       ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasGroqApiKey(storage) }) : ""}
       ${visibleGroup === "recommended"
-    ? renderRecommendationSets(recommendationSets)
+    ? aiRecommendationSets.length ? renderAiRecommendationSets(aiRecommendationSets) : renderRecommendationSets(recommendationSets)
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
@@ -112,7 +121,10 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     });
   });
 
-  bindRecommendationWizardEvents(root, () => renderActionTabs(root, snapshot, services), {
+  bindRecommendationWizardEvents(root, () => {
+    aiRecommendationSets = [];
+    renderActionTabs(root, snapshot, services);
+  }, {
     onAiClick: () => openAiRecommendationModal({
       modalApi: services.modalApi,
       storage: services.storage,
@@ -131,7 +143,12 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       answers: getRecommendationAnswers(),
       showToast: services.showToast,
       openSettings: services.openAiSettings,
-      onPlanOption: (optionId) => selectPlanOptionById(optionId, groups, combatState, services)
+      onRecommendations: (sets) => {
+        aiRecommendationSets = sets;
+        aiRecommendationCharacterId = snapshot.activeCharacter?.id ?? null;
+        selectedGroup = "recommended";
+        renderActionTabs(root, snapshot, services);
+      }
     })
   });
 

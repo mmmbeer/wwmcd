@@ -2256,8 +2256,32 @@ body.has-turn-progress .app-shell {
   font-size: 0.82rem;
 }
 
+.ai-loading[hidden] {
+  display: none;
+}
+
 .ai-recommendation-results .recommendation-set-list {
   max-height: min(56vh, 620px);
+}
+
+.ai-recommendation-card {
+  border-color: rgba(93, 169, 233, 0.42);
+  background:
+    linear-gradient(180deg, rgba(93, 169, 233, 0.09), rgba(0, 0, 0, 0.12)),
+    var(--bg-row);
+}
+
+.ai-recommendation-badge {
+  flex: 0 0 auto;
+  border: 1px solid rgba(93, 169, 233, 0.45);
+  border-radius: var(--radius-sm);
+  background: rgba(93, 169, 233, 0.14);
+  color: var(--accent-blue);
+  padding: 4px 6px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .ai-recommendation-summary {

@@ -84,6 +84,23 @@ export function renderRecommendationSets(sets) {
   `;
 }
 
+export function renderAiRecommendationSets(sets) {
+  const cards = sets.length
+    ? sets.map(renderAiRecommendationSet).join("")
+    : `<p class="inline-message">No AI recommendation sets are available right now.</p>`;
+  return `
+    <section class="recommendation-sets action-list-shell ai-recommendation-results" aria-label="AI recommended turn sets">
+      <div class="action-list-toolbar">
+        <span class="section-label">AI Recommended Turn Sets</span>
+        <span class="ai-recommendation-badge">AI Recommendation</span>
+      </div>
+      <div class="recommendation-set-list">
+        ${cards}
+      </div>
+    </section>
+  `;
+}
+
 function renderRecommendationSet(set) {
   return `
     <article class="recommendation-set-card">
@@ -98,6 +115,31 @@ function renderRecommendationSet(set) {
         ${set.pieces.map(renderSetPiece).join("")}
       </div>
       ${renderSetDetails(set)}
+      ${set.reasons.length ? `
+        <div class="recommendation-set-reasons">
+          ${set.reasons.map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
+        </div>
+      ` : ""}
+      ${set.warnings.length ? `<p class="inline-message warning">${escapeHtml(set.warnings.join(" "))}</p>` : ""}
+    </article>
+  `;
+}
+
+function renderAiRecommendationSet(set) {
+  return `
+    <article class="recommendation-set-card ai-recommendation-card">
+      <div class="recommendation-set-card__head">
+        <span class="recommendation-rank">#${escapeHtml(set.rank)}</span>
+        <div>
+          <strong>${escapeHtml(set.title)}</strong>
+          <small>AI recommendation${set.score ? ` - ${escapeHtml(set.score)} pts` : ""}</small>
+        </div>
+        <span class="ai-recommendation-badge">AI</span>
+      </div>
+      ${set.summary ? `<p class="ai-recommendation-summary">${escapeHtml(set.summary)}</p>` : ""}
+      <div class="recommendation-set-pieces">
+        ${set.pieces.map(renderAiSetPiece).join("")}
+      </div>
       ${set.reasons.length ? `
         <div class="recommendation-set-reasons">
           ${set.reasons.map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
@@ -131,6 +173,17 @@ function renderSetPiece(piece) {
     <button class="recommendation-set-piece" type="button" data-plan-option="${escapeHtml(option.id)}">
       <span>${escapeHtml(piece.slot)}</span>
       <strong>${escapeHtml(option.name)}</strong>
+    </button>
+  `;
+}
+
+function renderAiSetPiece(piece) {
+  const canPlan = Boolean(piece.optionId);
+  return `
+    <button class="recommendation-set-piece ai-recommendation-piece" type="button" ${canPlan ? `data-plan-option="${escapeHtml(piece.optionId)}"` : "disabled"}>
+      <span>${escapeHtml(piece.slot)} - AI</span>
+      <strong>${escapeHtml(piece.name)}</strong>
+      ${piece.explanation ? `<small>${escapeHtml(piece.explanation)}</small>` : ""}
     </button>
   `;
 }
