@@ -2,6 +2,7 @@ import {
   listAvailableReferenceFiles,
   loadReferenceDataFile
 } from "./referenceDataLoader.js";
+import { loadRecommendationMetadata } from "./recommendationMetadataLoader.js";
 import { normalizeName, transformCombatData } from "./combatDataTransformer.js";
 
 let cache = null;
@@ -22,10 +23,16 @@ export async function loadReferenceData() {
   }
 
   const transformed = transformCombatData(data);
+  const recommendations = await loadRecommendationMetadata();
   for (const status of statuses) {
     status.count = transformed.counts[status.name] ?? status.count;
   }
-  cache = { data, statuses, ...transformed };
+  cache = {
+    data,
+    statuses: [...statuses, ...recommendations.statuses],
+    recommendations: recommendations.metadata,
+    ...transformed
+  };
   return cache;
 }
 

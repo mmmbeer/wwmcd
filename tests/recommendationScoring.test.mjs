@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -6,6 +7,8 @@ import {
   getRankedRecommendationSets,
   getRecommendationQuestionConfig
 } from "../js/player-combat/recommendations/recommendationScoring.js";
+
+const tacticalMetadata = loadTacticalMetadata();
 
 test("damage goal ranks damaging attacks above support options", () => {
   const ranked = getRankedRecommendations({
@@ -220,6 +223,186 @@ test("recommendation sets combine compatible action economy pieces", () => {
   assert.ok(sets[0].pieces.some((piece) => piece.slot === "Move"));
 });
 
+test("Light is penalized in normal combat recommendations", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_light",
+        name: "Light",
+        source: "spell",
+        description: "Cantrip - Touch",
+        spell: { level: 0, range: "Touch" },
+        cost: { action: true },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "spell_fire_bolt",
+        name: "Fire Bolt",
+        source: "spell",
+        description: "Make a ranged spell attack.",
+        spell: { level: 0, range: "120 feet" },
+        cost: { action: true },
+        rolls: [
+          { id: "spellAttack", type: "attack", formula: "1d20+6" },
+          { id: "damage", type: "damage", formula: "1d10" }
+        ],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    tacticalMetadata
+  });
+
+  assert.equal(ranked[0].option.name, "Fire Bolt");
+  const light = ranked.find((entry) => entry.option.name === "Light");
+  assert.ok(light.score < ranked[0].score);
+  assert.ok(light.reasons.includes("Low-combat utility; usually cast before combat."));
+});
+
+test("Rogue Hide advantage setup is boosted when Sneak Attack is present", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "basic_hide",
+        name: "Hide",
+        source: "basic",
+        description: "Make a Dexterity (Stealth) check when you have cover or concealment.",
+        cost: { action: true },
+        rolls: [{ id: "stealth", type: "check", formula: "1d20+7" }],
+        available: true
+      },
+      {
+        id: "basic_search",
+        name: "Search",
+        source: "basic",
+        description: "Make a Wisdom (Perception) check.",
+        cost: { action: true },
+        rolls: [{ id: "perception", type: "check", formula: "1d20+2" }],
+        available: true
+      }
+    ]),
+    character: rogueCharacter(),
+    combatState: baseCombatState(),
+    answers: { situation: "bigBad", distance: "far" },
+    tacticalMetadata
+  });
+
+  assert.equal(ranked[0].option.name, "Hide");
+  assert.ok(ranked[0].reasons.includes("Hide can set up advantage for Sneak Attack."));
+  assert.ok(ranked[0].reasons.some((reason) => reason.includes("Sneak Attack")));
+});
+
+test("Elven Accuracy explains advantage synergy when applicable", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "feature_elven_accuracy",
+        name: "Elven Accuracy",
+        source: "feature",
+        tags: ["feat", "feature"],
+        description: "When you have advantage on an attack roll, reroll one die.",
+        cost: {},
+        rolls: [],
+        available: true
+      }
+    ]),
+    character: rogueCharacter(),
+    combatState: baseCombatState(),
+    answers: { situation: "bigBad", rollMode: "advantage" },
+    tacticalMetadata
+  });
+
+  assert.ok(ranked[0].reasons.includes("Elven Accuracy amplifies advantage."));
+  assert.ok(ranked[0].reasons.some((reason) => reason.includes("Sneak Attack")));
+});
+
+test("Big Bad boosts boss pressure options", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "feature_stunning_strike",
+        name: "Stunning Strike",
+        source: "feature",
+        description: "After a melee weapon hit, spend 1 Ki to try to stun the target.",
+        tags: ["feature", "attack"],
+        cost: { resource: { type: "classResource", id: "ki", amount: 1 } },
+        rolls: [],
+        available: true,
+        meta: ["CON save DC 15"]
+      },
+      {
+        id: "burning-hands",
+        name: "Burning Hands",
+        source: "spell",
+        description: "Each creature in a cone takes fire damage.",
+        spell: { level: 1, range: "Self" },
+        cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [{ id: "damage", type: "damage", formula: "3d6" }],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "control", situation: "bigBad", resources: "spend", difficulty: "deadly" },
+    tacticalMetadata
+  });
+
+  assert.equal(ranked[0].option.name, "Stunning Strike");
+  assert.ok(ranked[0].reasons.includes("Stun can swing a boss turn."));
+  assert.ok(ranked[0].reasons.includes("Big Bad pressure"));
+});
+
+test("Big Bad plus Minions boosts area and minion-clear options from metadata", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "fireball",
+        name: "Fireball",
+        source: "spell",
+        description: "A bright streak flashes to a point you choose.",
+        spell: { level: 3, range: "150 feet" },
+        cost: { action: true, resource: { type: "spellSlot", level: 3 } },
+        rolls: [{ id: "damage", type: "damage", formula: "8d6" }],
+        available: true
+      },
+      {
+        id: "guiding-bolt",
+        name: "Guiding Bolt",
+        source: "spell",
+        description: "A ranged spell attack against one target.",
+        spell: { level: 1, range: "120 feet" },
+        cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [
+          { id: "attack", type: "attack", formula: "1d20+6" },
+          { id: "damage", type: "damage", formula: "4d6" }
+        ],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", situation: "bigBadMinions", resources: "spend" },
+    tacticalMetadata
+  });
+
+  assert.equal(ranked[0].option.name, "Fireball");
+  assert.ok(ranked[0].reasons.includes("Signature area burst for minion clearing."));
+});
+
+test("missing tactical metadata does not break recommendations", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4"),
+      support("help", "Help Ally")
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage" },
+    tacticalMetadata: {}
+  });
+
+  assert.equal(ranked[0].option.name, "Longsword");
+  assert.equal(ranked.length, 2);
+});
+
 function groupsWith(options) {
   return {
     recommended: options,
@@ -287,4 +470,32 @@ function baseCombatState() {
     current: { concentration: null, conditions: [] },
     resourcesUsed: { spellSlots: {}, classResources: {} }
   };
+}
+
+function rogueCharacter() {
+  return {
+    features: {
+      class: [{ name: "Sneak Attack", description: "Once per turn, deal extra damage." }],
+      feats: [{ name: "Elven Accuracy", description: "When you have advantage, reroll one die." }],
+      race: [],
+      other: []
+    },
+    race: { features: [] },
+    classes: [{ name: "Rogue", level: 5, features: [{ name: "Sneak Attack" }] }]
+  };
+}
+
+function loadTacticalMetadata() {
+  return {
+    spellTactics: readJson("data/recommendations/spellTactics.json"),
+    featTactics: readJson("data/recommendations/featTactics.json"),
+    itemTactics: readJson("data/recommendations/itemTactics.json"),
+    equipmentTactics: readJson("data/recommendations/equipmentTactics.json"),
+    classFeatureTactics: readJson("data/recommendations/classFeatureTactics.json"),
+    raceFeatureTactics: readJson("data/recommendations/raceFeatureTactics.json")
+  };
+}
+
+function readJson(path) {
+  return JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), "utf8"));
 }

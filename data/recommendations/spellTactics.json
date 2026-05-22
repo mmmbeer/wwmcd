@@ -1,0 +1,188 @@
+{
+  "Absorb Elements": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["defense", "reactionProtection"],
+    "goodSituations": ["self", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["allyInDanger"],
+    "reasonBoosts": ["Emergency elemental protection."]
+  },
+  "Alarm": {
+    "combatUsefulness": "avoid",
+    "recommendationPenalty": 42,
+    "roles": ["utility"],
+    "badSituations": ["single", "multiple", "bigBad", "bigBadMinions", "ally", "self"],
+    "reasonBoosts": ["Ritual setup is poor mid-combat."]
+  },
+  "Bless": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["support", "advantageAmplifier", "bossDebuff"],
+    "goodSituations": ["bigBad", "ally"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Elven Accuracy", "Great Weapon Master", "Sharpshooter"],
+    "reasonBoosts": ["Improves ally attack pressure."]
+  },
+  "Burning Hands": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["damage", "minionClear"],
+    "goodSituations": ["multiple", "bigBadMinions"],
+    "badSituations": ["bigBad"],
+    "goodRanges": ["melee", "near"],
+    "reasonBoosts": ["Area damage clears clustered minions."]
+  },
+  "Faerie Fire": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["control", "support", "advantageSetup", "bossDebuff"],
+    "goodSituations": ["multiple", "bigBad", "bigBadMinions"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Sets up advantage for weapon attacks."]
+  },
+  "Find Familiar": {
+    "combatUsefulness": "situational",
+    "recommendationPenalty": 24,
+    "roles": ["utility", "advantageSetup"],
+    "goodSituations": ["ally", "bigBad"],
+    "badSituations": ["self"],
+    "synergies": ["Help", "Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Familiar Help can set up advantage if already present."]
+  },
+  "Fireball": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["damage", "minionClear", "nova"],
+    "goodSituations": ["multiple", "bigBadMinions"],
+    "badSituations": ["single"],
+    "goodRanges": ["long", "far"],
+    "goodDifficulties": ["medium", "hard", "deadly"],
+    "reasonBoosts": ["Signature area burst for minion clearing."]
+  },
+  "Greater Invisibility": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 12,
+    "roles": ["support", "defense", "advantageSetup"],
+    "goodSituations": ["self", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Invisibility supports advantage attacks."]
+  },
+  "Guiding Bolt": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["damage", "advantageSetup", "bossDebuff"],
+    "goodSituations": ["single", "bigBad"],
+    "badSituations": ["multiple"],
+    "goodRanges": ["far"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Damages one target and sets up advantage."]
+  },
+  "Haste": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["support", "defense", "mobility", "advantageAmplifier"],
+    "goodSituations": ["ally", "self", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Sneak Attack", "Great Weapon Master", "Sharpshooter"],
+    "reasonBoosts": ["Amplifies a strong attacker."]
+  },
+  "Hold Monster": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["control", "saveOrSuck", "bossDebuff", "advantageSetup"],
+    "goodSituations": ["bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Sneak Attack", "Divine Smite", "Elven Accuracy"],
+    "reasonBoosts": ["High-impact boss control."]
+  },
+  "Hold Person": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 14,
+    "roles": ["control", "saveOrSuck", "bossDebuff", "advantageSetup"],
+    "goodSituations": ["single", "bigBad"],
+    "badSituations": ["multiple"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Sneak Attack", "Divine Smite", "Elven Accuracy"],
+    "reasonBoosts": ["Paralysis can decide a humanoid boss fight."]
+  },
+  "Invisibility": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["utility", "defense", "escape", "advantageSetup"],
+    "goodSituations": ["self", "ally", "bigBad"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Invisibility enables safer positioning and advantage setup."]
+  },
+  "Light": {
+    "combatUsefulness": "avoid",
+    "recommendationPenalty": 48,
+    "roles": ["utility"],
+    "badSituations": ["single", "multiple", "bigBad", "bigBadMinions", "ally", "self"],
+    "badDifficulties": ["medium", "hard", "deadly"],
+    "reasonBoosts": ["Low-combat utility; usually cast before combat."]
+  },
+  "Mending": {
+    "combatUsefulness": "avoid",
+    "recommendationPenalty": 42,
+    "roles": ["utility"],
+    "badSituations": ["single", "multiple", "bigBad", "bigBadMinions", "ally", "self"],
+    "reasonBoosts": ["Repair utility is rarely useful during a turn."]
+  },
+  "Misty Step": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["mobility", "escape"],
+    "goodSituations": ["self", "bigBad"],
+    "goodRanges": ["melee", "near"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Bonus-action escape or reposition."]
+  },
+  "Pass without Trace": {
+    "combatUsefulness": "situational",
+    "recommendationPenalty": 22,
+    "roles": ["utility", "advantageSetup"],
+    "badSituations": ["single", "multiple", "bigBad", "bigBadMinions"],
+    "synergies": ["Hide", "Sneak Attack"],
+    "reasonBoosts": ["Strong before combat, usually weak after initiative."]
+  },
+  "Polymorph": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 16,
+    "roles": ["control", "support", "saveOrSuck", "bossDebuff"],
+    "goodSituations": ["bigBad", "ally", "self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Flexible fight-swinging control or rescue."]
+  },
+  "Shield": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["defense", "reactionProtection"],
+    "goodSituations": ["self", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["allyInDanger"],
+    "reasonBoosts": ["Emergency AC reaction."]
+  },
+  "Sleep": {
+    "combatUsefulness": "situational",
+    "recommendationBonus": 6,
+    "recommendationPenalty": 8,
+    "roles": ["control", "minionClear", "saveOrSuck"],
+    "goodSituations": ["multiple", "bigBadMinions"],
+    "badSituations": ["bigBad"],
+    "goodDifficulties": ["easy", "medium"],
+    "badDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Best against weakened low-HP groups."]
+  },
+  "Web": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 16,
+    "roles": ["control", "advantageSetup", "minionClear", "bossDebuff"],
+    "goodSituations": ["multiple", "bigBadMinions", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Restrained targets feed advantage and area control."]
+  }
+}

@@ -1,3 +1,9 @@
+import {
+  applyTacticalMetadata,
+  enrichOptionWithTactics,
+  tacticalReasons
+} from "./tacticalMetadata.js";
+
 const DEFAULT_ANSWERS = {
   goal: "balanced",
   situation: "single",
@@ -116,9 +122,10 @@ export function getRecommendationQuestionConfig(groups, answers = DEFAULT_ANSWER
   }));
 }
 
-export function getRankedRecommendations({ groups, character, combatState, answers = {} }) {
+export function getRankedRecommendations({ groups, character, combatState, answers = {}, referenceData, tacticalMetadata }) {
   const resolvedAnswers = { ...DEFAULT_ANSWERS, ...answers };
-  const options = collectOptions(groups);
+  const metadata = tacticalMetadata ?? referenceData?.recommendations;
+  const options = collectOptions(groups).map((option) => enrichOptionWithTactics(option, metadata));
   return options
     .map((option) => scoreOption(option, { character, combatState, answers: resolvedAnswers }))
     .sort((a, b) => b.score - a.score || Number(a.option.available === false) - Number(b.option.available === false) || a.option.name.localeCompare(b.option.name))
@@ -191,12 +198,13 @@ function scoreOption(option, context) {
   applyDifficultyAdjustments(categoryScores, option, context.answers);
   applyRollModeAdjustments(categoryScores, option, context.answers);
   applyConcentrationAdjustments(categoryScores, option, context);
+  const tacticalAdjustment = applyTacticalMetadata(categoryScores, option, context);
 
   const weights = GOAL_WEIGHTS[context.answers.goal] ?? GOAL_WEIGHTS.balanced;
   const weighted = Object.entries(weights).reduce((total, [key, weight]) => total + categoryScores[key] * weight, 0);
   const availability = option.available === false ? -140 : 25;
   const base = option.recommended ? 8 : 0;
-  const score = Math.round(weighted + categoryScores.resourceFit + availability + base);
+  const score = Math.round(weighted + categoryScores.resourceFit + tacticalAdjustment + availability + base);
 
   return {
     option,
@@ -233,7 +241,7 @@ function setTitle(option, answers) {
 
 function setReasons(pieces) {
   const reasons = pieces.flatMap((piece) => piece.entry.reasons ?? []);
-  return [...new Set(reasons)].slice(0, 5);
+  return [...new Set(reasons)].slice(0, 6);
 }
 
 function collectOptions(groups) {
@@ -363,6 +371,7 @@ function applyConcentrationAdjustments(scores, option, context) {
 
 function recommendationReasons(option, scores, context) {
   const reasons = [];
+  reasons.push(...tacticalReasons(option, context));
   if (scores.damage >= 30) reasons.push("High damage");
   if (scores.support >= 28) reasons.push("Strong support");
   if (scores.control >= 28) reasons.push("Control option");
@@ -379,7 +388,7 @@ function recommendationReasons(option, scores, context) {
   }
   if (context.answers.distance !== "unknown" && optionRangeBand(option) === context.answers.distance) reasons.push("Range fit");
   if (option.available === false) reasons.push("Currently unavailable");
-  return [...new Set(reasons)].slice(0, 4);
+  return [...new Set(reasons)].slice(0, 6);
 }
 
 function recommendationWarnings(option, context) {

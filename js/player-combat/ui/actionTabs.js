@@ -52,7 +52,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   const groups = getCachedGroups(snapshot);
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   const rankedRecommendations = visibleGroup === "recommended"
-    ? getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers() })
+    ? getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers(), referenceData: snapshot.referenceData })
     : [];
   const recommendationSets = visibleGroup === "recommended"
     ? getRankedRecommendationSets({ rankedEntries: rankedRecommendations, answers: getRecommendationAnswers() })

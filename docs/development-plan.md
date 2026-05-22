@@ -1,5 +1,56 @@
 # Development Plan
 
+## Current Session: Tactical Recommendation Metadata
+
+### Implemented
+
+- Added sidecar tactical recommendation metadata under `data/recommendations/` for spells, feats, items, equipment, class features, and race features.
+- Added a focused recommendation metadata loader that loads sidecar JSON without mutating upstream-style rules data.
+- Enriched normalized combat options with `option.tactics` before recommendation scoring.
+- Applied tactical metadata to score adjustments, roles, reasons, situation/range/difficulty boosts, and character synergy explanations.
+- Preserved existing availability, action economy, resource, and concentration checks; metadata only changes recommendation ranking and explanatory reasons.
+- Added coverage for low-combat utility penalties, rogue Hide/Sneak Attack setup, Elven Accuracy advantage synergy, Big Bad pressure, Big Bad + Minions area pressure, and missing metadata fallback.
+
+### Files Changed
+
+- `data/recommendations/spellTactics.json`
+- `data/recommendations/featTactics.json`
+- `data/recommendations/itemTactics.json`
+- `data/recommendations/equipmentTactics.json`
+- `data/recommendations/classFeatureTactics.json`
+- `data/recommendations/raceFeatureTactics.json`
+- `js/player-combat/data/recommendationMetadataLoader.js`
+- `js/player-combat/data/referenceDataService.js`
+- `js/player-combat/recommendations/tacticalMetadata.js`
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `js/player-combat/ui/actionTabs.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Metadata is a first-pass curated set, not complete coverage for every spell, feat, item, equipment entry, class feature, or race feature.
+- Synergy detection is name-based against normalized character features, so it cannot yet understand every imported feature alias or tactical board state.
+- Requirements such as `advantage`, `hidden`, and `allyInDanger` are explanatory metadata only; the scorer does not treat them as hard prerequisites.
+- Range and situation boosts depend on existing normalized option range and wizard answers.
+
+### Manual Test Checklist
+
+1. Open the Recommendation tab with a caster who knows `Light` and a damage cantrip; confirm `Light` is ranked lower in normal combat and explains its low-combat utility.
+2. Open a rogue character with `Sneak Attack`; set Situation to Big Bad and Range to Far, then confirm `Hide` is promoted as advantage setup.
+3. Add or import `Elven Accuracy`; set Rolls to Advantage and confirm recommendation reasons mention advantage synergy.
+4. Set Situation to Big Bad and confirm boss pressure options such as `Stunning Strike`, `Divine Smite`, `Rage`, or strong single-target attacks rank higher when available.
+5. Set Situation to Big Bad + Minions and confirm area damage/control such as `Fireball`, `Burning Hands`, `Web`, or `Breath Weapon` is promoted.
+6. Confirm unavailable options remain unavailable and still show their existing unavailable reasons.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationScoring.js`
+- `node --check js\player-combat\recommendations\tacticalMetadata.js`
+- `node --check js\player-combat\data\recommendationMetadataLoader.js`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: Recommendation Wizard Decision Tree
 
 ### Implemented

@@ -1,0 +1,27 @@
+{
+  "Potion of Healing": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["support", "defense"],
+    "goodSituations": ["ally", "self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["allyInDanger"],
+    "reasonBoosts": ["Emergency healing item."]
+  },
+  "Scroll of Fireball": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 16,
+    "roles": ["damage", "minionClear", "nova"],
+    "goodSituations": ["multiple", "bigBadMinions"],
+    "goodRanges": ["long", "far"],
+    "reasonBoosts": ["Consumable area burst."]
+  },
+  "Scroll of Shield": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 12,
+    "roles": ["defense", "reactionProtection"],
+    "goodSituations": ["self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Consumable emergency AC."]
+  }
+}

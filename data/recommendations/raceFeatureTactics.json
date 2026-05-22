@@ -1,0 +1,36 @@
+{
+  "Breath Weapon": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 12,
+    "roles": ["damage", "minionClear"],
+    "goodSituations": ["multiple", "bigBadMinions"],
+    "goodRanges": ["melee", "near"],
+    "goodDifficulties": ["medium", "hard"],
+    "reasonBoosts": ["Area racial damage can clear clustered minions."]
+  },
+  "Fey Step": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["mobility", "escape"],
+    "goodSituations": ["self", "bigBad"],
+    "goodRanges": ["melee", "near"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Teleport out of danger or into position."]
+  },
+  "Lucky": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["defense", "advantageAmplifier"],
+    "goodSituations": ["self", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Reroll safety helps important combat rolls."]
+  },
+  "Relentless Endurance": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 16,
+    "roles": ["defense", "reactionProtection"],
+    "goodSituations": ["self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Survive a drop to 0 hit points."]
+  }
+}

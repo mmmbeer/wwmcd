@@ -1,0 +1,40 @@
+{
+  "Elven Accuracy": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 14,
+    "roles": ["advantageAmplifier", "nova", "bossDebuff"],
+    "goodSituations": ["single", "bigBad"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["advantage"],
+    "synergies": ["Sneak Attack", "Hide", "Invisibility", "Faerie Fire", "Guiding Bolt", "Web"],
+    "reasonBoosts": ["Elven Accuracy amplifies advantage."]
+  },
+  "Great Weapon Master": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["damage", "nova", "advantageAmplifier"],
+    "goodSituations": ["bigBad", "single"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["meleeWeapon"],
+    "synergies": ["Reckless Attack", "Bless", "Faerie Fire"],
+    "reasonBoosts": ["High damage when accuracy is supported."]
+  },
+  "Sharpshooter": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["damage", "nova", "advantageAmplifier"],
+    "goodSituations": ["bigBad", "single"],
+    "goodRanges": ["long", "far"],
+    "requires": ["rangedWeapon"],
+    "synergies": ["Hide", "Bless", "Faerie Fire"],
+    "reasonBoosts": ["High ranged pressure when accuracy is supported."]
+  },
+  "War Caster": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["reactionProtection", "advantageAmplifier", "damage"],
+    "goodSituations": ["bigBad"],
+    "synergies": ["Opportunity Attack", "Booming Blade"],
+    "reasonBoosts": ["Improves concentration and reaction spell threats."]
+  }
+}

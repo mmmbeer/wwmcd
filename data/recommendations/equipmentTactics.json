@@ -1,0 +1,49 @@
+{
+  "Dagger": {
+    "combatUsefulness": "normal",
+    "roles": ["damage"],
+    "goodSituations": ["single"],
+    "goodRanges": ["melee", "near"],
+    "synergies": ["Sneak Attack"],
+    "requires": ["meleeWeapon"],
+    "reasonBoosts": ["Finesse weapon can deliver Sneak Attack."]
+  },
+  "Longbow": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 6,
+    "roles": ["damage"],
+    "goodSituations": ["single", "bigBad"],
+    "goodRanges": ["long", "far"],
+    "synergies": ["Sneak Attack", "Sharpshooter", "Elven Accuracy"],
+    "requires": ["rangedWeapon"],
+    "reasonBoosts": ["Long-range weapon pressure."]
+  },
+  "Rapier": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 6,
+    "roles": ["damage"],
+    "goodSituations": ["single", "bigBad"],
+    "goodRanges": ["melee"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "requires": ["meleeWeapon"],
+    "reasonBoosts": ["Strong finesse weapon for Sneak Attack."]
+  },
+  "Shield": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 6,
+    "roles": ["defense"],
+    "goodSituations": ["self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Shield Master"],
+    "reasonBoosts": ["Improves defensive posture."]
+  },
+  "Shortbow": {
+    "combatUsefulness": "normal",
+    "roles": ["damage"],
+    "goodSituations": ["single"],
+    "goodRanges": ["long"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "requires": ["rangedWeapon"],
+    "reasonBoosts": ["Ranged weapon can deliver Sneak Attack."]
+  }
+}

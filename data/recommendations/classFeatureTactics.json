@@ -1,0 +1,103 @@
+{
+  "Action Surge": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["nova", "damage", "advantageAmplifier"],
+    "goodSituations": ["bigBad", "bigBadMinions"],
+    "goodDifficulties": ["hard", "deadly"],
+    "synergies": ["Great Weapon Master", "Sharpshooter", "Sneak Attack"],
+    "reasonBoosts": ["Action Surge enables burst turns."]
+  },
+  "Disengage": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["mobility", "escape", "defense"],
+    "goodSituations": ["self"],
+    "goodRanges": ["melee"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Escape melee pressure without opportunity attacks."]
+  },
+  "Dodge": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 10,
+    "roles": ["defense"],
+    "goodSituations": ["self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Strong defensive emergency action."]
+  },
+  "Divine Smite": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["damage", "nova", "bossDebuff"],
+    "goodSituations": ["bigBad", "single"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["meleeWeapon"],
+    "synergies": ["Hold Person", "Hold Monster", "Elven Accuracy"],
+    "reasonBoosts": ["Reliable burst after a melee hit."]
+  },
+  "Help": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 8,
+    "roles": ["support", "advantageSetup"],
+    "goodSituations": ["ally", "bigBad"],
+    "synergies": ["Sneak Attack", "Elven Accuracy"],
+    "reasonBoosts": ["Sets up an ally's advantage."]
+  },
+  "Hide": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 12,
+    "roles": ["advantageSetup", "defense"],
+    "goodSituations": ["single", "bigBad"],
+    "goodRanges": ["long", "far"],
+    "requires": ["hidden"],
+    "synergies": ["Sneak Attack", "Elven Accuracy", "Sharpshooter"],
+    "reasonBoosts": ["Hide can set up advantage for Sneak Attack."]
+  },
+  "Rage": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 16,
+    "roles": ["damage", "defense", "bossDebuff"],
+    "goodSituations": ["bigBad", "bigBadMinions", "self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["meleeWeapon"],
+    "reasonBoosts": ["Rage improves melee damage and durability."]
+  },
+  "Reckless Attack": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 12,
+    "roles": ["advantageSetup", "damage", "nova"],
+    "goodSituations": ["bigBad", "single"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["meleeWeapon"],
+    "synergies": ["Great Weapon Master"],
+    "reasonBoosts": ["Reliable advantage for melee boss pressure."]
+  },
+  "Sneak Attack": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["damage", "nova", "advantageAmplifier"],
+    "goodSituations": ["single", "bigBad"],
+    "goodDifficulties": ["medium", "hard", "deadly"],
+    "requires": ["advantage"],
+    "synergies": ["Hide", "Help", "Elven Accuracy", "Invisibility", "Faerie Fire", "Guiding Bolt", "Web"],
+    "reasonBoosts": ["Sneak Attack is the rogue's key damage rider."]
+  },
+  "Stunning Strike": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 18,
+    "roles": ["control", "saveOrSuck", "bossDebuff", "advantageSetup"],
+    "goodSituations": ["bigBad", "single"],
+    "goodDifficulties": ["hard", "deadly"],
+    "requires": ["meleeWeapon"],
+    "synergies": ["Flurry of Blows"],
+    "reasonBoosts": ["Stun can swing a boss turn."]
+  },
+  "Uncanny Dodge": {
+    "combatUsefulness": "strong",
+    "recommendationBonus": 12,
+    "roles": ["defense", "reactionProtection"],
+    "goodSituations": ["self"],
+    "goodDifficulties": ["hard", "deadly"],
+    "reasonBoosts": ["Halves a dangerous hit as a reaction."]
+  }
+}
