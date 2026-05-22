@@ -1,10 +1,16 @@
+import {
+  canPairAfterPrimary,
+  isAttackAction,
+  isDependentOption,
+  prerequisiteKind
+} from "./recommendationPrerequisites.js";
+
 const DEFAULT_ANSWERS = {
   goal: "balanced",
   situation: "single",
   difficulty: "medium"
 };
 
-const POST_ATTACK_RIDERS = /\b(divine smite|sneak attack|stunning strike|great weapon master: heavy attack)\b/i;
 const TRUE_FREE_ACTIONS = /\b(speak|drop an item|drop item|drop prone|stop concentrating|end concentration|object interaction)\b/i;
 
 export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
@@ -14,14 +20,17 @@ export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
   const bonus = available.filter((entry) => entry.option.cost?.bonus);
   const reactions = available.filter((entry) => entry.option.cost?.reaction);
   const movement = available.filter((entry) => entry.option.cost?.movement || entry.option.group === "movement");
+  const attackActions = actions.filter((entry) => isAttackAction(entry.option));
   const free = available.filter((entry) => isTrueFreeOption(entry.option));
   const riders = available.filter((entry) => isPostAttackRider(entry.option));
   const special = available.filter((entry) => isSpecialNoActionOption(entry.option));
   const primaries = actions.length ? actions : available.filter((entry) => !entry.option.cost?.reaction).slice(0, 4);
 
   return primaries.slice(0, 5).map((primary, index) => {
-    const pieces = [piece("Action", primary)];
-    const nextBonus = firstDifferent(bonus, pieces);
+    const attackCount = attackActionCount(primary.option);
+    const pieces = [piece(attackCount > 1 ? "Attack 1" : slotForOption(primary.option), primary)];
+    addExtraAttacks(pieces, primary, attackActions, attackCount);
+    const nextBonus = firstDifferent(bonus.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
     const nextRider = firstDifferent(riders.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
     const nextSpecial = firstDifferent(special.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
     const nextMove = firstDifferent(movement, pieces);
@@ -52,25 +61,33 @@ export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
   }).sort((a, b) => b.score - a.score).map((set, index) => ({ ...set, rank: index + 1 }));
 }
 
+function addExtraAttacks(pieces, primary, attackActions, attackCount) {
+  if (attackCount <= 1 || !isAttackAction(primary.option)) return;
+  for (let index = 2; index <= attackCount; index += 1) {
+    const next = firstDifferent(attackActions, pieces) ?? primary;
+    pieces.push(piece(`Attack ${index}`, next));
+  }
+}
+
+function attackActionCount(option) {
+  return Math.max(1, Number(option.attack?.count ?? 1));
+}
+
 function canFollowPrimary(option, primary) {
-  if (requiresAttackAction(option)) return isAttackAction(primary);
-  return true;
-}
-
-function requiresAttackAction(option) {
-  return POST_ATTACK_RIDERS.test(option.name) || /\bafter (?:a|an|the)?\s*(?:melee |ranged |weapon )?(?:weapon )?hit\b/i.test(optionText(option));
-}
-
-function isAttackAction(option) {
-  return Boolean(option.cost?.action) && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+  return canPairAfterPrimary(option, primary);
 }
 
 function isPostAttackRider(option) {
-  return requiresAttackAction(option) && !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction && !option.cost?.movement;
+  return (prerequisiteKind(option) === "hit" || prerequisiteKind(option) === "weaponHit")
+    && !option.cost?.action
+    && !option.cost?.bonus
+    && !option.cost?.reaction
+    && !option.cost?.movement;
 }
 
 function isSpecialNoActionOption(option) {
   if (isTrueFreeOption(option) || isPostAttackRider(option)) return false;
+  if (isDependentOption(option)) return false;
   return !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction && !option.cost?.movement && !option.cost?.object;
 }
 
@@ -88,6 +105,15 @@ function piece(slot, entry) {
   return { slot, entry };
 }
 
+function slotForOption(option) {
+  if (option.cost?.action) return "Action";
+  if (option.cost?.bonus) return "Bonus";
+  if (option.cost?.reaction) return "Reaction";
+  if (option.cost?.movement || option.group === "movement") return "Move";
+  if (isTrueFreeOption(option)) return "Free";
+  return "Special";
+}
+
 function setTitle(option, answers) {
   const goal = {
     balanced: "Balanced turn",
@@ -103,13 +129,4 @@ function setTitle(option, answers) {
 function setReasons(pieces) {
   const reasons = pieces.flatMap((piece) => piece.entry.reasons ?? []);
   return [...new Set(reasons)].slice(0, 6);
-}
-
-function optionText(option) {
-  return [
-    option.description,
-    option.longDescription,
-    option.featureAction?.description,
-    ...(option.meta ?? [])
-  ].filter(Boolean).join(" ");
 }

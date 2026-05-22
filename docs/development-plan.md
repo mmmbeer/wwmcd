@@ -1,5 +1,77 @@
 # Development Plan
 
+## Current Session: Multiattack Recommendation Sets
+
+### Implemented
+
+- Recommendation sets now read `option.attack.count` from weapon/special attack options.
+- Characters with Extra Attack or similar multiple-attack metadata now get `Attack 1`, `Attack 2`, and additional attack pieces in recommended turn sets.
+- Additional attack pieces use the next ranked compatible attack option when available, falling back to the same attack if it is the only option.
+- Recommendation set labels now derive from actual option cost for the primary piece, so action-cost Wild Shape is labeled `Action` and bonus-action Wild Shape is labeled `Bonus`, not `Special`.
+- Added regression coverage for multiple-attack recommendations and Wild Shape slot labeling.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationSets.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Multiple attacks are represented in recommendation sets as separate recommended pieces, but the planned-turn state still stores a single Attack action selection.
+- The composer does not yet model target-specific per-attack choices, advantage state changes between attacks, or on-hit branching per individual attack.
+
+### Manual Test Checklist
+
+1. Import or simulate a character with `Extra Attack`.
+2. Open Recommendation and confirm a weapon Attack turn set shows `Attack 1` and `Attack 2`.
+3. Confirm a non-Moon druid's `Wild Shape` appears as `Action`.
+4. Confirm a Moon druid or `Combat Wild Shape` option appears as `Bonus`.
+5. Confirm no `Wild Shape` recommendation piece is labeled `Special` when it has an action or bonus cost.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationSets.js`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Current Session: Recommendation Prerequisite Pairing
+
+### Implemented
+
+- Added a focused prerequisite helper for recommendation set composition.
+- Applied prerequisite checks to bonus, rider, and special set pieces.
+- Blocked hit-dependent options such as `Divine Smite`, `Sneak Attack`, `Stunning Strike`, and similar "after/when/on hit" effects from pairing after non-attack actions such as `Hold Person`.
+- Blocked Attack-action prerequisite features from pairing after non-Attack actions.
+- Treated uncertain trigger follow-ups such as critical-hit or kill-trigger options as not guaranteed for planned recommendation sets.
+- Added regression coverage for the reported `Hold Person` plus `Divine Smite` pairing, including a misclassified bonus-action Divine Smite option.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationPrerequisites.js`
+- `js/player-combat/recommendations/recommendationSets.js`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Prerequisite detection is still text/name based; it covers common combat prerequisite wording but is not a complete formal parser for every feature and spell.
+- The recommendation set composer remains conservative for trigger-only options because it does not know whether a crit, kill, opportunity trigger, or similar event has already occurred.
+
+### Manual Test Checklist
+
+1. Open recommendations with `Hold Person` and `Divine Smite`; confirm the `Hold Person` turn set does not include `Divine Smite`.
+2. Confirm `Divine Smite` can still appear as a rider after a compatible weapon Attack action.
+3. Confirm `Shield Master: Shove` or similar Attack-action follow-ups only pair after an Attack action.
+4. Confirm critical-hit or kill-trigger bonus options are not treated as guaranteed bonus actions in planned recommendation sets.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationPrerequisites.js`
+- `node --check js\player-combat\recommendations\recommendationSets.js`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: Spell Casting-Time Recommendation Filter
 
 ### Implemented

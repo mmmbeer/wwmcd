@@ -223,6 +223,58 @@ test("recommendation sets combine compatible action economy pieces", () => {
   assert.ok(sets[0].pieces.some((piece) => piece.slot === "Move"));
 });
 
+test("recommendation sets show multiple attacks from Extra Attack metadata", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4", { attackCount: 2 }),
+      attack("handaxe", "Handaxe", "1d6+4", { attackCount: 2 })
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "damage" } });
+  const attackSet = sets.find((set) => set.pieces[0].slot === "Attack 1");
+
+  assert.ok(attackSet);
+  assert.ok(attackSet.pieces.some((piece) => piece.slot === "Attack 2"));
+});
+
+test("wild shape recommendation pieces use action economy labels, not Special", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "feature_wild_shape",
+        name: "Wild Shape",
+        source: "feature",
+        description: "Assume a beast form you have seen before.",
+        tags: ["druid", "feature", "shapechange"],
+        cost: { action: true, resource: { type: "classResource", id: "wild-shape", amount: 1 } },
+        resource: "Wild Shape",
+        rolls: [],
+        available: true
+      },
+      {
+        id: "feature_combat_wild_shape",
+        name: "Wild Shape",
+        source: "feature",
+        description: "Assume a beast form you have seen before.",
+        tags: ["druid", "feature", "shapechange"],
+        cost: { bonus: true, resource: { type: "classResource", id: "wild-shape", amount: 1 } },
+        resource: "Wild Shape",
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "defense", resources: "spend" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "defense", resources: "spend" } });
+  const labels = sets.flatMap((set) => set.pieces.filter((piece) => piece.entry.option.name === "Wild Shape").map((piece) => piece.slot));
+
+  assert.ok(labels.includes("Action") || labels.includes("Bonus"));
+  assert.ok(!labels.includes("Special"));
+});
+
 test("post-attack riders only follow compatible Attack actions in recommendation sets", () => {
   const ranked = getRankedRecommendations({
     groups: groupsWith([
@@ -259,6 +311,76 @@ test("post-attack riders only follow compatible Attack actions in recommendation
   assert.ok(hasteSet);
   assert.ok(!hasteSet.pieces.some((piece) => piece.entry.option.name === "Divine Smite"));
   assert.ok(attackSet.pieces.some((piece) => piece.slot === "Rider" && piece.entry.option.name === "Divine Smite"));
+});
+
+test("hit prerequisites block misclassified bonus riders after non-attack actions", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_hold_person",
+        name: "Hold Person",
+        source: "spell",
+        description: "A humanoid must make a Wisdom saving throw or be paralyzed.",
+        spell: { level: 2, castingTime: "1 action", castingCost: "action", range: "60 feet", concentration: true },
+        cost: { action: true, resource: { type: "spellSlot", level: 2 } },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "feature_divine_smite_bonus_bug",
+        name: "Divine Smite",
+        source: "feature",
+        description: "After a melee weapon hit, spend a spell slot for radiant damage.",
+        tags: ["paladin", "feature", "damage", "melee"],
+        cost: { bonus: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [{ id: "smiteDamage", type: "damage", formula: "2d8" }],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "control", resources: "spend" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "control", resources: "spend" } });
+  const holdPersonSet = sets.find((set) => set.pieces[0].entry.option.name === "Hold Person");
+
+  assert.ok(holdPersonSet);
+  assert.ok(!holdPersonSet.pieces.some((piece) => piece.entry.option.name === "Divine Smite"));
+});
+
+test("attack-action prerequisite bonus features only pair after attacks", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4"),
+      {
+        id: "spell_hold_person",
+        name: "Hold Person",
+        source: "spell",
+        description: "A humanoid must make a Wisdom saving throw or be paralyzed.",
+        spell: { level: 2, castingTime: "1 action", castingCost: "action", range: "60 feet", concentration: true },
+        cost: { action: true, resource: { type: "spellSlot", level: 2 } },
+        rolls: [],
+        available: true
+      },
+      {
+        id: "feature_shield_master_shove",
+        name: "Shield Master: Shove",
+        source: "feature",
+        description: "After taking the Attack action, shove a creature within 5 feet as a bonus action.",
+        tags: ["feat", "shove"],
+        cost: { bonus: true },
+        rolls: [{ id: "athletics", type: "check", formula: "1d20+6" }],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "control" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "control" } });
+  const attackSet = sets.find((set) => set.pieces[0].entry.option.name === "Longsword");
+  const holdPersonSet = sets.find((set) => set.pieces[0].entry.option.name === "Hold Person");
+
+  assert.ok(attackSet.pieces.some((piece) => piece.slot === "Bonus" && piece.entry.option.name === "Shield Master: Shove"));
+  assert.ok(!holdPersonSet.pieces.some((piece) => piece.entry.option.name === "Shield Master: Shove"));
 });
 
 test("spells and attack riders are not labeled as free actions", () => {
@@ -542,7 +664,7 @@ function groupsWith(options) {
   };
 }
 
-function attack(id, name, damage) {
+function attack(id, name, damage, { attackCount = 1 } = {}) {
   return {
     id,
     name,
@@ -551,6 +673,7 @@ function attack(id, name, damage) {
     tags: ["attack", "weapon", "melee"],
     cost: { action: true },
     range: { type: "melee", label: "5 ft", normal: 5 },
+    attack: { count: attackCount, consumesAttackAction: true },
     rolls: [
       { id: "attack", type: "attack", formula: "1d20+7" },
       { id: "damage", type: "damage", formula: damage, damageType: "slashing" }
