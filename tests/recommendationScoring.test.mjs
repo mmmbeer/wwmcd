@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   getRankedRecommendations,
+  getRankedRecommendationSets,
   getRecommendationQuestionConfig
 } from "../js/player-combat/recommendations/recommendationScoring.js";
 
@@ -107,6 +108,40 @@ test("wizard questions adapt to available spells, resources, and concentration",
   assert.ok(questions.some((question) => question.id === "resources"));
   assert.ok(questions.some((question) => question.id === "concentration"));
   assert.ok(questions.find((question) => question.id === "goal").options.some(([value]) => value === "support"));
+});
+
+test("recommendation sets combine compatible action economy pieces", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      attack("longsword", "Longsword", "1d8+4"),
+      {
+        id: "second-wind",
+        name: "Second Wind",
+        source: "feature",
+        description: "Recover hit points as a bonus action.",
+        cost: { bonus: true },
+        rolls: [{ id: "healing", type: "healing", formula: "1d10+5" }],
+        available: true
+      },
+      {
+        id: "movement_walk",
+        name: "Move",
+        source: "basic",
+        group: "movement",
+        description: "Move up to your speed.",
+        cost: { movement: true },
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "balanced" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "balanced" } });
+
+  assert.equal(sets[0].pieces[0].slot, "Action");
+  assert.ok(sets[0].pieces.some((piece) => piece.slot === "Bonus" && piece.entry.option.name === "Second Wind"));
+  assert.ok(sets[0].pieces.some((piece) => piece.slot === "Move"));
 });
 
 function groupsWith(options) {

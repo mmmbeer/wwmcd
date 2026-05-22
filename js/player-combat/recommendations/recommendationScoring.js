@@ -123,6 +123,41 @@ export function getRankedRecommendations({ groups, character, combatState, answe
     }));
 }
 
+export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
+  const resolvedAnswers = { ...DEFAULT_ANSWERS, ...answers };
+  const available = rankedEntries.filter((entry) => entry.option.available !== false);
+  const actions = available.filter((entry) => entry.option.cost?.action);
+  const bonus = available.filter((entry) => entry.option.cost?.bonus);
+  const reactions = available.filter((entry) => entry.option.cost?.reaction);
+  const movement = available.filter((entry) => entry.option.cost?.movement || entry.option.group === "movement");
+  const free = available.filter((entry) => isFreeOption(entry.option));
+  const primaries = actions.length ? actions : available.filter((entry) => !entry.option.cost?.reaction).slice(0, 4);
+
+  return primaries.slice(0, 5).map((primary, index) => {
+    const pieces = [piece("Action", primary)];
+    const nextBonus = firstDifferent(bonus, pieces);
+    const nextMove = firstDifferent(movement, pieces);
+    const nextFree = free.filter((entry) => !pieces.some((item) => item.entry.option.id === entry.option.id)).slice(0, 2);
+    const nextReaction = resolvedAnswers.goal === "defense" ? firstDifferent(reactions, pieces) : null;
+
+    if (nextBonus) pieces.push(piece("Bonus", nextBonus));
+    nextFree.forEach((entry) => pieces.push(piece("Free", entry)));
+    if (nextMove) pieces.push(piece("Move", nextMove));
+    if (nextReaction) pieces.push(piece("Reaction", nextReaction));
+
+    const score = Math.round(pieces.reduce((total, item, pieceIndex) => total + item.entry.score * (pieceIndex ? 0.45 : 1), 0));
+    return {
+      id: `recommendation-set-${index + 1}`,
+      rank: index + 1,
+      score,
+      title: setTitle(primary.option, resolvedAnswers),
+      pieces,
+      reasons: setReasons(pieces),
+      warnings: [...new Set(pieces.flatMap((item) => item.entry.warnings ?? []))].slice(0, 3)
+    };
+  }).sort((a, b) => b.score - a.score).map((set, index) => ({ ...set, rank: index + 1 }));
+}
+
 function scoreOption(option, context) {
   const categoryScores = {
     damage: damageScore(option, context),
@@ -150,6 +185,35 @@ function scoreOption(option, context) {
     reasons: recommendationReasons(option, categoryScores, context),
     warnings: recommendationWarnings(option, context)
   };
+}
+
+function isFreeOption(option) {
+  return option.group === "free" || option.cost?.object || (!option.cost?.action && !option.cost?.bonus && !option.cost?.reaction && !option.cost?.movement);
+}
+
+function firstDifferent(entries, pieces) {
+  return entries.find((entry) => !pieces.some((piece) => piece.entry.option.id === entry.option.id));
+}
+
+function piece(slot, entry) {
+  return { slot, entry };
+}
+
+function setTitle(option, answers) {
+  const goal = {
+    balanced: "Balanced turn",
+    damage: "Damage turn",
+    support: "Support turn",
+    control: "Control turn",
+    defense: "Defensive turn",
+    mobility: "Mobility turn"
+  }[answers.goal] ?? "Recommended turn";
+  return `${goal}: ${option.name}`;
+}
+
+function setReasons(pieces) {
+  const reasons = pieces.flatMap((piece) => piece.entry.reasons ?? []);
+  return [...new Set(reasons)].slice(0, 5);
 }
 
 function collectOptions(groups) {

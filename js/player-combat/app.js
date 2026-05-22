@@ -24,6 +24,8 @@ export async function createPlayerCombatApp() {
     appTitle: document.querySelector("#app-title"),
     headerCharacter: document.querySelector("#header-character"),
     headerActions: document.querySelector("#header-actions"),
+    utilityMenuButton: document.querySelector("#utility-menu-button"),
+    utilityMenu: document.querySelector("#utility-menu"),
     importLauncher: document.querySelector("#import-launcher"),
     turnPanel: document.querySelector("#turn-economy-panel"),
     spellcastingBar: document.querySelector("#spellcasting-bar"),
@@ -36,6 +38,7 @@ export async function createPlayerCombatApp() {
   const render = (snapshot) => {
     latestSnapshot = snapshot;
     renderHeaderIdentity(roots, snapshot);
+    renderUtilityMenu(roots, snapshot, { stateManager, modalApi, showToast, busyApi });
     renderHeaderActions(roots.headerActions, snapshot, { stateManager, modalApi, showToast, busyApi });
     renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast, busyApi });
     renderTurnEconomyPanel(roots.turnPanel, snapshot, { stateManager, modalApi });
@@ -146,12 +149,10 @@ function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast
   }
 
   root.innerHTML = `
-    <button class="btn btn-secondary" type="button" data-header-action="import">Import</button>
     <button class="btn btn-secondary" type="button" data-header-action="short-rest">Short Rest</button>
     <button class="btn btn-secondary" type="button" data-header-action="long-rest">Long Rest</button>
   `;
 
-  root.querySelector("[data-header-action='import']").addEventListener("click", () => openImportModal({ modalApi, stateManager, showToast, busyApi }));
   root.querySelector("[data-header-action='short-rest']")?.addEventListener("click", async (event) => {
     showTransitionNotice(event.currentTarget, shortRestNotice(snapshot.activeCharacter, snapshot.combatState));
     await busyApi.run("Taking short rest...", () => stateManager.takeShortRest());
@@ -160,6 +161,43 @@ function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast
     showTransitionNotice(event.currentTarget, longRestNotice(snapshot.activeCharacter, snapshot.combatState));
     await busyApi.run("Taking long rest...", () => stateManager.takeLongRest());
   });
+}
+
+function renderUtilityMenu(roots, snapshot, { stateManager, modalApi, showToast, busyApi }) {
+  const button = roots.utilityMenuButton;
+  const menu = roots.utilityMenu;
+  if (!button || !menu) return;
+
+  menu.innerHTML = `
+    <button class="utility-menu-item" type="button" data-menu-action="import">
+      ${snapshot.activeCharacter ? "Import / Replace Character" : "Import Character"}
+    </button>
+  `;
+
+  if (!renderUtilityMenu.bound) {
+    renderUtilityMenu.bound = true;
+    button.addEventListener("click", () => {
+      const open = button.getAttribute("aria-expanded") === "true";
+      setUtilityMenuOpen(button, menu, !open);
+    });
+    document.addEventListener("click", (event) => {
+      if (event.target === button || menu.contains(event.target)) return;
+      setUtilityMenuOpen(button, menu, false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setUtilityMenuOpen(button, menu, false);
+    });
+  }
+
+  menu.querySelector("[data-menu-action='import']")?.addEventListener("click", () => {
+    setUtilityMenuOpen(button, menu, false);
+    openImportModal({ modalApi, stateManager, showToast, busyApi });
+  });
+}
+
+function setUtilityMenuOpen(button, menu, open) {
+  button.setAttribute("aria-expanded", String(open));
+  menu.hidden = !open;
 }
 
 function renderImportLauncher(root, snapshot, { stateManager, modalApi, showToast, busyApi }) {

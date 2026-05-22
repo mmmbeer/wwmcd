@@ -23,37 +23,23 @@ export function resetRecommendationAnswers() {
 
 export function renderRecommendationWizardPanel(groups, rankedEntries) {
   const questions = getRecommendationQuestionConfig(groups, recommendationAnswers);
-  const top = rankedEntries.slice(0, 3);
   return `
     <section class="recommendation-wizard" aria-label="Recommendation wizard">
       <div class="recommendation-wizard__header">
-        <div>
-          <span class="section-label">Recommendation Wizard</span>
-          <p>Answer the tactical prompts to rank available options.</p>
-        </div>
-        <button class="btn btn-secondary" type="button" data-recommendation-reset>Reset</button>
+        <span class="section-label">Recommendation Wizard</span>
       </div>
-      <div class="recommendation-questions">
+      <div class="recommendation-questions" aria-label="Recommendation filters">
         ${questions.map(renderQuestion).join("")}
+        <button class="btn btn-secondary recommendation-reset" type="button" data-recommendation-reset>Reset</button>
       </div>
-      ${top.length ? `
-        <div class="recommendation-topline" aria-label="Top recommendations">
-          ${top.map((entry) => `
-            <span class="recommendation-top-chip">
-              <strong>#${entry.rank}</strong>
-              ${escapeHtml(entry.option.name)}
-            </span>
-          `).join("")}
-        </div>
-      ` : ""}
     </section>
   `;
 }
 
 export function bindRecommendationWizardEvents(root, onChange) {
-  root.querySelectorAll("[data-recommendation-answer]").forEach((button) => {
-    button.addEventListener("click", () => {
-      updateRecommendationAnswer(button.dataset.recommendationAnswer, button.dataset.recommendationValue);
+  root.querySelectorAll("[data-recommendation-answer]").forEach((select) => {
+    select.addEventListener("change", () => {
+      updateRecommendationAnswer(select.dataset.recommendationAnswer, select.value);
       onChange();
     });
   });
@@ -66,20 +52,62 @@ export function bindRecommendationWizardEvents(root, onChange) {
 
 function renderQuestion(question) {
   return `
-    <fieldset class="recommendation-question">
-      <legend>${escapeHtml(question.label)}</legend>
-      <div class="recommendation-choice-group">
+    <label class="recommendation-question">
+      <span>${escapeHtml(question.label)}</span>
+      <select data-recommendation-answer="${escapeHtml(question.id)}">
         ${question.options.map(([value, label]) => `
-          <button
-            class="recommendation-choice ${question.value === value ? "is-selected" : ""}"
-            type="button"
-            data-recommendation-answer="${escapeHtml(question.id)}"
-            data-recommendation-value="${escapeHtml(value)}"
-            aria-pressed="${question.value === value ? "true" : "false"}">
-            ${escapeHtml(label)}
-          </button>
+          <option value="${escapeHtml(value)}" ${question.value === value ? "selected" : ""}>${escapeHtml(label)}</option>
         `).join("")}
+      </select>
+    </label>
+  `;
+}
+
+export function renderRecommendationSets(sets) {
+  const cards = sets.length
+    ? sets.map(renderRecommendationSet).join("")
+    : `<p class="inline-message">No compatible recommendation sets are available right now.</p>`;
+  return `
+    <section class="recommendation-sets action-list-shell" aria-label="Recommended turn sets">
+      <div class="action-list-toolbar">
+        <span class="section-label">Recommended Turn Sets</span>
       </div>
-    </fieldset>
+      <div class="recommendation-set-list">
+        ${cards}
+      </div>
+    </section>
+  `;
+}
+
+function renderRecommendationSet(set) {
+  return `
+    <article class="recommendation-set-card">
+      <div class="recommendation-set-card__head">
+        <span class="recommendation-rank">#${escapeHtml(set.rank)}</span>
+        <div>
+          <strong>${escapeHtml(set.title)}</strong>
+          <small>${escapeHtml(set.score)} pts</small>
+        </div>
+      </div>
+      <div class="recommendation-set-pieces">
+        ${set.pieces.map(renderSetPiece).join("")}
+      </div>
+      ${set.reasons.length ? `
+        <div class="recommendation-set-reasons">
+          ${set.reasons.map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
+        </div>
+      ` : ""}
+      ${set.warnings.length ? `<p class="inline-message warning">${escapeHtml(set.warnings.join(" "))}</p>` : ""}
+    </article>
+  `;
+}
+
+function renderSetPiece(piece) {
+  const option = piece.entry.option;
+  return `
+    <button class="recommendation-set-piece" type="button" data-plan-option="${escapeHtml(option.id)}">
+      <span>${escapeHtml(piece.slot)}</span>
+      <strong>${escapeHtml(option.name)}</strong>
+    </button>
   `;
 }

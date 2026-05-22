@@ -1,5 +1,8 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { getRankedRecommendations } from "../recommendations/recommendationScoring.js";
+import {
+  getRankedRecommendations,
+  getRankedRecommendationSets
+} from "../recommendations/recommendationScoring.js";
 import { findOption } from "./actionOptionHandlers.js";
 import { resolveActionRoll } from "./actionRollModal.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
@@ -7,6 +10,7 @@ import { selectPlannedOption, validatePlannedOption } from "./plannedTurnState.j
 import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
+  renderRecommendationSets,
   renderRecommendationWizardPanel
 } from "./recommendationWizardPanel.js";
 import { escapeHtml } from "./renderUtils.js";
@@ -50,6 +54,9 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   const rankedRecommendations = visibleGroup === "recommended"
     ? getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers() })
     : [];
+  const recommendationSets = visibleGroup === "recommended"
+    ? getRankedRecommendationSets({ rankedEntries: rankedRecommendations, answers: getRecommendationAnswers() })
+    : [];
   const baseOptions = visibleGroup === "recommended"
     ? rankedRecommendations.map((entry) => entry.option).slice(0, 8)
     : groups[visibleGroup] ?? [];
@@ -60,7 +67,9 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     </nav>
     <div class="option-tabs">
       ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations) : ""}
-      ${renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
+      ${visibleGroup === "recommended"
+    ? renderRecommendationSets(recommendationSets)
+    : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
 

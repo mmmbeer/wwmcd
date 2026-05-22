@@ -4,15 +4,20 @@
 
 ### Implemented
 
+- Changed the Recommendation wizard controls from chip groups to horizontal dropdowns with Reset at the end.
+- Replaced the individual recommendation list on the Recommendation tab with ranked turn-set cards that combine compatible action, bonus, free, movement, and relevant reaction options.
+- Moved Import / Replace Character out of the header action group and into the upper-left hamburger menu.
 - Added a compact wizard to the existing Recommendation tab.
 - Ranked combat options from the current `getCombatOptions()` pipeline using tactical answers for goal, situation, range, resources, roll context, and concentration preference.
-- Added rank, score, and reason chips to recommended action rows without changing the existing action selection, roll modal, concentration warning, or planned-turn flows.
+- Added rank, score, and reason chips to recommendation UI without changing the existing action selection, roll modal, concentration warning, or planned-turn flows.
 - Added a focused recommendation wizard plan at `docs/recommendation-wizard-plan.md`.
 
 ### Files Changed
 
 - `css/player-combat.css`
+- `index.html`
 - `js/player-combat/recommendations/recommendationScoring.js`
+- `js/player-combat/app.js`
 - `js/player-combat/ui/actionTabs.js`
 - `js/player-combat/ui/mobileActionList.js`
 - `js/player-combat/ui/recommendationWizardPanel.js`
@@ -28,11 +33,12 @@
 ### Manual Test Checklist
 
 1. Open the Recommendation tab and confirm the wizard appears above the ranked action list.
-2. Change Goal, Situation, Range, Resources, Rolls, and Concentration choices and confirm rankings update immediately.
-3. Select a recommended attack and confirm the existing roll modal opens before the option is added to the planned turn.
-4. Select a recommended concentration spell while concentrating and confirm the concentration warning still appears.
+2. Change Goal, Situation, Range, Resources, Rolls, and Concentration dropdowns and confirm ranked turn sets update immediately.
+3. Select a recommended attack inside a turn set and confirm the existing roll modal opens before the option is added to the planned turn.
+4. Select a recommended concentration spell inside a turn set while concentrating and confirm the concentration warning still appears.
 5. Toggle Available only and confirm unavailable recommendations hide without breaking rankings.
-6. Confirm the UI remains usable on a narrow mobile viewport.
+6. Open the upper-left hamburger menu and confirm Import / Replace Character opens the import modal.
+7. Confirm the UI remains usable on a narrow mobile viewport.
 
 ### Verification Completed
 
@@ -40,12 +46,13 @@
 - `node --check js\player-combat\ui\recommendationWizardPanel.js`
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\app.js`
 - `node --test tests\recommendationScoring.test.mjs`
 - `node --test tests\playerCombatActions.test.mjs`
 - `node --test tests\playerCombatImport.test.mjs`
 - `node --test tests\*.test.mjs`
 - `rg -n "alert\(|prompt\(|confirm\(" js\player-combat -S` returned no matches.
-- Confirmed touched UI/rules files remain under 500 lines: `recommendationScoring.js` 254, `recommendationWizardPanel.js` 77, `actionTabs.js` 195, `mobileActionList.js` 304.
+- Confirmed touched UI/rules files remain under 500 lines: `recommendationScoring.js` 309, `recommendationWizardPanel.js` 102, `app.js` 229, `actionTabs.js` 204, `mobileActionList.js` 304.
 
 ## Current Session: Rest and Turn Transition Notices
 
