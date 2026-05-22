@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildAiRecommendationContext } from "../js/player-combat/ai/aiRecommendationContext.js";
 
-test("AI recommendation context includes character, combat, wizard, options, and deterministic sets", () => {
+test("AI recommendation context includes versioned tactical context", () => {
   const option = {
     id: "attack_rapier",
     name: "Rapier",
@@ -40,7 +40,19 @@ test("AI recommendation context includes character, combat, wizard, options, and
         lastRoll: null
       }
     },
-    groups: { attacks: [option] },
+    groups: {
+      attacks: [option],
+      spells: [{
+        id: "spell_fireball",
+        name: "Fireball",
+        source: "spell",
+        group: "spells",
+        available: false,
+        unavailableReasons: ["No level 3 spell slots remain."],
+        description: "A bright streak flashes from your pointing finger.",
+        spell: { level: 3, concentration: false }
+      }]
+    },
     recommendationSets: [{
       rank: 1,
       title: "Damage turn: Rapier",
@@ -62,8 +74,15 @@ test("AI recommendation context includes character, combat, wizard, options, and
   });
 
   assert.equal(context.character.name, "Mara");
+  assert.equal(context.schemaVersion, "combat-turn-recommendation/v2");
   assert.equal(context.combatState.hp.current, 30);
-  assert.equal(context.wizard.userNotes, "Enemy is nearly defeated.");
+  assert.equal(context.playerIntent.userNotes, "Enemy is nearly defeated.");
+  assert.equal(context.wizard, undefined);
+  assert.equal(context.turnRules.actionEconomy.maxActions, 1);
   assert.equal(context.availableOptions.attacks[0].attack.count, 2);
+  assert.equal(context.availableOptions.spells.length, 0);
+  assert.equal(context.unavailableOptions.spells[0].id, "spell_fireball");
+  assert.equal(context.optionIndex.some((option) => option.id === "attack_rapier"), true);
+  assert.equal(context.optionIndex.some((option) => option.id === "spell_fireball"), false);
   assert.equal(context.deterministicRecommendations[0].pieces[0].option.id, "attack_rapier");
 });

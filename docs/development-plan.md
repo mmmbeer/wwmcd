@@ -1,5 +1,52 @@
 # Development Plan
 
+## Current Session: AI Recommendation Enhancement
+
+### Implemented
+
+- Updated the AI context builder to emit `combat-turn-recommendation/v2` with `turnRules`, `playerIntent`, separated `availableOptions` / `unavailableOptions`, `optionIndex`, deterministic recommendations, and instruction hints.
+- Replaced the system prompt with stricter turn-planning instructions that constrain the model to provided options and facts, require complete turn plans, and call out action economy, concentration, resource spending, and missing information.
+- Expanded the Groq structured-output schema and fallback JSON-only contract to return `turnAssessment`, `recommendedOptionId`, `missingInfo`, and ranked recommendation objects with category, legality, confidence, risk, movement, action, bonus action, reaction plan, resources, assumptions, reasons, and warnings.
+- Added a shared `buildRecommendationUserMessage(context)` helper for both structured and fallback requests.
+- Added post-response validation that preserves recommendations while downgrading invented or unavailable option use to `conditional` and adding warnings.
+- Replaced broad regex JSON extraction with a balanced JSON object extractor for fallback responses.
+- Added `shouldAskClarifyingQuestion(aiResult)` for UI follow-up decisions.
+- Updated AI recommendation rendering to accept the new object shape while preserving the transitional `sets` array and existing quick-add behavior.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/recommendationWizardPanel.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The UI displays the richer AI fields compactly but does not yet provide the suggested clarification choice flow when `shouldAskClarifyingQuestion()` is true.
+- Validation checks option IDs/names against supplied option summaries; it does not independently re-run all D&D 5e rules beyond the app's available/unavailable option metadata.
+
+### Manual Test Checklist
+
+1. Open AI recommendations for a martial character and confirm only available attack option IDs are sent in `optionIndex`.
+2. Open AI recommendations for a concentrating spellcaster and confirm `turnRules.spellcasting.currentConcentration` is included.
+3. Confirm unavailable spells appear under `unavailableOptions`, not `availableOptions`.
+4. Use a fallback model response with prose around valid JSON and confirm the recommendation still parses.
+5. Confirm an invented option ID renders as a conditional AI recommendation with a warning instead of silently becoming valid.
+6. Confirm an unavailable option ID renders as conditional with the unavailable reason.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\aiRecommendationContext.js`
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ui\recommendationWizardPanel.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --test tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: AI Recommendation Prompt Module
 
 ### Implemented

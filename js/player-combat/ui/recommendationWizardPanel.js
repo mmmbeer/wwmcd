@@ -84,7 +84,8 @@ export function renderRecommendationSets(sets) {
   `;
 }
 
-export function renderAiRecommendationSets(sets) {
+export function renderAiRecommendationSets(result) {
+  const sets = result?.recommendations ?? result?.sets ?? result ?? [];
   const cards = sets.length
     ? sets.map(renderAiRecommendationSet).join("")
     : `<p class="inline-message">No AI recommendation sets are available right now.</p>`;
@@ -94,6 +95,8 @@ export function renderAiRecommendationSets(sets) {
         <span class="section-label">AI Recommended Turn Sets</span>
         <span class="ai-recommendation-badge">AI Recommendation</span>
       </div>
+      ${result?.turnAssessment ? `<p class="ai-recommendation-summary">${escapeHtml(result.turnAssessment)}</p>` : ""}
+      ${result?.missingInfo?.length ? `<p class="inline-message warning">Missing info: ${escapeHtml(result.missingInfo.join(", "))}</p>` : ""}
       <div class="recommendation-set-list">
         ${cards}
       </div>
@@ -132,11 +135,12 @@ function renderAiRecommendationSet(set) {
         <span class="recommendation-rank">#${escapeHtml(set.rank)}</span>
         <div>
           <strong>${escapeHtml(set.title)}</strong>
-          <small>AI recommendation${set.score ? ` - ${escapeHtml(set.score)} pts` : ""}</small>
+          <small>${escapeHtml(set.category ?? "other")} - ${escapeHtml(set.legality ?? "conditional")}${set.score ? ` - ${escapeHtml(set.score)} pts` : ""}</small>
         </div>
         <span class="ai-recommendation-badge">AI</span>
       </div>
       ${set.summary ? `<p class="ai-recommendation-summary">${escapeHtml(set.summary)}</p>` : ""}
+      ${renderAiPlanDetails(set)}
       <div class="recommendation-set-pieces">
         ${set.pieces.map(renderAiSetPiece).join("")}
       </div>
@@ -147,6 +151,25 @@ function renderAiRecommendationSet(set) {
       ` : ""}
       ${set.warnings.length ? `<p class="inline-message warning">${escapeHtml(set.warnings.join(" "))}</p>` : ""}
     </article>
+  `;
+}
+
+function renderAiPlanDetails(set) {
+  const rows = [
+    ["Movement", set.movement],
+    ["Free", set.freeInteraction],
+    ["Reaction", set.reactionPlan],
+    ["Resources", set.resourcesUsed?.join(", ")],
+    ["Concentration", set.concentrationImpact],
+    ["Outcome", set.expectedOutcome]
+  ].filter(([, value]) => value);
+  if (!rows.length) return "";
+  return `
+    <div class="recommendation-set-details">
+      ${rows.map(([label, value]) => `
+        <p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>
+      `).join("")}
+    </div>
   `;
 }
 

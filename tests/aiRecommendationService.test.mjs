@@ -1,9 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildRecommendationUserMessage,
+  extractFirstJsonObject,
   getAiRecommendations,
-  isStructuredOutputUnsupportedError
+  isStructuredOutputUnsupportedError,
+  normalizeAiResponse,
+  shouldAskClarifyingQuestion
 } from "../js/player-combat/ai/aiRecommendationService.js";
+
+const availableRapier = {
+  id: "attack_rapier",
+  name: "Rapier",
+  cost: { action: true },
+  available: true
+};
+
+const unavailableFireball = {
+  id: "spell_fireball",
+  name: "Fireball",
+  cost: { action: true },
+  available: false,
+  unavailableReasons: ["No level 3 spell slots remain."]
+};
 
 test("AI recommendation service falls back when json_schema response format is unsupported", async () => {
   const calls = [];
@@ -11,49 +30,128 @@ test("AI recommendation service falls back when json_schema response format is u
     apiKey: "test-key",
     model: "fallback-model",
     context: {
-      availableOptions: {
-        attacks: [{
-          id: "attack_rapier",
-          name: "Rapier",
-          cost: { action: true },
-          available: true
-        }]
-      }
+      availableOptions: { attacks: [availableRapier] },
+      unavailableOptions: { spells: [unavailableFireball] },
+      optionIndex: [{ id: "attack_rapier", name: "Rapier" }]
     },
     chatClient: async (request) => {
       calls.push(request);
       if (calls.length === 1) {
-        throw new Error("This model does not support response format `json_schema`. See supported models at https://console.groq.com/docs/structured-outputs#supported-models");
+        throw new Error("This model does not support response format `json_schema`.");
       }
-      return {
-        text: JSON.stringify({
-          recommendations: [{
-            rank: 1,
-            title: "Attack with Rapier",
-            score: 90,
-            explanation: "Best available damage option.",
-            actions: [{
-              slot: "Action",
-              optionId: "attack_rapier",
-              name: "Rapier",
-              explanation: "Uses the main action for reliable damage."
-            }],
-            reasons: ["Reliable damage"],
-            warnings: []
-          }]
-        })
-      };
+      return { text: JSON.stringify(responseWithAction("attack_rapier", "Rapier")) };
     }
   });
 
   assert.equal(calls.length, 2);
   assert.equal(calls[0].responseFormat.type, "json_schema");
+  assert.equal(calls[0].temperature, 0.15);
   assert.equal(calls[1].responseFormat, undefined);
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
-  assert.equal(recommendations[0].pieces[0].optionId, "attack_rapier");
+  assert.match(calls[1].messages[1].content, /ranked complete turn plans/);
+  assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
+  assert.equal(recommendations.sets, recommendations.recommendations);
+});
+
+test("normalization flags invented option IDs without dropping the recommendation", () => {
+  const result = normalizeAiResponse(JSON.stringify(responseWithAction("made_up_action", "Meteor Slash")), {
+    availableOptions: { attacks: [availableRapier] },
+    unavailableOptions: {}
+  });
+
+  assert.equal(result.recommendations.length, 1);
+  assert.equal(result.recommendations[0].legality, "conditional");
+  assert.match(result.recommendations[0].warnings.join(" "), /No matching available option/);
+  assert.equal(result.recommendations[0].pieces[0].option, null);
+});
+
+test("normalization flags unavailable matched options", () => {
+  const result = normalizeAiResponse(JSON.stringify(responseWithAction("spell_fireball", "Fireball")), {
+    availableOptions: { attacks: [availableRapier] },
+    unavailableOptions: { spells: [unavailableFireball] }
+  });
+
+  assert.equal(result.recommendations[0].pieces[0].optionId, "spell_fireball");
+  assert.equal(result.recommendations[0].legality, "conditional");
+  assert.match(result.recommendations[0].warnings.join(" "), /marked unavailable/);
+});
+
+test("balanced JSON extraction ignores surrounding text and braces in strings", () => {
+  const wrapped = `notes before JSON ${JSON.stringify({
+    turnAssessment: "Use {braces} safely.",
+    recommendedOptionId: "attack_rapier",
+    missingInfo: [],
+    recommendations: [recommendation("attack_rapier", "Rapier")]
+  })} trailing {"second":true}`;
+  const extracted = extractFirstJsonObject(wrapped);
+
+  assert.equal(JSON.parse(extracted).turnAssessment, "Use {braces} safely.");
+  assert.equal(normalizeAiResponse(wrapped, { availableOptions: { attacks: [availableRapier] } }).recommendations[0].legality, "legal");
+});
+
+test("clarification helper detects all-conditional results with several missing facts", () => {
+  assert.equal(shouldAskClarifyingQuestion({
+    missingInfo: ["range", "line of sight", "enemy AC"],
+    recommendations: [{ legality: "conditional" }, { legality: "risky" }]
+  }), true);
+  assert.equal(shouldAskClarifyingQuestion({
+    missingInfo: ["range", "line of sight", "enemy AC"],
+    recommendations: [{ legality: "legal" }]
+  }), false);
 });
 
 test("structured output unsupported detector matches Groq response format errors", () => {
   assert.equal(isStructuredOutputUnsupportedError(new Error("This model does not support response format `json_schema`.")), true);
   assert.equal(isStructuredOutputUnsupportedError(new Error("Network failed.")), false);
 });
+
+test("user message builder includes shared tactical instructions and context JSON", () => {
+  const message = buildRecommendationUserMessage({ schemaVersion: "combat-turn-recommendation/v2" });
+  assert.match(message, /complete turn plans/);
+  assert.match(message, /optionIndex/);
+  assert.match(message, /combat-turn-recommendation\/v2/);
+});
+
+function responseWithAction(optionId, name) {
+  return {
+    turnAssessment: "Attack is the clearest plan.",
+    recommendedOptionId: optionId,
+    missingInfo: [],
+    recommendations: [recommendation(optionId, name)]
+  };
+}
+
+function recommendation(optionId, name) {
+  return {
+    id: "rec-1",
+    rank: 1,
+    category: "best_overall",
+    title: `Use ${name}`,
+    score: 90,
+    confidence: "high",
+    legality: "legal",
+    riskLevel: "low",
+    explanation: "Best available turn plan.",
+    expectedOutcome: "Deal reliable damage.",
+    movement: "Stay in range.",
+    action: {
+      slot: "Action",
+      optionId,
+      name,
+      explanation: "Uses the main action."
+    },
+    bonusAction: {
+      slot: "Bonus Action",
+      optionId: "",
+      name: "None",
+      explanation: "No useful bonus action available."
+    },
+    freeInteraction: "None.",
+    reactionPlan: "Use a reaction only if a legal trigger occurs.",
+    resourcesUsed: [],
+    concentrationImpact: "none",
+    assumptions: [],
+    reasons: ["Reliable option"],
+    warnings: []
+  };
+}

@@ -80,7 +80,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     <div class="option-tabs">
       ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasGroqApiKey(storage) }) : ""}
       ${visibleGroup === "recommended"
-    ? aiRecommendationSets.length ? renderAiRecommendationSets(aiRecommendationSets) : renderRecommendationSets(recommendationSets)
+    ? aiRecommendationCount(aiRecommendationSets) ? renderAiRecommendationSets(aiRecommendationSets) : renderRecommendationSets(recommendationSets)
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
@@ -300,6 +300,10 @@ function filterOptions(group, options, hideUnavailableOptions) {
     .filter((option) => !hideUnavailableOptions || option.available !== false)
     .slice()
     .sort((a, b) => Number(a.available === false) - Number(b.available === false));
+}
+
+function aiRecommendationCount(result) {
+  return (result?.recommendations ?? result?.sets ?? result ?? []).length;
 }
 
 function groupLabel(group) {

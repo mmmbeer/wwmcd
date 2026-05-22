@@ -3,22 +3,85 @@ const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "fre
 export function buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes }) {
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
+  const availableOptions = summarizeGroups(groups);
   return {
+    schemaVersion: "combat-turn-recommendation/v2",
     character: summarizeCharacter(character),
     combatState: summarizeCombatState(combatState, character),
-    wizard: {
-      goal: answers.goal,
-      situation: answers.situation,
-      range: answers.distance,
-      dc: answers.difficulty,
-      resources: answers.resources,
-      rolls: answers.rollMode,
-      concentration: answers.concentration,
-      userNotes: String(userNotes ?? "").trim()
-    },
-    availableOptions: summarizeGroups(groups),
-    deterministicRecommendations: recommendationSets.slice(0, 5).map(summarizeRecommendationSet)
+    turnRules: buildTurnRules(character, combatState),
+    playerIntent: summarizePlayerIntent(answers, userNotes),
+    availableOptions,
+    unavailableOptions: summarizeUnavailableGroups(groups),
+    optionIndex: buildOptionIndex(availableOptions),
+    deterministicRecommendations: recommendationSets.slice(0, 5).map(summarizeRecommendationSet),
+    instructionHints: {
+      useOnlyOptionIds: true,
+      preferCompleteTurnPlans: true,
+      markMissingInfoExplicitly: true,
+      doNotInventEnemyStats: true,
+      unavailableOptionsAreForAwarenessOnly: true
+    }
   };
+}
+
+export function buildTurnRules(character, combatState) {
+  return {
+    actionEconomy: {
+      maxActions: 1,
+      maxBonusActions: 1,
+      maxReactions: 1,
+      movementAvailable: character?.combat?.speed ?? null,
+      freeInteractionAvailable: true
+    },
+    spellcasting: {
+      spellcastingAbility: character?.spells?.spellcastingAbility ?? null,
+      spellAttackBonus: character?.spells?.attackBonus ?? null,
+      spellSaveDc: character?.spells?.saveDc ?? null,
+      currentConcentration: combatState?.current?.concentration ?? null,
+      note: "If recommending a concentration spell while already concentrating, warn that the existing concentration may end."
+    },
+    resourcePolicy: {
+      conserveLimitedResourcesUnlessUseful: true,
+      doNotSpendUnavailableResources: true,
+      explainWhyAnyLimitedResourceIsWorthSpending: true
+    },
+    legalityPolicy: {
+      useOnlyAvailableOptions: true,
+      optionsWithAvailableFalseAreConditionalOrUnavailable: true,
+      markUncertainRangeLineOfSightOrTargetingAsConditional: true
+    }
+  };
+}
+
+export function summarizePlayerIntent(answers = {}, userNotes) {
+  return {
+    goal: answers.goal || "best overall turn",
+    situation: answers.situation || "",
+    range: answers.distance || "",
+    difficulty: answers.difficulty || "",
+    resourcePreference: answers.resources || "",
+    rollPreference: answers.rollMode || "",
+    concentrationPreference: answers.concentration || "",
+    userNotes: String(userNotes ?? "").trim()
+  };
+}
+
+export function buildOptionIndex(availableOptions) {
+  return Object.entries(availableOptions ?? {}).flatMap(([group, options]) =>
+    (options ?? []).map((option) => ({
+      id: option.id,
+      name: option.name,
+      group,
+      available: option.available !== false,
+      unavailableReasons: option.unavailableReasons ?? [],
+      cost: option.cost ?? null,
+      resource: option.resource ?? null,
+      tags: option.tags ?? [],
+      isSpell: Boolean(option.spell),
+      spellLevel: option.spell?.level ?? null,
+      concentration: option.spell?.concentration ?? false
+    }))
+  );
 }
 
 function summarizeCharacter(character) {
@@ -98,7 +161,20 @@ function summarizeSpells(spells = {}) {
 function summarizeGroups(groups = {}) {
   return Object.fromEntries(OPTION_GROUPS.map((group) => [
     group,
-    (groups[group] ?? []).slice(0, 40).map(summarizeOption)
+    (groups[group] ?? [])
+      .filter((option) => option.available !== false)
+      .slice(0, 40)
+      .map(summarizeOption)
+  ]));
+}
+
+export function summarizeUnavailableGroups(groups = {}) {
+  return Object.fromEntries(OPTION_GROUPS.map((group) => [
+    group,
+    (groups[group] ?? [])
+      .filter((option) => option.available === false)
+      .slice(0, 20)
+      .map(summarizeOption)
   ]));
 }
 
@@ -142,7 +218,14 @@ function summarizeOption(option) {
       saveAbility: option.spell.saveAbility,
       requiresSave: option.spell.requiresSave
     } : null,
-    summary: trimText(option.description ?? option.longDescription ?? option.featureAction?.description ?? option.spell?.reference?.description, 700)
+    summary: trimText(
+      option.tacticalSummary
+        ?? option.description
+        ?? option.longDescription
+        ?? option.featureAction?.description
+        ?? option.spell?.reference?.description,
+      350
+    )
   };
 }
 
