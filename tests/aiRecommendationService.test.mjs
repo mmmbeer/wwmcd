@@ -7,6 +7,7 @@ import {
   getAiRecommendations,
   isStructuredOutputUnsupportedError,
   normalizeAiResponse,
+  shouldUseJsonSchema,
   shouldAskClarifyingQuestion
 } from "../js/player-combat/ai/aiRecommendationService.js";
 
@@ -37,6 +38,7 @@ test("AI recommendation service falls back when json_schema response format is u
   const calls = [];
   const recommendations = await getAiRecommendations({
     apiKey: "test-key",
+    provider: "openai",
     model: "fallback-model",
     context: {
       availableOptions: { attacks: [availableRapier] },
@@ -59,12 +61,36 @@ test("AI recommendation service falls back when json_schema response format is u
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"action\""), false);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"bonusAction\""), false);
   assert.equal(calls[0].temperature, 0.15);
-  assert.equal(calls[1].responseFormat, undefined);
+  assert.equal(calls[1].responseFormat.type, "json_object");
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
   assert.match(calls[1].messages[1].content, /ranked list of individual recommended options/);
   assert.match(calls[1].messages[1].content, /optionIndex/);
   assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
   assert.equal(recommendations.sets, recommendations.recommendations);
+});
+
+test("AI recommendation service uses one JSON object request for Groq", async () => {
+  const calls = [];
+  const recommendations = await getAiRecommendations({
+    apiKey: "test-key",
+    provider: "groq",
+    model: "llama-3.3-70b-versatile",
+    context: {
+      availableOptions: { attacks: [availableRapier] },
+      unavailableOptions: {},
+      optionIndex: [{ id: "attack_rapier", name: "Rapier" }]
+    },
+    chatClient: async (request) => {
+      calls.push(request);
+      return { text: JSON.stringify(responseWithAction("attack_rapier", "Rapier")) };
+    }
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].responseFormat.type, "json_object");
+  assert.equal(JSON.stringify(calls[0].responseFormat).includes("json_schema"), false);
+  assert.match(calls[0].messages[0].content, /Return ONLY valid JSON/);
+  assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
 });
 
 test("normalization converts legacy turn plan pieces into a single recommended option", () => {
@@ -245,6 +271,12 @@ test("structured output unsupported detector matches Groq response format errors
   assert.equal(isStructuredOutputUnsupportedError(new Error("Network failed.")), false);
 });
 
+test("schema request selection avoids providers and models likely to reject json_schema", () => {
+  assert.equal(shouldUseJsonSchema({ provider: "groq", model: "llama-3.3-70b-versatile" }), false);
+  assert.equal(shouldUseJsonSchema({ provider: "openai", model: "gpt-4.1-mini" }), true);
+  assert.equal(shouldUseJsonSchema({ provider: "openai", model: "llama-compatible" }), false);
+});
+
 test("user message builder includes shared tactical instructions and context JSON", () => {
   const message = buildRecommendationUserMessage({ schemaVersion: "combat-option-recommendation/v3" });
   assert.match(message, /individual recommended options/);
@@ -262,6 +294,8 @@ test("user message builder compacts oversized tactical context", () => {
   assert.equal(compact.classTactics.rogue.priorities[0], "Prioritize Sneak Attack.");
   assert.ok(JSON.stringify(compact).length < JSON.stringify(context).length);
   assert.ok(compact.availableOptions.spells.length < context.availableOptions.spells.length);
+  assert.equal(typeof compact.availableOptions.spells[0], "string");
+  assert.equal(compact.optionIndex.some((option) => option.id === compact.availableOptions.spells[0]), true);
   assert.match(message, /contextCompacted/);
   assert.ok(message.length < JSON.stringify(context).length);
 });

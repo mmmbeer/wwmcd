@@ -2,6 +2,33 @@ import { requestAiChat } from "./aiClient.js";
 import { AI_RECOMMENDATION_SYSTEM_PROMPT } from "./aiRecommendationPrompt.js";
 import { compactContextForRequest } from "./aiRecommendationRequestContext.js";
 
+const JSON_ONLY_PROMPT = `Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
+The response must be a single JSON object with this exact shape:
+{
+  "guidance": "brief tactical guidance for the player",
+  "missingInfo": ["important missing fact"],
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "rank": 1,
+      "category": "best_overall",
+      "optionId": "copy the exact id from an available option",
+      "name": "copy the exact option name",
+      "score": 100,
+      "confidence": "high",
+      "legality": "legal",
+      "riskLevel": "medium",
+      "explanation": "why this option is recommended",
+      "resourcesUsed": ["resource name"],
+      "concentrationImpact": "none, starts concentration, maintains concentration, or replaces existing concentration",
+      "assumptions": ["assumption"],
+      "reasons": ["short reason"],
+      "warnings": ["short warning"]
+    }
+  ]
+}
+Use one to six recommendations.`;
+
 const FALLBACK_JSON_PROMPT = `The selected model does not support structured outputs.
 Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
 The response must be a single JSON object with this exact shape:
@@ -31,16 +58,28 @@ The response must be a single JSON object with this exact shape:
 Use one to six recommendations.`;
 
 export async function getAiRecommendations({ provider = "groq", apiKey, model, context, chatClient = requestAiChat }) {
-  const request = structuredRecommendationRequest({ provider, apiKey, model, context });
+  const request = shouldUseJsonSchema({ provider, model })
+    ? structuredRecommendationRequest({ provider, apiKey, model, context })
+    : jsonObjectRecommendationRequest({ provider, apiKey, model, context });
   let payload;
   try {
     payload = await chatClient(request);
   } catch (error) {
-    if (!isStructuredOutputUnsupportedError(error)) throw error;
-    payload = await chatClient(fallbackRecommendationRequest({ provider, apiKey, model, context }));
+    if (!request.responseFormat || request.responseFormat.type !== "json_schema" || !isStructuredOutputUnsupportedError(error)) {
+      throw error;
+    }
+    payload = await chatClient(jsonObjectRecommendationRequest({ provider, apiKey, model, context, fallback: true }));
   }
 
   return normalizeAiResponse(payload.text, context);
+}
+
+export function shouldUseJsonSchema({ provider, model } = {}) {
+  const normalizedProvider = String(provider ?? "").toLowerCase();
+  const normalizedModel = String(model ?? "").toLowerCase();
+  if (normalizedProvider === "groq") return false;
+  if (/llama|mixtral|gemma|deepseek|qwen/.test(normalizedModel)) return false;
+  return true;
 }
 
 export function isStructuredOutputUnsupportedError(error) {
@@ -65,10 +104,10 @@ export function buildRecommendationUserMessage(context) {
     "",
     "Requirements:",
     "- Return a ranked list of individual recommended options, not complete turn plans.",
-    "- Use optionId values from optionIndex or availableOptions whenever possible.",
+    "- Use optionId values from optionIndex. availableOptions may be grouped ID lists for orientation.",
     "- Use battlefieldKnowledge to avoid obviously poor damage types or tactics against named creatures from the notes.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
-    "- Each recommendation must reference one concrete option from availableOptions or optionIndex.",
+    "- Each recommendation must reference one concrete option from optionIndex or availableOptions.",
     "- Include class-feature riders such as Sneak Attack or Divine Smite only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
     "- Include different tactical categories when useful.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
@@ -97,14 +136,15 @@ function structuredRecommendationRequest({ provider, apiKey, model, context }) {
   };
 }
 
-function fallbackRecommendationRequest({ provider, apiKey, model, context }) {
+function jsonObjectRecommendationRequest({ provider, apiKey, model, context, fallback = false }) {
   return {
     provider,
     apiKey,
     model,
     temperature: 0.1,
+    responseFormat: { type: "json_object" },
     messages: [
-      { role: "system", content: `${AI_RECOMMENDATION_SYSTEM_PROMPT}\n${FALLBACK_JSON_PROMPT}` },
+      { role: "system", content: `${AI_RECOMMENDATION_SYSTEM_PROMPT}\n${fallback ? FALLBACK_JSON_PROMPT : JSON_ONLY_PROMPT}` },
       { role: "user", content: buildRecommendationUserMessage(context) }
     ]
   };

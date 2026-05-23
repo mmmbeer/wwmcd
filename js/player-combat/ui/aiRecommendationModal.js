@@ -63,6 +63,8 @@ function bindEvents(body, services) {
 }
 
 async function requestRecommendations(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, onAnswersChanged, onRecommendations }) {
+  if (body.dataset.aiRequestInFlight === "true") return;
+  body.dataset.aiRequestInFlight = "true";
   const settings = getAiSettings(storage);
   const active = getActiveAiProviderSettings(settings);
   const button = body.querySelector("[data-ai-get-recommendations]");
@@ -96,6 +98,7 @@ async function requestRecommendations(body, { modalApi, storage, snapshot, group
     showToast?.({ type: "error", message: error.message });
   } finally {
     setBusy({ button, loading, busy: false });
+    delete body.dataset.aiRequestInFlight;
   }
 }
 

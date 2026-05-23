@@ -3346,3 +3346,56 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 1. Load a character and scroll until both the header and turn progress rail are sticky.
 2. Open the header `Menu` dropdown and confirm all menu items render above the turn progress rail.
 3. Resize to phone width and confirm the header, dropdown, and progress rail do not overlap incoherently.
+
+### AI Request De-Duplication
+
+- Changed Groq AI recommendations to use JSON-object response mode directly instead of first trying `json_schema` and then retrying after provider rejection.
+- Kept `json_schema` for providers/models likely to support it, with a single JSON-object fallback only when a schema-capable path rejects structured output.
+- Added an in-flight guard to the AI recommendation modal so repeated clicks while a request is active do not start overlapping requests.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Open browser dev tools, click `Use AI!`, then click `Get Recommendations` once with Groq selected.
+2. Confirm only one `api/ai.php?action=chat&provider=groq` request is sent.
+3. Double-click `Get Recommendations` and confirm only one in-flight request is sent.
+
+### AI Request De-Duplication Verification
+
+- `node --test tests\aiRecommendationService.test.mjs`
+
+### AI Context Size Reduction
+
+- Reworked request compaction so oversized AI contexts send grouped `availableOptions` as option ID lists instead of full option objects.
+- Made `optionIndex` the single detailed candidate list the model should use for ranking and exact `optionId` selection.
+- Removed duplicated character spell lists, repeated option bodies inside deterministic recommendations, empty fields, and verbose battlefield impacted-option objects from compacted requests.
+- Added a tighter final compaction pass for very large characters so request context is capped more aggressively.
+- Against `docs/example-context.json` and `docs/example-context2.json`, compacted context dropped from about 43.6 KB to about 15.5 KB, and the full user message dropped from about 44.8 KB to about 16.7 KB.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The compacted request still sends detailed candidate option metadata because the AI must choose legal exact option IDs; shrinking further should come from smarter candidate preselection, not removing legal-option details blindly.
+- The JSON schema itself remains an extra payload cost for schema-capable providers, but Groq uses JSON-object mode and avoids that schema block.
+
+### Manual Test Steps
+
+1. Capture the outgoing AI request for a large high-level character and confirm `availableOptions` contains grouped IDs while `optionIndex` contains the detailed candidates.
+2. Confirm the model still returns exact option IDs that exist in the local full context.
+3. Compare request size before and after compaction using the captured example context files.
+
+### AI Context Size Verification
+
+- `node --test tests\aiRecommendationService.test.mjs`

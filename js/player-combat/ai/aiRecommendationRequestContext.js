@@ -1,4 +1,4 @@
-const CONTEXT_JSON_BUDGET = 24000;
+const CONTEXT_JSON_BUDGET = 18000;
 
 export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) {
   if (JSON.stringify(context).length <= budget) return context;
@@ -11,34 +11,43 @@ export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) 
   });
   if (JSON.stringify(compact).length <= budget) return compact;
 
-  return buildCompactContext(context, {
+  const tighter = buildCompactContext(context, {
     availableLimit: 10,
     unavailableLimit: 4,
     optionSummaryLimit: 90,
     listLimit: 10
   });
+  if (JSON.stringify(tighter).length <= budget) return tighter;
+
+  return buildCompactContext(context, {
+    availableLimit: 6,
+    unavailableLimit: 3,
+    optionSummaryLimit: 45,
+    listLimit: 6
+  });
 }
 
 function buildCompactContext(context, { availableLimit, unavailableLimit, optionSummaryLimit, listLimit }) {
-  const availableOptions = compactOptionGroups(context?.availableOptions, availableLimit, optionSummaryLimit);
-  return {
+  const availableOptions = compactOptionIdsByGroup(context?.availableOptions, availableLimit);
+  const optionIndex = buildCompactOptionIndex(context?.availableOptions, availableLimit, optionSummaryLimit);
+  return pruneEmpty({
     schemaVersion: context?.schemaVersion,
     character: compactCharacter(context?.character, listLimit),
     combatState: context?.combatState,
     turnRules: context?.turnRules,
     playerIntent: context?.playerIntent,
-    battlefieldKnowledge: context?.battlefieldKnowledge,
+    battlefieldKnowledge: compactBattlefieldKnowledge(context?.battlefieldKnowledge),
     classTactics: compactClassTactics(context?.classTactics),
     availableOptions,
-    unavailableOptions: compactOptionGroups(context?.unavailableOptions, unavailableLimit, 80),
-    optionIndex: buildCompactOptionIndex(availableOptions),
+    unavailableOptions: compactUnavailableOptionGroups(context?.unavailableOptions, unavailableLimit),
+    optionIndex,
     deterministicRecommendations: (context?.deterministicRecommendations ?? []).slice(0, 3).map(compactRecommendationSet),
-    instructionHints: context?.instructionHints,
     requestNotes: {
       contextCompacted: true,
-      compactReason: "Original tactical context exceeded request payload budget."
+      compactReason: "Original tactical context exceeded request payload budget.",
+      availableOptionsShape: "grouped option id lists; use optionIndex for candidate details"
     }
-  };
+  });
 }
 
 function compactClassTactics(classTactics = {}) {
@@ -53,36 +62,88 @@ function compactClassTactics(classTactics = {}) {
   ]));
 }
 
+function compactBattlefieldKnowledge(knowledge = {}) {
+  return pruneEmpty({
+    inferredCreatures: compactNames(knowledge.inferredCreatures, 4),
+    avoidDamageTypes: knowledge.avoidDamageTypes,
+    impactedOptionIds: uniqueStrings((knowledge.impactedOptions ?? []).map((option) => option.id)).slice(0, 12),
+    inferencePolicy: "Common lore assumptions from user notes; DM variants may differ."
+  });
+}
+
 function compactCharacter(character, listLimit) {
   if (!character) return null;
-  return {
+  return pruneEmpty({
     name: character.name,
     level: character.level,
     race: character.race,
     classes: character.classes,
     stats: character.stats,
-    combat: character.combat,
-    resources: character.resources,
-    features: compactRecordLists(character.features, listLimit),
-    traits: compactList(character.traits, listLimit),
-    equipment: compactRecordLists(character.equipment, listLimit),
-    spells: compactSpells(character.spells, listLimit)
-  };
+    combat: compactCombat(character.combat),
+    resources: compactResources(character.resources),
+    features: compactRecordNames(character.features, Math.min(8, listLimit)),
+    traits: compactNames(character.traits, Math.min(8, listLimit)),
+    equipment: compactEquipment(character.equipment, Math.min(8, listLimit)),
+    spells: compactSpells(character.spells)
+  });
 }
 
-function compactSpells(spells = {}, listLimit) {
-  return {
+function compactCombat(combat = {}) {
+  return pruneEmpty({
+    maxHp: combat.maxHp,
+    currentHp: combat.currentHp,
+    tempHp: combat.tempHp,
+    ac: combat.ac,
+    initiativeBonus: combat.initiativeBonus,
+    proficiencyBonus: combat.proficiencyBonus,
+    speed: compactSpeed(combat.speed),
+    conditions: combat.conditions,
+    concentration: combat.concentration
+  });
+}
+
+function compactSpeed(speed = {}) {
+  return pruneEmpty({
+    walk: speed.walk,
+    climb: speed.climb || undefined,
+    swim: speed.swim || undefined,
+    fly: speed.fly || undefined,
+    burrow: speed.burrow || undefined
+  });
+}
+
+function compactResources(resources = {}) {
+  return pruneEmpty({
+    spellSlots: resources.spellSlots,
+    classResources: compactList(resources.classResources, 12),
+    limitedUses: compactList(resources.limitedUses, 12)
+  });
+}
+
+function compactEquipment(equipment = {}, limit) {
+  return pruneEmpty({
+    weapons: compactList(equipment.weapons, limit),
+    armor: compactNames(equipment.armor, limit),
+    consumables: compactNames(equipment.consumables, limit),
+    magicItems: compactNames(equipment.magicItems, limit)
+  });
+}
+
+function compactSpells(spells = {}) {
+  return pruneEmpty({
     spellcastingAbility: spells.spellcastingAbility,
     attackBonus: spells.attackBonus,
-    saveDc: spells.saveDc,
-    cantrips: compactList(spells.cantrips, listLimit),
-    prepared: compactList(spells.prepared, listLimit * 2),
-    known: compactList(spells.known, listLimit * 2)
-  };
+    saveDc: spells.saveDc
+  });
 }
 
-function compactRecordLists(record = {}, listLimit) {
-  return Object.fromEntries(Object.entries(record ?? {}).map(([key, value]) => [key, compactList(value, listLimit)]));
+function compactRecordNames(record = {}, listLimit) {
+  return pruneEmpty(Object.fromEntries(Object.entries(record ?? {}).map(([key, value]) => [key, compactNames(value, listLimit)])));
+}
+
+function compactNames(items = [], limit) {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, limit).map((item) => typeof item === "string" ? item : item?.name).filter(Boolean);
 }
 
 function compactList(items = [], limit) {
@@ -95,7 +156,7 @@ function compactList(items = [], limit) {
       prepared: item.prepared,
       equipped: item.equipped,
       quantity: item.quantity,
-      damage: item.damage,
+      damage: item.damage?.diceString ?? item.damage,
       damageType: item.damageType,
       max: item.max,
       reset: item.reset,
@@ -104,15 +165,26 @@ function compactList(items = [], limit) {
   });
 }
 
-function compactOptionGroups(groups = {}, limit, summaryLimit) {
-  return Object.fromEntries(Object.entries(groups ?? {}).map(([group, options]) => [
+function compactOptionIdsByGroup(groups = {}, limit) {
+  return pruneEmpty(Object.fromEntries(Object.entries(groups ?? {}).map(([group, options]) => [
     group,
-    (options ?? []).slice(0, limit).map((option) => compactOption(option, summaryLimit))
-  ]));
+    uniqueById(options ?? []).slice(0, limit).map((option) => option.id).filter(Boolean)
+  ])));
+}
+
+function compactUnavailableOptionGroups(groups = {}, limit) {
+  return pruneEmpty(Object.fromEntries(Object.entries(groups ?? {}).map(([group, options]) => [
+    group,
+    uniqueById(options ?? []).slice(0, limit).map((option) => pruneEmpty({
+      id: option.id,
+      name: option.name,
+      reasons: option.unavailableReasons
+    }))
+  ])));
 }
 
 function compactOption(option, summaryLimit) {
-  return {
+  return pruneEmpty({
     id: option.id,
     name: option.name,
     source: option.source,
@@ -122,48 +194,95 @@ function compactOption(option, summaryLimit) {
     cost: option.cost,
     resource: option.resource,
     attack: option.attack,
-    range: option.range,
-    rolls: option.rolls,
+    range: compactRange(option.range),
+    rolls: compactRolls(option.rolls),
+    damageTypes: option.damageTypes,
     tags: option.tags,
-    spell: option.spell,
+    spell: compactSpellOption(option.spell),
     summary: trimText(option.summary, summaryLimit)
-  };
+  });
 }
 
-function compactIndexOption(option) {
-  return {
-    id: option.id,
-    name: option.name,
-    group: option.group,
-    cost: option.cost,
-    resource: option.resource,
-    tags: option.tags,
-    isSpell: option.isSpell,
-    spellLevel: option.spellLevel,
-    concentration: option.concentration
-  };
+function compactRange(range) {
+  if (!range) return undefined;
+  if (typeof range === "string") return range;
+  return pruneEmpty({
+    type: range.type,
+    label: range.label,
+    normal: range.normal,
+    long: range.long
+  });
 }
 
-function buildCompactOptionIndex(availableOptions) {
-  return Object.entries(availableOptions ?? {}).flatMap(([group, options]) =>
-    (options ?? []).map((option) => compactIndexOption({ ...option, group }))
-  );
+function compactRolls(rolls = []) {
+  if (!Array.isArray(rolls)) return [];
+  return rolls.map((roll) => pruneEmpty({
+    id: roll.id,
+    formula: roll.formula,
+    type: roll.type,
+    damageType: roll.damageType
+  }));
+}
+
+function compactSpellOption(spell) {
+  if (!spell) return undefined;
+  return pruneEmpty({
+    level: spell.level,
+    castingCost: spell.castingCost,
+    concentration: spell.concentration || undefined,
+    range: spell.range,
+    saveAbility: spell.saveAbility
+  });
+}
+
+function buildCompactOptionIndex(groups = {}, limit, summaryLimit) {
+  const options = [];
+  Object.entries(groups ?? {}).forEach(([group, groupOptions]) => {
+    uniqueById(groupOptions ?? []).slice(0, limit).forEach((option) => {
+      options.push(compactOption({ ...option, group }, summaryLimit));
+    });
+  });
+  return uniqueById(options);
+}
+
+function uniqueById(options = []) {
+  const seen = new Set();
+  return options.filter((option) => {
+    if (!option?.id || seen.has(option.id)) return false;
+    seen.add(option.id);
+    return true;
+  });
+}
+
+function compactStrings(items = [], limit) {
+  return Array.isArray(items) ? items.filter((item) => typeof item === "string").slice(0, limit) : [];
 }
 
 function compactRecommendationSet(set) {
-  return {
+  return pruneEmpty({
     rank: set.rank,
     title: set.title,
     score: set.score,
-    pieces: (set.pieces ?? []).map((piece) => ({
-      slot: piece.slot,
-      option: compactOption(piece.option ?? {}, 80),
-      reasons: piece.reasons ?? [],
-      warnings: piece.warnings ?? []
-    })),
-    reasons: set.reasons ?? [],
-    warnings: set.warnings ?? []
-  };
+    optionIds: uniqueStrings((set.pieces ?? []).map((piece) => piece.option?.id)).slice(0, 6),
+    reasons: compactStrings(set.reasons, 3),
+    warnings: compactStrings(set.warnings, 3)
+  });
+}
+
+function uniqueStrings(items = []) {
+  return [...new Set(items.filter((item) => typeof item === "string" && item.trim()))];
+}
+
+function pruneEmpty(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => {
+      if (entry == null || entry === "" || entry === false) return false;
+      if (Array.isArray(entry)) return entry.length > 0;
+      if (typeof entry === "object") return Object.keys(entry).length > 0;
+      return true;
+    })
+  );
 }
 
 function trimText(value, max) {
