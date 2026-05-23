@@ -288,6 +288,43 @@ test("recommendation sets show multiple attacks from Extra Attack metadata", () 
   assert.ok(attackSet.pieces.some((piece) => piece.slot === "Attack 2"));
 });
 
+test("spell attacks do not get Extra Attack pieces or Attack-action bonus riders", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_shocking_grasp",
+        name: "Shocking Grasp",
+        source: "spell",
+        description: "Make a melee spell attack against the target.",
+        tags: ["spell", "cantrip"],
+        spell: { level: 0, castingTime: "1 action", castingCost: "action", range: "Touch" },
+        cost: { action: true },
+        rolls: [{ id: "spellAttack", type: "attack", formula: "1d20+6" }],
+        available: true
+      },
+      {
+        id: "monk_flurry_of_blows",
+        name: "Flurry of Blows",
+        source: "feature",
+        description: "After taking the Attack action, spend 1 Ki to make two unarmed strikes as a bonus action.",
+        tags: ["monk", "feature", "attack", "unarmed"],
+        cost: { bonus: true, resource: { type: "classResource", id: "resource-ki", amount: 1, name: "Ki" } },
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", resources: "spend" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "damage", resources: "spend" } });
+  const shockSet = sets.find((set) => set.pieces[0].entry.option.name === "Shocking Grasp");
+
+  assert.ok(shockSet);
+  assert.equal(shockSet.pieces[0].slot, "Action");
+  assert.ok(!shockSet.pieces.some((piece) => piece.slot === "Attack 2"));
+  assert.ok(!shockSet.pieces.some((piece) => piece.entry.option.name === "Flurry of Blows"));
+});
+
 test("wild shape recommendation pieces use action economy labels, not Special", () => {
   const ranked = getRankedRecommendations({
     groups: groupsWith([

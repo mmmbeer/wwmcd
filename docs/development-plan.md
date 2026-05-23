@@ -1,6 +1,56 @@
 # Development Plan
 
-## Current Session: Action Use Confirmation Modal
+## Current Session: Spell Attacks and Attack Action Rules
+
+### Implemented
+
+- Centralized Attack action detection in `attackActionRules.js`.
+- Spell attacks such as Shocking Grasp are no longer treated as Attack action attacks just because they have an attack roll.
+- Extra Attack planning and recommendation sets now only sequence true Attack action options, such as weapon, unarmed, grapple, shove, or explicit feature Attack action options.
+- Attack-action bonus riders such as monk bonus attacks no longer follow spell attacks.
+- State updates now use the same Attack action helper when setting `attackActionUsed`.
+
+### Files Changed
+
+- `js/player-combat/core/stateManager.js`
+- `js/player-combat/recommendations/recommendationPrerequisites.js`
+- `js/player-combat/recommendations/recommendationSets.js`
+- `js/player-combat/rules/attackActionRules.js`
+- `js/player-combat/ui/actionRollModal.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/plannedTurnState.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `tests/plannedTurnState.test.mjs`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Feature actions must mark `attack.consumesAttackAction` or use weapon/unarmed/special attack tags to count as Attack action options.
+
+### Manual Test Checklist
+
+1. Plan Shocking Grasp on a monk with Extra Attack and confirm it stays a single Action, not Attack 1/Attack 2.
+2. Use Shocking Grasp and confirm monk Attack-action bonus actions remain unavailable afterward.
+3. Plan or use a monk weapon/unarmed strike and confirm Extra Attack and monk bonus actions still work.
+4. Confirm weapon-hit riders such as Divine Smite still appear after weapon attacks, not after spell attacks.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\attackActionRules.js`
+- `node --check js\player-combat\recommendations\recommendationPrerequisites.js`
+- `node --check js\player-combat\recommendations\recommendationSets.js`
+- `node --check js\player-combat\ui\plannedTurnState.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --test tests\plannedTurnState.test.mjs tests\recommendationScoring.test.mjs tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: Action Use Confirmation Modal
 
 ### Implemented
 

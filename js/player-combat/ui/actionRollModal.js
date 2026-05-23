@@ -1,4 +1,5 @@
 import { rollDice } from "../core/diceRoller.js";
+import { isAttackActionOption } from "../rules/attackActionRules.js";
 import { formatRollSummary } from "./diceResult.js";
 import { escapeHtml } from "./renderUtils.js";
 
@@ -130,8 +131,7 @@ function rollRepeatCount(option) {
 }
 
 function isAttackAction(option) {
-  return Boolean(option?.cost?.action)
-    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+  return isAttackActionOption(option);
 }
 
 function rollD20Mode(formula, label, type, mode) {

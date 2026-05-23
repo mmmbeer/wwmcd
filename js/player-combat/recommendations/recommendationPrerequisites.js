@@ -1,3 +1,5 @@
+import { isAttackActionOption, isWeaponAttackOption } from "../rules/attackActionRules.js";
+
 const ATTACK_ACTION_REQUIRED = /\b(?:after|when|if)\s+(?:you\s+)?(?:take|took|taking|use|used|using)\s+the\s+attack\s+action\b|\brequires taking the attack action\b|\bafter\s+(?:you\s+)?attack(?:ing)?\b/i;
 const NAMED_HIT_RIDERS = /\b(?:divine smite|eldritch smite|sneak attack|stunning strike)\b/i;
 const HIT_REQUIRED = /\b(?:after|when|if)\s+(?:you\s+)?(?:hit|hits)\b|\bafter\s+(?:a|an|the)?\s*(?:melee |ranged |weapon )*(?:attack |weapon )?hit\b|\bon hit\b|\buse after (?:a|an|the)?\s*(?:melee |ranged |weapon )*(?:attack |weapon )?hit\b/i;
@@ -28,13 +30,11 @@ export function isDependentOption(option) {
 }
 
 export function isAttackAction(option) {
-  return Boolean(option?.cost?.action)
-    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+  return isAttackActionOption(option);
 }
 
 function isWeaponAttackAction(option) {
-  return isAttackAction(option)
-    && (option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed"));
+  return isWeaponAttackOption(option);
 }
 
 function optionText(option) {

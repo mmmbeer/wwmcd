@@ -4,6 +4,7 @@ import {
   isDependentOption,
   prerequisiteKind
 } from "./recommendationPrerequisites.js";
+import { attackCapacity } from "../rules/attackActionRules.js";
 
 const DEFAULT_ANSWERS = {
   goal: "damage",
@@ -70,7 +71,7 @@ function addExtraAttacks(pieces, primary, attackActions, attackCount) {
 }
 
 function attackActionCount(option) {
-  return Math.max(1, Number(option.attack?.count ?? 1));
+  return attackCapacity(option);
 }
 
 function canFollowPrimary(option, primary) {

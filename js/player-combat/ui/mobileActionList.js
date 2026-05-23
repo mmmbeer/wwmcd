@@ -1,5 +1,6 @@
 import { escapeHtml } from "./renderUtils.js";
 import { isDependentOption } from "../recommendations/recommendationPrerequisites.js";
+import { attackCapacity, isAttackActionOption } from "../rules/attackActionRules.js";
 import { getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
 import { renderResourceIcon } from "./resourceIcon.js";
 
@@ -280,12 +281,7 @@ function attackSequenceButtonLabel(option, selected) {
 }
 
 function isAttackAction(option) {
-  return Boolean(option?.cost?.action)
-    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
-}
-
-function attackCapacity(option) {
-  return Math.max(1, Number(option?.attack?.count ?? 1));
+  return isAttackActionOption(option);
 }
 
 function detailFact(label, value) {

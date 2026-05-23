@@ -5,6 +5,7 @@ import {
   getRankedRecommendationSets
 } from "../recommendations/recommendationScoring.js";
 import { canPairAfterPrimary, isDependentOption } from "../recommendations/recommendationPrerequisites.js";
+import { isAttackActionOption } from "../rules/attackActionRules.js";
 import { findOption } from "./actionOptionHandlers.js";
 import { hasActionRollModal, resolveActionRoll } from "./actionRollModal.js";
 import { confirmActionUse, shouldConfirmActionUse } from "./actionUseConfirmModal.js";
@@ -356,8 +357,7 @@ function combatStateWithPlannedPrerequisites(combatState) {
 }
 
 function isAttackAction(option) {
-  return Boolean(option?.cost?.action)
-    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
+  return isAttackActionOption(option);
 }
 
 function plannedTurnFlags(options) {

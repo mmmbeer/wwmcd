@@ -1,4 +1,5 @@
 import { addLogEntry, createCombatState, resetTurn } from "../models/combatStateModel.js";
+import { isAttackActionOption } from "../rules/attackActionRules.js";
 import { getEffectiveWalkSpeed } from "../rules/movementRules.js";
 import { resetLongRestResources, resetShortRestResources } from "../rules/restRules.js";
 
@@ -361,7 +362,7 @@ function applyCombatOption(state, option) {
   if (option.cost?.bonus) turn.bonusActionUsed = true;
   if (option.cost?.reaction) turn.reactionUsed = true;
   if (option.cost?.object) turn.objectInteractionUsed = true;
-  if (option.attack?.consumesAttackAction || (option.cost?.action && option.tags?.includes("attack"))) turn.attackActionUsed = true;
+  if (isAttackActionOption(option)) turn.attackActionUsed = true;
   if (option.id === "basic_ready") turn.readiedAction = true;
   if (option.id === "basic_use_readied_action") turn.readiedAction = false;
   if (option.effect?.actionSurge) {

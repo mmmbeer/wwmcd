@@ -1,3 +1,5 @@
+import { attackCapacity, isAttackActionOption } from "../rules/attackActionRules.js";
+
 const EMPTY_PLAN = Object.freeze({
   action: null,
   actionAttacks: [],
@@ -165,12 +167,7 @@ function hasAttackSequence(plan) {
 }
 
 function isAttackAction(option) {
-  return Boolean(option?.cost?.action)
-    && (option.tags?.includes("attack") || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack"));
-}
-
-function attackCapacity(option) {
-  return Math.max(1, Number(option?.attack?.count ?? 1));
+  return isAttackActionOption(option);
 }
 
 function unavailableMessage(option) {

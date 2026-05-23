@@ -33,6 +33,20 @@ test("planned Attack action can contain mixed attack pieces", () => {
   assert.equal(isOptionPlanned(shove), true);
 });
 
+test("spell attacks do not join Extra Attack sequences", () => {
+  clearPlannedTurn();
+
+  const longsword = attack("weapon_longsword", "Longsword", { count: 2, rolls: ["attack", "damage"] });
+  const shockingGrasp = spellAttack("spell_shocking_grasp", "Shocking Grasp");
+
+  assert.equal(selectPlannedOption(longsword).ok, true);
+  assert.equal(selectPlannedOption(shockingGrasp).ok, true);
+
+  const plan = getPlannedTurn();
+  assert.equal(plan.action.id, "spell_shocking_grasp");
+  assert.deepEqual(plan.actionAttacks, []);
+});
+
 test("confirming a mixed attack plan rolls each piece once but commits one action", async () => {
   clearPlannedTurn();
 
@@ -76,5 +90,18 @@ function attack(id, name, { count, rolls }) {
       formula: kind === "damage" ? "1d8+3" : "1d20+5",
       type: kind
     }))
+  };
+}
+
+function spellAttack(id, name) {
+  return {
+    id,
+    name,
+    source: "spell",
+    available: true,
+    spell: { level: 0, castingTime: "1 action", castingCost: "action" },
+    cost: { action: true },
+    tags: ["spell", "cantrip"],
+    rolls: [{ id: "spellAttack", label: "Roll Attack", formula: "1d20+5", type: "attack" }]
   };
 }
