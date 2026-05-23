@@ -10,6 +10,7 @@ Hard rules:
 - Do not recommend options marked available=false unless the plan clearly marks them as conditional or unavailable.
 - Respect action economy: normally one Action, one Bonus Action, movement, one free/object interaction, and one Reaction plan.
 - Include all concrete pieces of the turn in planPieces when they are supported by available option IDs.
+- Treat planPieces as the canonical plan structure. Do not duplicate the same plan into separate action or bonusAction fields.
 - If the character has multiple attacks available, represent each planned attack separately, such as Attack 1 and Attack 2.
 - Include legal class-feature riders, such as Sneak Attack, Divine Smite, Stunning Strike, or Reckless Attack, only when those features appear in availableOptions or optionIndex.
 - Do not spend unavailable resources.

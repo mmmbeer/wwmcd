@@ -90,3 +90,49 @@ test("AI recommendation context includes versioned tactical context", () => {
   assert.equal(context.optionIndex.some((option) => option.id === "spell_fireball"), false);
   assert.equal(context.deterministicRecommendations[0].pieces[0].option.id, "attack_rapier");
 });
+
+test("AI recommendation context tolerates malformed deterministic recommendations", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Mara",
+        classes: [],
+        race: {},
+        combat: {},
+        resources: {},
+        features: {},
+        inventory: {},
+        spells: {}
+      },
+      combatState: { current: {}, turn: {} }
+    },
+    groups: {
+      actions: [{
+        id: "action_dodge",
+        name: "Dodge",
+        available: true,
+        rolls: "not-an-array",
+        spell: "not-a-spell-object"
+      }]
+    },
+    recommendationSets: [{
+      title: null,
+      score: "bad",
+      pieces: [
+        { slot: null, entry: { option: null, reasons: "bad", warnings: "bad" } },
+        { option: "bad-option" }
+      ],
+      reasons: "bad",
+      warnings: "bad"
+    }],
+    answers: {},
+    userNotes: ""
+  });
+
+  assert.equal(context.availableOptions.actions[0].id, "action_dodge");
+  assert.equal(context.availableOptions.actions[0].rolls.length, 0);
+  assert.equal(context.deterministicRecommendations[0].title, "Untitled recommendation");
+  assert.equal(context.deterministicRecommendations[0].pieces.length, 2);
+  assert.equal(context.deterministicRecommendations[0].pieces[0].option.name, "Unknown option");
+  assert.deepEqual(context.deterministicRecommendations[0].warnings, []);
+});

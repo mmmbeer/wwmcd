@@ -1,5 +1,45 @@
 # Development Plan
 
+## Current Session: AI Recommendation Stability
+
+### Implemented
+
+- Rebuilt compacted `optionIndex` from compacted `availableOptions` so compact requests keep the same spells, bonus actions, reactions, resources, and attacks visible to the model.
+- Hardened deterministic recommendation and option summarization against malformed or missing data.
+- Simplified the AI response contract so `planPieces` is the canonical model-returned structure while normalization still emits `action`, `bonusAction`, and `pieces` for UI compatibility.
+- Replaced the remaining nullable string schema field with a plain string field and kept `"none"` as the normalized empty concentration value.
+- Improved option matching to prefer exact IDs, warn on name-only matches, and treat duplicate names as ambiguous unless an `optionId` is supplied.
+- Added post-response action-economy warnings for plans with multiple explicit Actions or Bonus Actions while allowing `Attack 1`, `Attack 2`, and similar Extra Attack pieces.
+- Compacted class tactics in oversized requests to the key priorities, checks, avoid rules, and reminder questions.
+- Added focused regression coverage for compaction, normalization, unavailable options, unmatched IDs, malformed deterministic data, and JSON extraction.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The action-economy validation is intentionally light and warning-only; full legality still depends on app-provided availability metadata and table context.
+- Name-only option matching remains supported for resilience, but it now marks the recommendation conditional because the model omitted the safer ID reference.
+
+### Manual Test Checklist
+
+1. Request AI recommendations with a large spellcaster context and confirm compacted requests still include visible spell, bonus-action, reaction, and resource option IDs.
+2. Request AI recommendations where the model returns only `planPieces` and confirm the UI still receives normalized `action`, `bonusAction`, and `pieces`.
+3. Try a response with duplicate option names but no `optionId` and confirm the plan is warned/conditional rather than mapped to the wrong option.
+4. Try a response with two explicit `Action` pieces and confirm it warns, while `Attack 1` plus `Attack 2` does not.
+5. Try a fallback response wrapped in Markdown fences and confirm JSON extraction succeeds.
+
+### Verification Completed
+
+- `node --test tests\aiRecommendationService.test.mjs tests\aiRecommendationContext.test.mjs`
+
 ## Current Session: AI Full-Turn Plan Pieces
 
 ### Implemented

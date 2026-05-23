@@ -55,6 +55,8 @@ test("AI recommendation service falls back when json_schema response format is u
   assert.equal(calls.length, 2);
   assert.equal(calls[0].responseFormat.type, "json_schema");
   assert.ok(JSON.stringify(calls[0].responseFormat).includes("planPieces"));
+  assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"action\""), false);
+  assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"bonusAction\""), false);
   assert.equal(calls[0].temperature, 0.15);
   assert.equal(calls[1].responseFormat, undefined);
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
@@ -109,6 +111,80 @@ test("normalization flags invented option IDs without dropping the recommendatio
   assert.equal(result.recommendations[0].pieces[0].option, null);
 });
 
+test("normalization tolerates malformed recommendation objects", () => {
+  const result = normalizeAiResponse(JSON.stringify({
+    turnAssessment: "Malformed item.",
+    recommendedOptionId: "",
+    missingInfo: [],
+    recommendations: [null]
+  }), {
+    availableOptions: { attacks: [availableRapier] },
+    unavailableOptions: {}
+  });
+
+  assert.equal(result.recommendations.length, 1);
+  assert.equal(result.recommendations[0].title, "AI turn plan 1");
+  assert.equal(result.recommendations[0].action.name, "None");
+});
+
+test("normalization warns when matching by name only because optionId is missing", () => {
+  const payload = responseWithAction("", "Rapier");
+  const result = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: { attacks: [availableRapier] },
+    unavailableOptions: {}
+  });
+
+  assert.equal(result.recommendations[0].pieces[0].optionId, "attack_rapier");
+  assert.match(result.recommendations[0].warnings.join(" "), /by name only because optionId was missing/);
+});
+
+test("normalization treats duplicate option names as unmatched without an optionId", () => {
+  const payload = responseWithAction("", "Strike");
+  const result = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: {
+      attacks: [
+        { id: "attack_strike_1", name: "Strike", available: true },
+        { id: "attack_strike_2", name: "Strike", available: true }
+      ]
+    },
+    unavailableOptions: {}
+  });
+
+  assert.equal(result.recommendations[0].pieces[0].option, null);
+  assert.match(result.recommendations[0].warnings.join(" "), /Multiple available options are named "Strike"/);
+});
+
+test("normalization warns on extra explicit actions but allows numbered extra attacks", () => {
+  const payload = responseWithAction("attack_rapier", "Rapier");
+  payload.recommendations[0].planPieces = [
+    { slot: "Attack 1", optionId: "attack_rapier", name: "Rapier", explanation: "First swing." },
+    { slot: "Attack 2", optionId: "attack_rapier", name: "Rapier", explanation: "Second swing." }
+  ];
+  const extraAttacks = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: { attacks: [availableRapier] }
+  });
+  assert.doesNotMatch(extraAttacks.recommendations[0].warnings.join(" "), /more than one explicit Action/);
+
+  payload.recommendations[0].planPieces = [
+    { slot: "Action", optionId: "attack_rapier", name: "Rapier", explanation: "Main action." },
+    { slot: "Action", optionId: "attack_rapier", name: "Rapier", explanation: "Second action." },
+    { slot: "Bonus Action", optionId: "bonus_hide", name: "Hide", explanation: "Hide." },
+    { slot: "Bonus Action", optionId: "bonus_dash", name: "Dash", explanation: "Dash." }
+  ];
+  const overBudget = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: {
+      attacks: [availableRapier],
+      bonus: [
+        { id: "bonus_hide", name: "Hide", available: true },
+        { id: "bonus_dash", name: "Dash", available: true }
+      ]
+    }
+  });
+
+  assert.match(overBudget.recommendations[0].warnings.join(" "), /more than one explicit Action/);
+  assert.match(overBudget.recommendations[0].warnings.join(" "), /more than one Bonus Action/);
+});
+
 test("normalization flags unavailable matched options", () => {
   const result = normalizeAiResponse(JSON.stringify(responseWithAction("spell_fireball", "Fireball")), {
     availableOptions: { attacks: [availableRapier] },
@@ -141,6 +217,15 @@ test("balanced JSON extraction ignores surrounding text and braces in strings", 
 
   assert.equal(JSON.parse(extracted).turnAssessment, "Use {braces} safely.");
   assert.equal(normalizeAiResponse(wrapped, { availableOptions: { attacks: [availableRapier] } }).recommendations[0].legality, "legal");
+});
+
+test("balanced JSON extraction handles markdown fences", () => {
+  const fenced = `\`\`\`json
+${JSON.stringify(responseWithAction("attack_rapier", "Rapier"))}
+\`\`\``;
+  const result = normalizeAiResponse(fenced, { availableOptions: { attacks: [availableRapier] } });
+
+  assert.equal(result.recommendations[0].pieces[0].optionId, "attack_rapier");
 });
 
 test("clarification helper detects all-conditional results with several missing facts", () => {
@@ -178,6 +263,38 @@ test("user message builder compacts oversized tactical context", () => {
   assert.ok(compact.availableOptions.spells.length < context.availableOptions.spells.length);
   assert.match(message, /contextCompacted/);
   assert.ok(message.length < JSON.stringify(context).length);
+});
+
+test("compact context rebuilds option index from compacted available options", () => {
+  const option = (id, name, group) => ({
+    id,
+    name,
+    group,
+    available: true,
+    cost: group === "bonus" ? { bonusAction: true } : { action: true },
+    summary: "Useful option. ".repeat(80)
+  });
+  const context = {
+    ...largeContext(),
+    availableOptions: {
+      spells: [option("spell_bless", "Bless", "spells")],
+      bonus: [option("bonus_hide", "Hide", "bonus")],
+      reaction: [option("reaction_shield", "Shield", "reaction")],
+      resources: [option("resource_smite", "Divine Smite", "resources")]
+    },
+    optionIndex: Array.from({ length: 100 }, (_, index) => ({
+      id: `stale_${index}`,
+      name: `Stale ${index}`,
+      group: "stale"
+    }))
+  };
+
+  const compact = compactContextForRequest(context, 9000);
+  const compactIds = compact.optionIndex.map((entry) => entry.id);
+
+  assert.equal(compact.requestNotes.contextCompacted, true);
+  assert.deepEqual(compactIds.sort(), ["bonus_hide", "reaction_shield", "resource_smite", "spell_bless"].sort());
+  assert.equal(compactIds.some((id) => id.startsWith("stale_")), false);
 });
 
 function responseWithAction(optionId, name) {

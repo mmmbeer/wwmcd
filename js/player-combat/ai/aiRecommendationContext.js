@@ -16,7 +16,9 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups),
     optionIndex: buildOptionIndex(availableOptions),
-    deterministicRecommendations: recommendationSets.slice(0, 5).map(summarizeRecommendationSet),
+    deterministicRecommendations: (Array.isArray(recommendationSets) ? recommendationSets : [])
+      .slice(0, 5)
+      .map(summarizeRecommendationSet),
     instructionHints: {
       useOnlyOptionIds: true,
       preferCompleteTurnPlans: true,
@@ -194,51 +196,54 @@ export function summarizeUnavailableGroups(groups = {}) {
 }
 
 function summarizeRecommendationSet(set) {
+  const pieces = Array.isArray(set?.pieces) ? set.pieces : [];
   return {
-    rank: set.rank,
-    title: set.title,
-    score: set.score,
-    pieces: set.pieces.map((piece) => ({
-      slot: piece.slot,
-      option: summarizeOption(piece.entry.option),
-      reasons: piece.entry.reasons ?? [],
-      warnings: piece.entry.warnings ?? []
+    rank: set?.rank ?? null,
+    title: String(set?.title ?? "Untitled recommendation"),
+    score: Number(set?.score) || 0,
+    pieces: pieces.map((piece) => ({
+      slot: String(piece?.slot ?? "Action"),
+      option: summarizeOption(piece?.entry?.option ?? piece?.option),
+      reasons: Array.isArray(piece?.entry?.reasons) ? piece.entry.reasons : [],
+      warnings: Array.isArray(piece?.entry?.warnings) ? piece.entry.warnings : []
     })),
-    reasons: set.reasons,
-    warnings: set.warnings
+    reasons: Array.isArray(set?.reasons) ? set.reasons : [],
+    warnings: Array.isArray(set?.warnings) ? set.warnings : []
   };
 }
 
 function summarizeOption(option) {
+  const safeOption = option && typeof option === "object" ? option : {};
+  const spell = safeOption.spell && typeof safeOption.spell === "object" ? safeOption.spell : null;
   return {
-    id: option.id,
-    name: option.name,
-    source: option.source,
-    group: option.group,
-    available: option.available !== false,
-    unavailableReasons: option.unavailableReasons ?? [],
-    cost: option.cost,
-    resource: option.resource,
-    attack: option.attack,
-    range: option.range,
-    rolls: option.rolls ?? [],
-    tags: option.tags ?? [],
-    meta: option.meta ?? [],
-    spell: option.spell ? {
-      level: option.spell.level,
-      school: option.spell.school,
-      castingCost: option.spell.castingCost,
-      concentration: option.spell.concentration,
-      range: option.spell.range,
-      saveAbility: option.spell.saveAbility,
-      requiresSave: option.spell.requiresSave
+    id: safeOption.id ?? "",
+    name: safeOption.name ?? "Unknown option",
+    source: safeOption.source ?? "",
+    group: safeOption.group ?? "",
+    available: safeOption.available !== false,
+    unavailableReasons: Array.isArray(safeOption.unavailableReasons) ? safeOption.unavailableReasons : [],
+    cost: safeOption.cost ?? null,
+    resource: safeOption.resource ?? null,
+    attack: safeOption.attack ?? null,
+    range: safeOption.range ?? null,
+    rolls: Array.isArray(safeOption.rolls) ? safeOption.rolls : [],
+    tags: Array.isArray(safeOption.tags) ? safeOption.tags : [],
+    meta: Array.isArray(safeOption.meta) ? safeOption.meta : [],
+    spell: spell ? {
+      level: spell.level,
+      school: spell.school,
+      castingCost: spell.castingCost,
+      concentration: spell.concentration,
+      range: spell.range,
+      saveAbility: spell.saveAbility,
+      requiresSave: spell.requiresSave
     } : null,
     summary: trimText(
-      option.tacticalSummary
-        ?? option.description
-        ?? option.longDescription
-        ?? option.featureAction?.description
-        ?? option.spell?.reference?.description,
+      safeOption.tacticalSummary
+        ?? safeOption.description
+        ?? safeOption.longDescription
+        ?? safeOption.featureAction?.description
+        ?? spell?.reference?.description,
       350
     )
   };

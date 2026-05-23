@@ -30,18 +30,6 @@ The response must be a single JSON object with this exact shape:
           "explanation": "why this piece belongs in the full turn"
         }
       ],
-      "action": {
-        "slot": "Action",
-        "optionId": "copy the exact id from an available option when possible",
-        "name": "copy the exact option name",
-        "explanation": "why this action belongs in the plan"
-      },
-      "bonusAction": {
-        "slot": "Bonus Action",
-        "optionId": "",
-        "name": "None",
-        "explanation": "no useful bonus action available"
-      },
       "freeInteraction": "brief note or none",
       "reactionPlan": "reaction guidance for after the turn",
       "resourcesUsed": ["resource name"],
@@ -149,15 +137,16 @@ export function normalizeAiResponse(text, contextOrOptions) {
 }
 
 export function normalizeRecommendationSet(set, index, optionMap) {
-  const legacyPieces = Array.isArray(set.actions) ? set.actions : [];
-  const normalizedPlanPieces = normalizePlanPieces(set.planPieces, optionMap);
+  const safeSet = set && typeof set === "object" ? set : {};
+  const legacyPieces = Array.isArray(safeSet.actions) ? safeSet.actions : [];
+  const normalizedPlanPieces = normalizePlanPieces(safeSet.planPieces, optionMap);
   const hasPlanPieces = normalizedPlanPieces.length > 0;
   const action = hasPlanPieces
-    ? findPlanPiece(normalizedPlanPieces, isActionPiece) ?? normalizeActionPiece(set.action, optionMap, "Action")
-    : normalizeActionPiece(set.action ?? legacyPieces[0], optionMap, "Action");
+    ? findPlanPiece(normalizedPlanPieces, isActionPiece) ?? normalizeActionPiece(safeSet.action, optionMap, "Action")
+    : normalizeActionPiece(safeSet.action ?? legacyPieces[0], optionMap, "Action");
   const bonusAction = hasPlanPieces
-    ? findPlanPiece(normalizedPlanPieces, isBonusPiece) ?? normalizeActionPiece(set.bonusAction, optionMap, "Bonus Action")
-    : normalizeActionPiece(set.bonusAction ?? legacyPieces.find(isBonusPiece), optionMap, "Bonus Action");
+    ? findPlanPiece(normalizedPlanPieces, isBonusPiece) ?? normalizeActionPiece(safeSet.bonusAction, optionMap, "Bonus Action")
+    : normalizeActionPiece(safeSet.bonusAction ?? legacyPieces.find(isBonusPiece), optionMap, "Bonus Action");
   const pieces = hasPlanPieces
     ? normalizedPlanPieces
     : [action, bonusAction, ...legacyPieces.slice(1).filter((piece) => !isBonusPiece(piece)).map((piece) => (
@@ -165,33 +154,34 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     ))].filter(Boolean);
 
   const validationWarnings = [
-    ...pieces.flatMap(validateMatchedPiece)
+    ...pieces.flatMap(validateMatchedPiece),
+    ...validateActionEconomy(pieces)
   ];
-  const warnings = [...arrayOfStrings(set.warnings), ...validationWarnings].slice(0, 8);
+  const warnings = [...arrayOfStrings(safeSet.warnings), ...validationWarnings].slice(0, 8);
   const legality = validationWarnings.length
-    ? downgradeLegality(stringOr(set.legality, "conditional"))
-    : legalEnum(set.legality, "conditional");
+    ? downgradeLegality(stringOr(safeSet.legality, "conditional"))
+    : legalEnum(safeSet.legality, "conditional");
 
   return {
-    id: stringOr(set.id, `ai-recommendation-${index + 1}`),
-    rank: Number(set.rank) || index + 1,
-    category: categoryEnum(set.category),
-    title: stringOr(set.title, `AI turn plan ${index + 1}`),
-    score: Number(set.score) || 0,
-    confidence: confidenceEnum(set.confidence, "medium"),
+    id: stringOr(safeSet.id, `ai-recommendation-${index + 1}`),
+    rank: Number(safeSet.rank) || index + 1,
+    category: categoryEnum(safeSet.category),
+    title: stringOr(safeSet.title, `AI turn plan ${index + 1}`),
+    score: Number(safeSet.score) || 0,
+    confidence: confidenceEnum(safeSet.confidence, "medium"),
     legality,
-    riskLevel: riskEnum(set.riskLevel, "medium"),
-    summary: stringOr(set.explanation, ""),
-    expectedOutcome: stringOr(set.expectedOutcome, ""),
-    movement: stringOr(set.movement, "No movement specified."),
+    riskLevel: riskEnum(safeSet.riskLevel, "medium"),
+    summary: stringOr(safeSet.explanation, ""),
+    expectedOutcome: stringOr(safeSet.expectedOutcome, ""),
+    movement: stringOr(safeSet.movement, "No movement specified."),
     action,
     bonusAction,
-    freeInteraction: stringOr(set.freeInteraction, ""),
-    reactionPlan: stringOr(set.reactionPlan, ""),
-    resourcesUsed: arrayOfStrings(set.resourcesUsed).slice(0, 6),
-    concentrationImpact: stringOr(set.concentrationImpact, "none"),
-    assumptions: arrayOfStrings(set.assumptions).slice(0, 8),
-    reasons: arrayOfStrings(set.reasons).slice(0, 6),
+    freeInteraction: stringOr(safeSet.freeInteraction, ""),
+    reactionPlan: stringOr(safeSet.reactionPlan, ""),
+    resourcesUsed: arrayOfStrings(safeSet.resourcesUsed).slice(0, 6),
+    concentrationImpact: stringOr(safeSet.concentrationImpact, "none"),
+    assumptions: arrayOfStrings(safeSet.assumptions).slice(0, 8),
+    reasons: arrayOfStrings(safeSet.reasons).slice(0, 6),
     warnings,
     pieces
   };
@@ -219,7 +209,15 @@ export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
 
   const optionId = stringOr(piece.optionId, "");
   const name = stringOr(piece.name, "");
-  const matched = optionMap.get(optionId) ?? optionMap.get(name.toLowerCase());
+  const { option: matched, matchedByNameOnly, ambiguousName } = findMatchingOption({ optionId, name, optionMap });
+  const validation = [];
+  if (matchedByNameOnly) {
+    validation.push(`Matched "${matched.name}" by name only because optionId was missing.`);
+  } else if (ambiguousName) {
+    validation.push(`Multiple available options are named "${name}"; provide optionId to disambiguate.`);
+  } else if (!matched && name.toLowerCase() !== "none") {
+    validation.push(`No matching available option found for "${name || optionId}".`);
+  }
 
   return {
     slot: stringOr(piece.slot, fallbackSlot),
@@ -227,9 +225,7 @@ export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
     name: matched?.name ?? name,
     explanation: stringOr(piece.explanation, ""),
     option: matched ?? null,
-    validation: matched || name.toLowerCase() === "none"
-      ? []
-      : [`No matching available option found for "${name || optionId}".`]
+    validation
   };
 }
 
@@ -260,18 +256,66 @@ function findPlanPiece(pieces, predicate) {
 }
 
 function buildOptionMap(contextOrOptions) {
-  const map = new Map();
+  const byId = new Map();
+  const nameBuckets = new Map();
   const groups = contextOrOptions?.availableOptions
     ? [contextOrOptions.availableOptions, contextOrOptions.unavailableOptions]
     : [contextOrOptions];
   groups.forEach((groupSet) => {
     Object.values(groupSet ?? {}).flat().forEach((option) => {
       if (!option?.id) return;
-      map.set(option.id, option);
-      map.set(String(option.name ?? "").toLowerCase(), option);
+      byId.set(option.id, option);
+      const nameKey = String(option.name ?? "").toLowerCase();
+      if (!nameKey) return;
+      const bucket = nameBuckets.get(nameKey) ?? [];
+      bucket.push(option);
+      nameBuckets.set(nameKey, bucket);
     });
   });
-  return map;
+  const byName = new Map();
+  const ambiguousNames = new Set();
+  nameBuckets.forEach((options, name) => {
+    const uniqueIds = new Set(options.map((option) => option.id));
+    if (uniqueIds.size === 1) byName.set(name, options[0]);
+    else ambiguousNames.add(name);
+  });
+  return { byId, byName, ambiguousNames };
+}
+
+function findMatchingOption({ optionId, name, optionMap }) {
+  if (optionMap instanceof Map) {
+    const matchedById = optionId ? optionMap.get(optionId) : null;
+    if (matchedById) return { option: matchedById, matchedByNameOnly: false, ambiguousName: false };
+    const matchedByLegacyName = !optionId && name ? optionMap.get(name.toLowerCase()) : null;
+    return { option: matchedByLegacyName ?? null, matchedByNameOnly: Boolean(matchedByLegacyName), ambiguousName: false };
+  }
+
+  const matchedById = optionId ? optionMap?.byId?.get(optionId) : null;
+  if (matchedById) return { option: matchedById, matchedByNameOnly: false, ambiguousName: false };
+  const nameKey = String(name ?? "").toLowerCase();
+  if (!optionId && nameKey && optionMap?.ambiguousNames?.has(nameKey)) {
+    return { option: null, matchedByNameOnly: false, ambiguousName: true };
+  }
+  const matchedByName = !optionId && nameKey ? optionMap?.byName?.get(nameKey) : null;
+  return { option: matchedByName ?? null, matchedByNameOnly: Boolean(matchedByName), ambiguousName: false };
+}
+
+function validateActionEconomy(pieces) {
+  const explicitActions = pieces.filter((piece) => isExplicitActionSlot(piece?.slot));
+  const explicitBonusActions = pieces.filter((piece) => isBonusPiece(piece));
+  const warnings = [];
+  if (explicitActions.length > 1) {
+    warnings.push("Plan appears to use more than one explicit Action.");
+  }
+  if (explicitBonusActions.length > 1) {
+    warnings.push("Plan appears to use more than one Bonus Action.");
+  }
+  return warnings;
+}
+
+function isExplicitActionSlot(slot) {
+  const normalized = String(slot ?? "").trim().toLowerCase();
+  return normalized === "action" || normalized === "main action";
 }
 
 export function parseJson(text) {
@@ -386,8 +430,8 @@ function recommendationSchema() {
     additionalProperties: false,
     required: [
       "id", "rank", "category", "title", "score", "confidence", "legality",
-      "riskLevel", "explanation", "expectedOutcome", "movement", "planPieces", "action",
-      "bonusAction", "freeInteraction", "reactionPlan", "resourcesUsed",
+      "riskLevel", "explanation", "expectedOutcome", "movement", "planPieces",
+      "freeInteraction", "reactionPlan", "resourcesUsed",
       "concentrationImpact", "assumptions", "reasons", "warnings"
     ],
     properties: {
@@ -411,12 +455,10 @@ function recommendationSchema() {
         maxItems: 10,
         items: actionPieceSchema()
       },
-      action: actionPieceSchema(),
-      bonusAction: actionPieceSchema(),
       freeInteraction: { type: "string" },
       reactionPlan: { type: "string" },
       resourcesUsed: { type: "array", items: { type: "string" } },
-      concentrationImpact: nullableStringSchema(),
+      concentrationImpact: { type: "string" },
       assumptions: { type: "array", items: { type: "string" } },
       reasons: { type: "array", items: { type: "string" } },
       warnings: { type: "array", items: { type: "string" } }
@@ -436,8 +478,4 @@ function actionPieceSchema() {
       explanation: { type: "string" }
     }
   };
-}
-
-function nullableStringSchema() {
-  return { type: ["string", "null"] };
 }

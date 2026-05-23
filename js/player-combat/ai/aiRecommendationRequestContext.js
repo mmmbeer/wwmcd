@@ -20,16 +20,17 @@ export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) 
 }
 
 function buildCompactContext(context, { availableLimit, unavailableLimit, optionSummaryLimit, listLimit }) {
+  const availableOptions = compactOptionGroups(context?.availableOptions, availableLimit, optionSummaryLimit);
   return {
     schemaVersion: context?.schemaVersion,
     character: compactCharacter(context?.character, listLimit),
     combatState: context?.combatState,
     turnRules: context?.turnRules,
     playerIntent: context?.playerIntent,
-    classTactics: context?.classTactics,
-    availableOptions: compactOptionGroups(context?.availableOptions, availableLimit, optionSummaryLimit),
+    classTactics: compactClassTactics(context?.classTactics),
+    availableOptions,
     unavailableOptions: compactOptionGroups(context?.unavailableOptions, unavailableLimit, 80),
-    optionIndex: (context?.optionIndex ?? []).slice(0, availableLimit * 8).map(compactIndexOption),
+    optionIndex: buildCompactOptionIndex(availableOptions),
     deterministicRecommendations: (context?.deterministicRecommendations ?? []).slice(0, 3).map(compactRecommendationSet),
     instructionHints: context?.instructionHints,
     requestNotes: {
@@ -37,6 +38,18 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
       compactReason: "Original tactical context exceeded request payload budget."
     }
   };
+}
+
+function compactClassTactics(classTactics = {}) {
+  return Object.fromEntries(Object.entries(classTactics ?? {}).map(([className, tactics]) => [
+    className,
+    {
+      priorities: compactList(tactics?.priorities, 3),
+      checks: compactList(tactics?.checks, 3),
+      avoid: compactList(tactics?.avoid, 2),
+      reminderQuestions: compactList(tactics?.reminderQuestions, 3)
+    }
+  ]));
 }
 
 function compactCharacter(character, listLimit) {
@@ -72,7 +85,8 @@ function compactRecordLists(record = {}, listLimit) {
 }
 
 function compactList(items = [], limit) {
-  return (items ?? []).slice(0, limit).map((item) => {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, limit).map((item) => {
     if (typeof item === "string") return item;
     return {
       name: item.name,
@@ -127,6 +141,12 @@ function compactIndexOption(option) {
     spellLevel: option.spellLevel,
     concentration: option.concentration
   };
+}
+
+function buildCompactOptionIndex(availableOptions) {
+  return Object.entries(availableOptions ?? {}).flatMap(([group, options]) =>
+    (options ?? []).map((option) => compactIndexOption({ ...option, group }))
+  );
 }
 
 function compactRecommendationSet(set) {
