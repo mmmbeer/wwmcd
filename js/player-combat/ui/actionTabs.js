@@ -1,5 +1,5 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { hasGroqApiKey } from "../ai/aiSettings.js";
+import { hasActiveAiSettings } from "../ai/aiSettings.js";
 import {
   getRankedRecommendations,
   getRankedRecommendationSets
@@ -78,7 +78,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
       ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
     </nav>
     <div class="option-tabs">
-      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasGroqApiKey(storage) }) : ""}
+      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasActiveAiSettings(storage) }) : ""}
       ${visibleGroup === "recommended"
     ? aiRecommendationCount(aiRecommendationSets) ? renderAiRecommendationSets(aiRecommendationSets) : renderRecommendationSets(recommendationSets)
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}

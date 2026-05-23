@@ -1,5 +1,5 @@
 import { buildAiRecommendationContext } from "../ai/aiRecommendationContext.js";
-import { getAiSettings } from "../ai/aiSettings.js";
+import { getActiveAiProviderSettings, getAiSettings } from "../ai/aiSettings.js";
 import { getAiRecommendations } from "../ai/aiRecommendationService.js";
 import { escapeHtml } from "./renderUtils.js";
 
@@ -26,7 +26,8 @@ export function openAiRecommendationModal({
 }
 
 function renderInitialBody({ settings, answers }) {
-  const ready = Boolean(settings.groqApiKey && settings.groqModel);
+  const active = getActiveAiProviderSettings(settings);
+  const ready = Boolean(active.apiKey && active.model);
   return `
     <div class="ai-context-summary">
       ${summaryItem("Goal", answers.goal)}
@@ -38,7 +39,7 @@ function renderInitialBody({ settings, answers }) {
       ${summaryItem("Concentration", answers.concentration)}
     </div>
     ${ready ? "" : `
-      <p class="inline-message warning">Save a Groq API key and select a model in AI Options before requesting recommendations.</p>
+      <p class="inline-message warning">Save a provider API key and select a model in AI Options before requesting recommendations.</p>
       <button class="btn btn-primary" type="button" data-ai-open-settings>Open AI Options</button>
     `}
     <label class="field ai-notes-field">
@@ -61,6 +62,7 @@ function bindEvents(body, services) {
 
 async function requestRecommendations(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, onRecommendations }) {
   const settings = getAiSettings(storage);
+  const active = getActiveAiProviderSettings(settings);
   const button = body.querySelector("[data-ai-get-recommendations]");
   const loading = body.querySelector("[data-ai-loading]");
   const status = body.querySelector("[data-ai-status]");
@@ -72,8 +74,9 @@ async function requestRecommendations(body, { modalApi, storage, snapshot, group
   try {
     const context = buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes: notes });
     const recommendations = await getAiRecommendations({
-      apiKey: settings.groqApiKey,
-      model: settings.groqModel,
+      provider: active.provider,
+      apiKey: active.apiKey,
+      model: active.model,
       context
     });
     onRecommendations?.(recommendations);

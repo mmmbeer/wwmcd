@@ -2,7 +2,7 @@ import { createEventBus } from "./core/eventBus.js";
 import { createStateManager } from "./core/stateManager.js";
 import { createStorage } from "./core/storage.js";
 import { loadReferenceData } from "./data/referenceDataService.js";
-import { hasGroqApiKey } from "./ai/aiSettings.js";
+import { hasActiveAiSettings } from "./ai/aiSettings.js";
 import { getEffectiveWalkSpeed } from "./rules/movementRules.js";
 import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
@@ -217,7 +217,7 @@ function renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, s
       ${snapshot.activeCharacter ? "Import / Replace Character" : "Import Character"}
     </button>
     <button class="utility-menu-item" type="button" data-menu-action="ai-options">
-      AI Options${hasGroqApiKey(storage) ? " (saved)" : ""}
+      AI Options${hasActiveAiSettings(storage) ? " (saved)" : ""}
     </button>
   `;
 

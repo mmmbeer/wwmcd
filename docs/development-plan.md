@@ -1,6 +1,62 @@
 # Development Plan
 
-## Current Session: AI Recommendation Stability
+## Current Session: AI Provider Selection
+
+### Implemented
+
+- Added provider-neutral AI settings with Groq and OpenAI as selectable providers.
+- Kept Groq settings backward-compatible while storing provider-specific API keys, selected models, and loaded model lists separately.
+- Added `api/ai.php`, a thin OpenAI-compatible PHP router for Groq and OpenAI model listing and chat completion requests.
+- Added a provider-neutral browser AI client and kept the old Groq client as a compatibility wrapper.
+- Updated AI Options to show `AI Provider`, `AI API Key`, and `AI Model`.
+- Updated AI recommendations to send requests through the user-selected provider and model.
+- Added regression tests for provider-specific settings and legacy Groq migration.
+
+### Files Changed
+
+- `api/ai.php`
+- `js/player-combat/ai/aiClient.js`
+- `js/player-combat/ai/aiSettings.js`
+- `js/player-combat/ai/groqClient.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ui/aiOptionsModal.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionTabs.js`
+- `tests/aiSettings.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- API keys are still browser-local and are not retained by the PHP router. Browser local storage is not an encrypted operating-system keychain.
+- OpenAI and Groq both use OpenAI-compatible `/models` and `/chat/completions` routes here; provider-specific non-chat model filtering is not yet applied.
+- PHP is not installed in this environment, so the new router could not be linted locally.
+
+### Manual Test Checklist
+
+1. Open `AI Options`, select Groq, save a Groq key, load models, and pick a model.
+2. Switch to OpenAI and confirm the key field and model list are separate from Groq.
+3. Save an OpenAI key, load models, pick a model, and confirm `AI Options (saved)` appears.
+4. Request AI recommendations and confirm the selected provider/model is used.
+5. Switch back to Groq and confirm the previous Groq key/model are still available.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\aiSettings.js`
+- `node --check js\player-combat\ai\aiClient.js`
+- `node --check js\player-combat\ai\groqClient.js`
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ui\aiOptionsModal.js`
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\app.js`
+- `node --check tests\aiSettings.test.mjs`
+- `node --test tests\aiSettings.test.mjs tests\aiRecommendationService.test.mjs tests\aiRecommendationContext.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+- `rg "\b(alert|prompt|confirm)\s*\(" js index.html`
+- Checked player-combat JavaScript file sizes; no file is over 500 lines.
+
+## Previous Session: AI Recommendation Stability
 
 ### Implemented
 

@@ -1,8 +1,8 @@
-import { requestGroqChat } from "./groqClient.js";
+import { requestAiChat } from "./aiClient.js";
 import { AI_RECOMMENDATION_SYSTEM_PROMPT } from "./aiRecommendationPrompt.js";
 import { compactContextForRequest } from "./aiRecommendationRequestContext.js";
 
-const FALLBACK_JSON_PROMPT = `The selected model does not support Groq structured outputs.
+const FALLBACK_JSON_PROMPT = `The selected model does not support structured outputs.
 Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
 The response must be a single JSON object with this exact shape:
 {
@@ -42,14 +42,14 @@ The response must be a single JSON object with this exact shape:
 }
 Use one to six recommendations.`;
 
-export async function getAiRecommendations({ apiKey, model, context, chatClient = requestGroqChat }) {
-  const request = structuredRecommendationRequest({ apiKey, model, context });
+export async function getAiRecommendations({ provider = "groq", apiKey, model, context, chatClient = requestAiChat }) {
+  const request = structuredRecommendationRequest({ provider, apiKey, model, context });
   let payload;
   try {
     payload = await chatClient(request);
   } catch (error) {
     if (!isStructuredOutputUnsupportedError(error)) throw error;
-    payload = await chatClient(fallbackRecommendationRequest({ apiKey, model, context }));
+    payload = await chatClient(fallbackRecommendationRequest({ provider, apiKey, model, context }));
   }
 
   return normalizeAiResponse(payload.text, context);
@@ -94,8 +94,9 @@ export function buildRecommendationUserMessage(context) {
 
 export { compactContextForRequest };
 
-function structuredRecommendationRequest({ apiKey, model, context }) {
+function structuredRecommendationRequest({ provider, apiKey, model, context }) {
   return {
+    provider,
     apiKey,
     model,
     temperature: 0.15,
@@ -107,8 +108,9 @@ function structuredRecommendationRequest({ apiKey, model, context }) {
   };
 }
 
-function fallbackRecommendationRequest({ apiKey, model, context }) {
+function fallbackRecommendationRequest({ provider, apiKey, model, context }) {
   return {
+    provider,
     apiKey,
     model,
     temperature: 0.1,
@@ -325,7 +327,7 @@ export function parseJson(text) {
   } catch {
     const extracted = extractFirstJsonObject(raw);
     if (!extracted) {
-      throw new Error("Groq returned a recommendation response that was not valid JSON.");
+      throw new Error("AI returned a recommendation response that was not valid JSON.");
     }
     return JSON.parse(extracted);
   }
