@@ -1854,6 +1854,28 @@ body.has-turn-progress .app-shell {
   align-items: center;
 }
 
+.recommendation-summary-filter {
+  flex: 0 0 auto;
+}
+
+.recommendation-summary-filter select {
+  min-height: 28px;
+  border: 1px solid rgba(190, 143, 72, 0.24);
+  border-radius: var(--radius-sm);
+  background: var(--bg-row);
+  color: var(--text-secondary);
+  padding: 5px 24px 5px 7px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.recommendation-summary-filter select:focus-visible {
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+
 .recommendation-question {
   display: grid;
   gap: 4px;

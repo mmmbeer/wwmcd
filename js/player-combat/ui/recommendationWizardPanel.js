@@ -48,6 +48,13 @@ export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabl
 }
 
 export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, onAiClick } = {}) {
+  root.querySelectorAll("[data-recommendation-answer]").forEach((select) => {
+    select.addEventListener("change", () => {
+      updateRecommendationAnswer(select.dataset.recommendationAnswer, select.value);
+      onChange();
+    });
+  });
+
   root.querySelector("[data-recommendation-help]")?.addEventListener("click", () => onHelpClick?.());
   root.querySelector("[data-recommendation-reset]")?.addEventListener("click", () => {
     resetRecommendationAnswers();
@@ -58,11 +65,15 @@ export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, on
 }
 
 function renderSummaryItem(question) {
-  const selected = question.options.find(([value]) => value === question.value);
   return `
-    <span class="recommendation-reason">
-      ${escapeHtml(question.label)}: ${escapeHtml(selected?.[1] ?? question.value ?? "Any")}
-    </span>
+    <label class="recommendation-summary-filter">
+      <span class="sr-only">${escapeHtml(question.label)}</span>
+      <select data-recommendation-answer="${escapeHtml(question.id)}">
+        ${question.options.map(([value, label]) => `
+          <option value="${escapeHtml(value)}" ${question.value === value ? "selected" : ""}>${escapeHtml(label)}</option>
+        `).join("")}
+      </select>
+    </label>
   `;
 }
 
