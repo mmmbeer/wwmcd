@@ -7,6 +7,10 @@ export function resolveActionRoll({ modalApi, stateManager, option }) {
   return resolveActionRolls({ modalApi, stateManager, option });
 }
 
+export function hasActionRollModal(option) {
+  return rollBundle(option).length > 0;
+}
+
 async function resolveActionRolls({ modalApi, stateManager, option }) {
   const repeat = rollRepeatCount(option);
   for (let index = 1; index <= repeat; index += 1) {

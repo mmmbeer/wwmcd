@@ -6,7 +6,9 @@ import { transformCombatData } from "../js/player-combat/data/combatDataTransfor
 import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 import { resetLongRestResources } from "../js/player-combat/rules/restRules.js";
+import { hasActionRollModal } from "../js/player-combat/ui/actionRollModal.js";
 import { followupOptions } from "../js/player-combat/ui/actionTabs.js";
+import { renderActionUseConfirmation, shouldConfirmActionUse } from "../js/player-combat/ui/actionUseConfirmModal.js";
 import { renderFollowupButton, toggleFollowupDescription } from "../js/player-combat/ui/followupOptionRenderer.js";
 
 const combatState = {
@@ -271,6 +273,38 @@ test("post-action followup description toggle opens inline details", () => {
   assert.equal(root.toggle.getAttribute("aria-expanded"), "true");
   assert.equal(root.panel.hidden, false);
   assert.equal(root.toggle.querySelector("span").textContent, "^");
+});
+
+test("plain action use confirmation renders action details before spending", () => {
+  const html = renderActionUseConfirmation({
+    id: "monk_flurry_of_blows",
+    name: "Flurry of Blows",
+    description: "Make two unarmed strikes as a bonus action.",
+    cost: { bonus: true, resource: { id: "resource-ki", name: "Focus", amount: 1 } },
+    range: { label: "5 ft" }
+  });
+
+  assert.match(html, /Flurry of Blows/);
+  assert.match(html, /bonus action/);
+  assert.match(html, /Resource/);
+  assert.match(html, /title="Focus"/);
+  assert.match(html, />Focus</);
+  assert.match(html, /5 ft/);
+  assert.match(html, /Make two unarmed strikes as a bonus action/);
+});
+
+test("action use confirmation is skipped when another action modal already applies", () => {
+  assert.equal(shouldConfirmActionUse({ hadExistingModal: false }), true);
+  assert.equal(shouldConfirmActionUse({ hadExistingModal: true }), false);
+  assert.equal(hasActionRollModal({
+    name: "Longbow",
+    cost: { action: true },
+    rolls: [
+      { id: "attack", type: "attack", label: "Attack", formula: "1d20+5" },
+      { id: "damage", type: "damage", label: "Damage", formula: "1d8+3" }
+    ]
+  }), true);
+  assert.equal(hasActionRollModal({ name: "Hide", cost: { action: true }, description: "Make a Dexterity (Stealth) check." }), false);
 });
 
 

@@ -1,6 +1,44 @@
 # Development Plan
 
-## Current Session: Resource Icon Columns
+## Current Session: Action Use Confirmation Modal
+
+### Implemented
+
+- Added a confirmation modal before using actions that do not already show a roll or concentration modal.
+- The modal shows the selected action type, name, resource cost, range, roll, damage, warnings, and description where available.
+- Confirmation happens before state mutation; after confirmation, the existing roll/spend/follow-up flow continues unchanged.
+- Kept the confirmation renderer in a focused UI module so the action tab controller remains under the project file-size target.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/actionRollModal.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionUseConfirmModal.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Actions with an existing roll modal still use that roll modal as their confirmation point rather than showing a second confirmation modal first.
+
+### Manual Test Checklist
+
+1. Use a non-rolling action such as Hide, Dash, Rage, or Flurry of Blows and confirm the new modal appears before the action is spent.
+2. Cancel the modal and confirm no action economy or resource is spent.
+3. Confirm the modal and verify the normal `Action Complete` follow-up modal appears afterward.
+4. Use an attack with rolls and confirm it still opens the roll modal directly.
+5. Cast a concentration spell while already concentrating and confirm the concentration replacement modal still appears.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionUseConfirmModal.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: Resource Icon Columns
 
 ### Implemented
 

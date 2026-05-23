@@ -6,7 +6,8 @@ import {
 } from "../recommendations/recommendationScoring.js";
 import { canPairAfterPrimary, isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { findOption } from "./actionOptionHandlers.js";
-import { resolveActionRoll } from "./actionRollModal.js";
+import { hasActionRollModal, resolveActionRoll } from "./actionRollModal.js";
+import { confirmActionUse, shouldConfirmActionUse } from "./actionUseConfirmModal.js";
 import { recommendationTableOptions } from "./aiRecommendationTableAdapter.js";
 import { renderFollowupButton, toggleFollowupDescription } from "./followupOptionRenderer.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
@@ -199,8 +200,14 @@ async function useOptionById(optionId, groups, combatState, services) {
     services.showToast?.({ type: "warning", message: validation.message });
     return;
   }
-  if (willReplaceConcentration(option, combatState)) {
+  const hasConcentrationModal = willReplaceConcentration(option, combatState);
+  if (hasConcentrationModal) {
     const confirmed = await confirmConcentrationChange(services.modalApi, option, combatState);
+    if (!confirmed) return;
+  }
+  const hasExistingModal = hasConcentrationModal || hasActionRollModal(option);
+  if (shouldConfirmActionUse({ hadExistingModal: hasExistingModal })) {
+    const confirmed = await confirmActionUse(services.modalApi, option);
     if (!confirmed) return;
   }
   const rolled = await resolveActionRoll({ modalApi: services.modalApi, stateManager: services.stateManager, option });
