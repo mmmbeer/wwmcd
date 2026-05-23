@@ -32,22 +32,39 @@ export function renderCombatStatusBar(root, snapshot, { stateManager, modalApi }
   const hpPercent = maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0;
   root.innerHTML = `
     <section class="combat-status-bar" aria-label="Combat status">
-      <span class="section-label combat-section-label">Vitals</span>
       <div class="character-crest" aria-hidden="true">${escapeHtml(crest(character.name))}</div>
       <div class="character-status-main">
-        <div class="character-identity-line">${escapeHtml(identityLine(character))}</div>
-        <div class="status-combat-line">
-          <label class="hp-control">HP <input data-status-number="hp" type="number" inputmode="numeric" value="${hp}"><span>/ ${maxHp}</span></label>
-          <label>Tmp <input data-status-number="tempHp" type="number" inputmode="numeric" value="${Number(state.current.tempHp ?? 0)}"></label>
-          <span class="hp-meter" aria-label="Hit points ${hp} of ${maxHp}"><span style="width: ${hpPercent}%"></span></span>
-          <strong>AC ${escapeHtml(state.current.ac ?? character.combat?.ac ?? 10)}</strong>
-          <strong>SPD ${escapeHtml(formatFeet(character.combat?.speed?.walk ?? 0))}</strong>
-          <strong>INIT ${escapeHtml(initiativeLabel(character))}</strong>
-          <span class="condition-label">Cond</span>
-          <div class="condition-badges">
-            ${renderConditionBadges(state.current.conditions ?? [])}
-            <button class="condition-add" type="button" data-status-action="add-condition" aria-label="Add condition">+</button>
-          </div>
+        <div class="character-name-line">${escapeHtml(character.name ?? "Unnamed Character")}</div>
+        <div class="character-subtitle-line">${escapeHtml(characterSubtitle(character))}</div>
+      </div>
+      <div class="vital-stat-grid">
+        <label class="vital-stat vital-stat--hp">
+          <span>HP</span>
+          <strong><input data-status-number="hp" type="number" inputmode="numeric" value="${hp}"> / ${maxHp}</strong>
+          <i class="hp-meter" aria-label="Hit points ${hp} of ${maxHp}"><i style="width: ${hpPercent}%"></i></i>
+        </label>
+        <label class="vital-stat vital-stat--temp">
+          <span>Tmp</span>
+          <strong><input data-status-number="tempHp" type="number" inputmode="numeric" value="${Number(state.current.tempHp ?? 0)}"></strong>
+        </label>
+        <div class="vital-stat">
+          <span>AC</span>
+          <strong>${escapeHtml(state.current.ac ?? character.combat?.ac ?? 10)}</strong>
+        </div>
+        <div class="vital-stat">
+          <span>SPD</span>
+          <strong>${escapeHtml(formatFeet(character.combat?.speed?.walk ?? 0))}</strong>
+        </div>
+        <div class="vital-stat">
+          <span>INIT</span>
+          <strong>${escapeHtml(initiativeLabel(character))}</strong>
+        </div>
+      </div>
+      <div class="condition-row compact-condition-row">
+        <span class="condition-label">Conditions</span>
+        <div class="condition-badges">
+          ${renderConditionBadges(state.current.conditions ?? [])}
+          <button class="condition-add" type="button" data-status-action="add-condition" aria-label="Add condition">+</button>
         </div>
       </div>
     </section>
@@ -72,13 +89,13 @@ function crest(name) {
   return String(name ?? "?").trim().slice(0, 1).toUpperCase() || "?";
 }
 
-function identityLine(character) {
+function characterSubtitle(character) {
   const race = character.race?.name ?? character.ancestry?.name ?? character.race ?? "Unknown";
   const classes = (character.classes ?? []).map((entry) => [
     entry.name,
     entry.subclass ? `(${entry.subclass})` : null
   ].filter(Boolean).join(" ")).join(" / ") || "Unknown class";
-  return `${character.name} | ${classes} | Level ${character.level || "?"} | ${race}`;
+  return `${race} - ${classes} - Level ${character.level || "?"}`;
 }
 
 function initiativeLabel(character) {

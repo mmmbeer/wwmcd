@@ -1,4 +1,5 @@
 import { escapeHtml } from "./renderUtils.js";
+import { isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { getPlannedOptionForSlot, getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
 
 export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false } = {}) {
@@ -89,34 +90,12 @@ function renderActionRow(option, group) {
 
 function renderRowCells(option, rowKind, selected) {
   const buttonLabel = plannedButtonLabel(option, rowKind, selected);
-  if (rowKind === "spell") {
-    return `
-      ${renderConcentrationCell(option)}
-      ${renderCostBadge(option)}
-      <span class="action-fact">${escapeHtml(spellLevelLabel(option))}</span>
-      ${renderNameCell(option)}
-      <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
-      <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
-      ${renderActionButtonLabel(buttonLabel)}
-    `;
-  }
-
-  if (rowKind === "attack") {
-    return `
-      ${renderCostBadge(option)}
-      ${renderTypeBadge(attackModeLabel(option).toLowerCase())}
-      ${renderNameCell(option)}
-      <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
-      <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
-      ${renderDamageCell(option)}
-      ${renderActionButtonLabel(buttonLabel)}
-    `;
-  }
-
   return `
-    ${renderSourceBadge(option)}
+    ${renderResourceIndicator(option)}
+    ${renderCostBadge(option)}
     ${renderNameCell(option)}
-    <span class="action-fact action-fact--empty" aria-hidden="true"></span>
+    <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
+    <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
     ${renderActionButtonLabel(buttonLabel)}
   `;
 }
@@ -156,6 +135,7 @@ function renderNameCell(option) {
     <span class="action-name-cell">
       <span class="action-name-line">
         <strong>${escapeHtml(option.name)}</strong>
+        ${renderSourceBadge(option)}
       </span>
     </span>
   `;
@@ -184,9 +164,17 @@ function renderSourceBadge(option) {
   return renderTypeBadge(source);
 }
 
-function renderConcentrationCell(option) {
-  if (!option.spell?.concentration) return `<span class="concentration-cell" aria-hidden="true"></span>`;
-  return `<span class="concentration-cell concentration-badge" title="Requires concentration" aria-label="Requires concentration">C</span>`;
+function renderResourceIndicator(option) {
+  if (option.spell?.concentration) {
+    return `<span class="resource-cell concentration-badge" title="Requires concentration" aria-label="Requires concentration">C</span>`;
+  }
+  const resource = option.cost?.resource;
+  if (!resource) return `<span class="resource-cell" aria-hidden="true"></span>`;
+  return `
+    <span class="resource-cell resource-badge" title="${escapeHtml(resource.name ?? "Uses resource")}" aria-label="${escapeHtml(resource.name ?? "Uses resource")}">
+      ${resourceIconSvg(resource)}
+    </span>
+  `;
 }
 
 function renderTypeBadge(type) {
@@ -269,15 +257,16 @@ function detailFact(label, value) {
 }
 
 function typeLabel(option) {
-  if (option.cost?.bonus) return { key: "bonus", label: "bonus" };
+  if (isDependentOption(option) && !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction) return { key: "rider", label: "rider" };
+  if (option.cost?.bonus) return { key: "bonus", label: "bonus action" };
   if (option.cost?.reaction) return { key: "reaction", label: "reaction" };
   if (option.cost?.object || !option.cost?.action || option.cost?.movement) return { key: "free", label: "free" };
   return { key: "action", label: "action" };
 }
 
 function rowKindFor(option, group) {
-  if (group === "spells" || option.source === "spell" || option.spell) return "spell";
-  if (group === "attacks" || option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed")) return "attack";
+  if (group === "spells") return "spell";
+  if (group === "attacks") return "attack";
   return "action";
 }
 
@@ -310,6 +299,15 @@ function attackModeLabel(option) {
 function damageLabel(option) {
   const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
   return damage?.formula ?? "";
+}
+
+function resourceIconSvg(resource) {
+  const name = String(resource?.name ?? resource?.id ?? "").toLowerCase();
+  const commonAttrs = `viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false"`;
+  if (/ki|focus/.test(name)) return `<svg ${commonAttrs}><path d="M12 3v18M3 12h18M5 5l14 14M19 5 5 19"></path></svg>`;
+  if (/superiority|command|dice|die/.test(name)) return `<svg ${commonAttrs}><path d="M12 3 21 8v8l-9 5-9-5V8Z"></path><path d="M12 3v18M3 8l9 5 9-5"></path></svg>`;
+  if (/spell|slot/.test(name)) return `<svg ${commonAttrs}><path d="M12 3a7 7 0 0 0-7 7c0 5 7 11 7 11s7-6 7-11a7 7 0 0 0-7-7Z"></path><path d="M9 10h6"></path></svg>`;
+  return `<svg ${commonAttrs}><circle cx="12" cy="12" r="7"></circle><path d="M12 7v10M7 12h10"></path></svg>`;
 }
 
 function renderDamageCell(option) {

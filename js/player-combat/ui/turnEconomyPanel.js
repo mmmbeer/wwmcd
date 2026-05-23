@@ -20,14 +20,14 @@ export function renderTurnEconomyPanel(root, snapshot, { modalApi }) {
   const actionStatus = plannedActionStatus(plan.action);
   root.innerHTML = `
     <nav class="turn-progress" aria-label="Action economy">
-      ${segment("actions", "Action", state.turn.actionUsed, Boolean(plan.action), actionsAvailable, actionStatus)}
-      ${segment("bonus", "Bonus", state.turn.bonusActionUsed, Boolean(plan.bonusAction))}
-      ${segment("reaction", "React", state.turn.reactionUsed, Boolean(plan.reaction))}
-      ${segment("free", "Free", false, Boolean(plan.freeActions.length), 1, "Unlimited")}
+      ${segment("actions", "Action", state.turn.actionUsed, actionProgress(plan, actionsAvailable), actionsAvailable, actionStatus)}
+      ${segment("bonus", "Bonus", state.turn.bonusActionUsed, plan.bonusAction ? 0.55 : 0)}
+      ${segment("reaction", "Reaction", state.turn.reactionUsed, plan.reaction ? 0.55 : 0)}
+      ${segment("free", "Free", false, plan.freeActions.length ? 1 : 0, 1, "Unlimited")}
       <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""} ${plannedMovement ? "is-planned" : ""}">
-        <button class="turn-segment" type="button" data-group="movement">
-          <span class="turn-icon" aria-hidden="true">↗</span>
-          <span>Move</span>
+        <button class="turn-segment" type="button" data-group="movement" style="--turn-progress-fill: ${escapeHtml(movementProgress(speed, movementUsed, plannedMovement))}">
+          ${progressCircle("move")}
+          <span class="turn-label">Move</span>
           <strong>${movement}</strong>
         </button>
         <button class="turn-move-add" type="button" data-move="5" aria-label="Add 5 feet of movement">+</button>
@@ -90,15 +90,38 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function segment(group, label, spent, planned = false, total = 1, overrideStatus = null) {
+function segment(group, label, spent, progress = 0, total = 1, overrideStatus = null) {
+  const planned = progress > 0 && !spent;
+  const fill = spent ? 1 : progress;
   const status = overrideStatus ?? (spent ? "Spent" : planned ? "Planned" : "Ready");
   return `
-    <button class="turn-segment ${spent ? "is-spent" : ""} ${planned ? "is-planned" : ""}" type="button" data-group="${group}">
-      <span class="turn-icon" aria-hidden="true">${iconFor(group)}</span>
-      <span>${label}</span>
+    <button class="turn-segment ${spent ? "is-spent" : ""} ${planned ? "is-planned" : ""}" type="button" data-group="${group}" style="--turn-progress-fill: ${escapeHtml(fill)}">
+      ${progressCircle(group)}
+      <span class="turn-label">${label}</span>
       <strong>${escapeHtml(status)}${total > 1 && !spent && !planned ? ` x${escapeHtml(total)}` : ""}</strong>
     </button>
   `;
+}
+
+function progressCircle(group) {
+  return `
+    <span class="turn-progress-ring" aria-hidden="true">
+      <span class="turn-icon">${iconFor(group)}</span>
+    </span>
+  `;
+}
+
+function actionProgress(plan, fallbackAttackCount) {
+  if (!plan.action) return 0;
+  if (!isAttackAction(plan.action)) return 0.55;
+  const capacity = attackCapacity(plan.action) || fallbackAttackCount;
+  const planned = Math.max(1, plan.actionAttacks?.length ?? 0);
+  return Math.max(0.18, Math.min(1, planned / Math.max(1, capacity)));
+}
+
+function movementProgress(speed, used, planned) {
+  if (speed <= 0) return 0;
+  return Math.max(0, Math.min(1, (used + planned) / speed));
 }
 
 function plannedActionStatus(option) {
@@ -122,10 +145,12 @@ function attackCapacity(option) {
 }
 
 function iconFor(group) {
-  return {
-    actions: "⚔",
-    bonus: "✦",
-    reaction: "↯",
-    free: "•"
-  }[group] ?? "◆";
+  const icons = {
+    actions: "A",
+    bonus: "B",
+    reaction: "R",
+    free: "F",
+    move: "M"
+  };
+  return icons[group] ?? "A";
 }

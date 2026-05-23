@@ -3024,3 +3024,40 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\ui\mobileActionList.js`
+
+### Screenshot-Aligned Turn/Vitals/Action Rows
+
+- Updated the turn progress bar to use circular progress indicators like the reference screenshot.
+- Action progress now partially fills for planned multi-step attacks and fills completely when spent; bonus, reaction, free, and movement also show ring progress.
+- Reworked the Vitals card to match the screenshot structure: crest, character identity, HP bar, temp HP, AC, speed, initiative, and compact conditions.
+- Reordered compact action rows to `chevron / resource / action type / action name + source badge / range / dc / use`.
+- The resource column now shows `C` for concentration and SVG indicators for resources such as Ki/Focus, superiority/command dice, spell slots, or generic resources.
+- Added `rider` as an action-type badge for dependent no-action options such as smites, sneak attack, and similar hit riders.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `js/player-combat/ui/combatStatusBar.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The turn progress ring can show planned multi-attack progress precisely, but non-selected optional riders are not counted as missing steps until the player actually plans them.
+- Resource SVG indicators are generic by resource family rather than bespoke art for every possible class resource.
+
+### Manual Test Steps
+
+1. Load a character with Extra Attack and plan one attack, then another; confirm the Action ring partially fills and then completes.
+2. Plan bonus, reaction, free/rider, and movement options; confirm their turn progress rings update.
+3. Confirm Vitals shows character identity, HP with a bar, temp HP, AC, speed, initiative, and conditions in the screenshot-style layout.
+4. Open Actions and confirm row order is chevron, resource, action type, name/source badge, range, DC, and use.
+5. Confirm concentration spells show `C` in the resource column and Ki/dice/spell-slot resources show an icon.
+
+### Screenshot-Aligned UI Verification
+
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
+- `node --check js\player-combat\ui\combatStatusBar.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\*.test.mjs`

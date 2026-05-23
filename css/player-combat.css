@@ -3044,3 +3044,229 @@ body.is-busy {
     min-height: 220px;
   }
 }
+
+/* Screenshot-aligned turn progress and vitals */
+.turn-progress {
+  grid-template-columns: repeat(5, minmax(68px, 1fr)) 42px;
+  gap: 0;
+  border: 1px solid var(--border-muted);
+  border-right: 0;
+  border-left: 0;
+}
+
+.turn-segment {
+  min-height: 66px;
+  border-width: 0 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+  place-items: center;
+  text-align: center;
+}
+
+.turn-progress-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background:
+    conic-gradient(var(--accent-gold-soft) calc(var(--turn-progress-fill, 0) * 1turn), rgba(127, 118, 105, 0.42) 0);
+}
+
+.turn-progress-ring::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+}
+
+.turn-progress-ring .turn-icon {
+  position: relative;
+  z-index: 1;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.turn-label {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.turn-move-add,
+.turn-log {
+  border-radius: 0;
+}
+
+.combat-status-bar {
+  grid-template-columns: 42px minmax(150px, 1.25fr) minmax(210px, 1.5fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: var(--space-2);
+}
+
+.character-crest {
+  width: 38px;
+  height: 38px;
+}
+
+.character-name-line {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.character-subtitle-line {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vital-stat-grid {
+  display: grid;
+  grid-template-columns: minmax(72px, 1.2fr) 44px repeat(3, minmax(38px, 0.8fr));
+  gap: 0;
+  align-items: stretch;
+  border-left: 1px solid rgba(190, 143, 72, 0.22);
+}
+
+.vital-stat {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 7px;
+  border-right: 1px solid rgba(190, 143, 72, 0.22);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.vital-stat span {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vital-stat strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.vital-stat input {
+  width: 34px;
+  min-height: 22px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--bg-row);
+  color: var(--text-primary);
+  padding: 1px 3px;
+  text-align: center;
+  font: inherit;
+}
+
+.vital-stat .hp-meter {
+  width: 100%;
+  height: 4px;
+}
+
+.vital-stat .hp-meter i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-gold));
+}
+
+.compact-condition-row {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(190, 143, 72, 0.16);
+}
+
+/* Unified compact action rows: chevron, resource, type, name, range, DC, use */
+.action-row,
+.action-row--attack,
+.action-row--spell {
+  grid-template-columns: 22px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(46px, 0.65fr) 64px;
+}
+
+.resource-cell {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+}
+
+.resource-badge,
+.concentration-badge {
+  border: 1px solid var(--accent-purple);
+  border-radius: 50%;
+  background: rgba(178, 107, 232, 0.16);
+  color: var(--accent-purple);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.resource-badge {
+  border-color: var(--accent-blue);
+  background: rgba(74, 168, 232, 0.14);
+  color: var(--accent-blue);
+}
+
+.resource-badge svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.type-rider {
+  color: #f08a9d;
+  background: rgba(240, 138, 157, 0.12);
+}
+
+.action-name-line .type-badge {
+  max-width: 54px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .combat-status-bar {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .vital-stat-grid,
+  .compact-condition-row {
+    grid-column: 1 / -1;
+  }
+
+  .vital-stat-grid {
+    grid-template-columns: minmax(72px, 1.2fr) 44px repeat(3, minmax(38px, 0.8fr));
+  }
+}
+
+@media (max-width: 390px) {
+  .action-row,
+  .action-row--attack,
+  .action-row--spell {
+    grid-template-columns: 20px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(38px, 0.6fr) 56px;
+  }
+}
