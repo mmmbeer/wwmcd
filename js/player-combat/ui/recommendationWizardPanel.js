@@ -66,14 +66,13 @@ export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, on
 
 function renderSummaryItem(question) {
   return `
-    <label class="recommendation-summary-filter">
-      <span class="sr-only">${escapeHtml(question.label)}</span>
-      <select data-recommendation-answer="${escapeHtml(question.id)}">
+    <span class="recommendation-summary-filter">
+      <select data-recommendation-answer="${escapeHtml(question.id)}" aria-label="${escapeHtml(question.label)}">
         ${question.options.map(([value, label]) => `
           <option value="${escapeHtml(value)}" ${question.value === value ? "selected" : ""}>${escapeHtml(label)}</option>
         `).join("")}
       </select>
-    </label>
+    </span>
   `;
 }
 
