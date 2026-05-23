@@ -17,6 +17,13 @@ export function updateRecommendationAnswer(key, value) {
   };
 }
 
+export function setRecommendationAnswers(answers = {}) {
+  recommendationAnswers = {
+    ...getDefaultRecommendationAnswers(),
+    ...answers
+  };
+}
+
 export function resetRecommendationAnswers() {
   recommendationAnswers = getDefaultRecommendationAnswers();
 }
@@ -28,25 +35,20 @@ export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabl
       <div class="recommendation-wizard__header">
         <span class="section-label">Recommendation Wizard</span>
         <div class="recommendation-wizard__actions">
-          ${aiEnabled ? `<button class="btn btn-secondary recommendation-ai-button" type="button" data-recommendation-ai aria-label="Open AI recommendations">AI</button>` : ""}
+          <button class="btn btn-primary recommendation-help-button" type="button" data-recommendation-help>Help Me!</button>
+          ${aiEnabled ? `<button class="btn btn-secondary recommendation-ai-button" type="button" data-recommendation-ai>Use AI!</button>` : ""}
           <button class="btn btn-secondary recommendation-reset" type="button" data-recommendation-reset>Reset</button>
         </div>
       </div>
-      <div class="recommendation-questions" aria-label="Recommendation filters">
-        ${questions.map(renderQuestion).join("")}
+      <div class="recommendation-summary" aria-label="Current recommendation filters">
+        ${questions.map(renderSummaryItem).join("")}
       </div>
     </section>
   `;
 }
 
-export function bindRecommendationWizardEvents(root, onChange, { onAiClick } = {}) {
-  root.querySelectorAll("[data-recommendation-answer]").forEach((select) => {
-    select.addEventListener("change", () => {
-      updateRecommendationAnswer(select.dataset.recommendationAnswer, select.value);
-      onChange();
-    });
-  });
-
+export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, onAiClick } = {}) {
+  root.querySelector("[data-recommendation-help]")?.addEventListener("click", () => onHelpClick?.());
   root.querySelector("[data-recommendation-reset]")?.addEventListener("click", () => {
     resetRecommendationAnswers();
     onChange();
@@ -55,16 +57,12 @@ export function bindRecommendationWizardEvents(root, onChange, { onAiClick } = {
   root.querySelector("[data-recommendation-ai]")?.addEventListener("click", () => onAiClick?.());
 }
 
-function renderQuestion(question) {
+function renderSummaryItem(question) {
+  const selected = question.options.find(([value]) => value === question.value);
   return `
-    <label class="recommendation-question">
-      <span>${escapeHtml(question.label)}</span>
-      <select data-recommendation-answer="${escapeHtml(question.id)}">
-        ${question.options.map(([value, label]) => `
-          <option value="${escapeHtml(value)}" ${question.value === value ? "selected" : ""}>${escapeHtml(label)}</option>
-        `).join("")}
-      </select>
-    </label>
+    <span class="recommendation-reason">
+      ${escapeHtml(question.label)}: ${escapeHtml(selected?.[1] ?? question.value ?? "Any")}
+    </span>
   `;
 }
 
@@ -88,13 +86,14 @@ export function renderAiRecommendationSets(result) {
   const sets = result?.recommendations ?? result?.sets ?? result ?? [];
   const cards = sets.length
     ? sets.map(renderAiRecommendationSet).join("")
-    : `<p class="inline-message">No AI recommendation sets are available right now.</p>`;
+    : `<p class="inline-message">No AI recommendations are available right now.</p>`;
   return `
-    <section class="recommendation-sets action-list-shell ai-recommendation-results" aria-label="AI recommended turn sets">
+    <section class="recommendation-sets action-list-shell ai-recommendation-results" aria-label="AI recommended actions">
       <div class="action-list-toolbar">
-        <span class="section-label">AI Recommended Turn Sets</span>
+        <span class="section-label">AI Recommended Actions</span>
         <span class="ai-recommendation-badge">AI Recommendation</span>
       </div>
+      ${result?.guidance ? `<p class="ai-recommendation-summary">${escapeHtml(result.guidance)}</p>` : ""}
       ${result?.turnAssessment ? `<p class="ai-recommendation-summary">${escapeHtml(result.turnAssessment)}</p>` : ""}
       ${result?.missingInfo?.length ? `<p class="inline-message warning">Missing info: ${escapeHtml(result.missingInfo.join(", "))}</p>` : ""}
       <div class="recommendation-set-list">
@@ -156,9 +155,6 @@ function renderAiRecommendationSet(set) {
 
 function renderAiPlanDetails(set) {
   const rows = [
-    ["Movement", set.movement],
-    ["Free", set.freeInteraction],
-    ["Reaction", set.reactionPlan],
     ["Resources", set.resourcesUsed?.join(", ")],
     ["Concentration", set.concentrationImpact],
     ["Outcome", set.expectedOutcome]
@@ -204,7 +200,7 @@ function renderAiSetPiece(piece) {
   const canPlan = Boolean(piece.optionId);
   return `
     <button class="recommendation-set-piece ai-recommendation-piece" type="button" ${canPlan ? `data-plan-option="${escapeHtml(piece.optionId)}"` : "disabled"}>
-      <span>${escapeHtml(piece.slot)} - AI</span>
+      <span>AI Option</span>
       <strong>${escapeHtml(piece.name)}</strong>
       ${piece.explanation ? `<small>${escapeHtml(piece.explanation)}</small>` : ""}
     </button>

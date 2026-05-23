@@ -74,11 +74,12 @@ test("AI recommendation context includes versioned tactical context", () => {
   });
 
   assert.equal(context.character.name, "Mara");
-  assert.equal(context.schemaVersion, "combat-turn-recommendation/v2");
+  assert.equal(context.schemaVersion, "combat-option-recommendation/v3");
   assert.equal(context.combatState.hp.current, 30);
   assert.equal(context.playerIntent.userNotes, "Enemy is nearly defeated.");
   assert.equal(context.wizard, undefined);
   assert.equal(context.turnRules.actionEconomy.maxActions, 1);
+  assert.equal(context.instructionHints.preferOptionList, true);
   assert.equal(Boolean(context.classTactics.fighter), true);
   assert.equal(Boolean(context.classTactics.rogue), true);
   assert.equal(context.classTactics.wizard, undefined);

@@ -6,32 +6,20 @@ const FALLBACK_JSON_PROMPT = `The selected model does not support structured out
 Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
 The response must be a single JSON object with this exact shape:
 {
-  "turnAssessment": "brief tactical assessment",
-  "recommendedOptionId": "id of the best recommendation",
+  "guidance": "brief tactical guidance for the player",
   "missingInfo": ["important missing fact"],
   "recommendations": [
     {
       "id": "rec-1",
       "rank": 1,
       "category": "best_overall",
-      "title": "short turn-plan title",
+      "optionId": "copy the exact id from an available option",
+      "name": "copy the exact option name",
       "score": 100,
       "confidence": "high",
       "legality": "legal",
       "riskLevel": "medium",
       "explanation": "why this complete turn plan is recommended",
-      "expectedOutcome": "what this plan is trying to accomplish",
-      "movement": "movement recommendation or none",
-      "planPieces": [
-        {
-          "slot": "Attack 1",
-          "optionId": "copy the exact id from an available option",
-          "name": "copy the exact option name",
-          "explanation": "why this piece belongs in the full turn"
-        }
-      ],
-      "freeInteraction": "brief note or none",
-      "reactionPlan": "reaction guidance for after the turn",
       "resourcesUsed": ["resource name"],
       "concentrationImpact": "none, starts concentration, maintains concentration, or replaces existing concentration",
       "assumptions": ["assumption"],
@@ -73,16 +61,15 @@ export function shouldAskClarifyingQuestion(aiResult) {
 export function buildRecommendationUserMessage(context) {
   const requestContext = compactContextForRequest(context);
   return [
-    "Recommend practical D&D 5e turn plans for the current player character.",
+    "Recommend practical D&D 5e action options for the current player character.",
     "",
     "Requirements:",
-    "- Return ranked complete turn plans, not individual actions.",
+    "- Return a ranked list of individual recommended options, not complete turn plans.",
     "- Use optionId values from optionIndex or availableOptions whenever possible.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
-    "- Fill planPieces with every concrete option in the turn: attacks, extra attacks, class-feature riders, bonus actions, free actions, movement options, and reaction plans when they have option IDs.",
-    "- For characters with multiple attacks, include separate planPieces such as Attack 1 and Attack 2 when supported by availableOptions or deterministicRecommendations.",
+    "- Each recommendation must reference one concrete option from availableOptions or optionIndex.",
     "- Include class-feature riders such as Sneak Attack or Divine Smite only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
-    "- Include different tactical categories when possible.",
+    "- Include different tactical categories when useful.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
     "- Include missingInfo for facts that would materially change the recommendation.",
     "- Prefer useful, table-ready guidance over long rules explanation.",
@@ -126,15 +113,61 @@ export function normalizeAiResponse(text, contextOrOptions) {
   const sets = Array.isArray(parsed?.recommendations) ? parsed.recommendations : [];
   const optionMap = buildOptionMap(contextOrOptions);
   const recommendations = sets.slice(0, 6)
-    .map((set, index) => normalizeRecommendationSet(set, index, optionMap))
+    .map((set, index) => normalizeRecommendationOption(set, index, optionMap))
     .sort((left, right) => left.rank - right.rank);
 
   return {
+    guidance: stringOr(parsed?.guidance, ""),
     turnAssessment: stringOr(parsed?.turnAssessment, ""),
     recommendedOptionId: stringOr(parsed?.recommendedOptionId, ""),
     missingInfo: arrayOfStrings(parsed?.missingInfo).slice(0, 8),
     recommendations,
     sets: recommendations
+  };
+}
+
+export function normalizeRecommendationOption(set, index, optionMap) {
+  const safeSet = set && typeof set === "object" ? set : {};
+  const legacyPiece = Array.isArray(safeSet.planPieces) ? safeSet.planPieces[0] : null;
+  const optionId = stringOr(safeSet.optionId, stringOr(legacyPiece?.optionId, stringOr(safeSet.action?.optionId, "")));
+  const name = stringOr(safeSet.name, stringOr(legacyPiece?.name, stringOr(safeSet.action?.name, "None")));
+  const piece = normalizeActionPiece({
+    slot: "Option",
+    optionId,
+    name,
+    explanation: stringOr(safeSet.explanation, stringOr(legacyPiece?.explanation, ""))
+  }, optionMap, "Option");
+  const validationWarnings = validateMatchedPiece(piece);
+  const warnings = [...arrayOfStrings(safeSet.warnings), ...validationWarnings].slice(0, 8);
+  const legality = validationWarnings.length
+    ? downgradeLegality(stringOr(safeSet.legality, "conditional"))
+    : legalEnum(safeSet.legality, "conditional");
+
+  return {
+    id: stringOr(safeSet.id, `ai-recommendation-${index + 1}`),
+    rank: Number(safeSet.rank) || index + 1,
+    category: categoryEnum(safeSet.category),
+    title: stringOr(safeSet.title, piece.name && piece.name !== "None" ? piece.name : `AI option ${index + 1}`),
+    optionId: piece.optionId,
+    name: piece.name,
+    option: piece.option,
+    score: Number(safeSet.score) || 0,
+    confidence: confidenceEnum(safeSet.confidence, "medium"),
+    legality,
+    riskLevel: riskEnum(safeSet.riskLevel, "medium"),
+    summary: stringOr(safeSet.explanation, ""),
+    expectedOutcome: stringOr(safeSet.expectedOutcome, ""),
+    movement: stringOr(safeSet.movement, ""),
+    action: piece,
+    bonusAction: null,
+    freeInteraction: stringOr(safeSet.freeInteraction, ""),
+    reactionPlan: stringOr(safeSet.reactionPlan, ""),
+    resourcesUsed: arrayOfStrings(safeSet.resourcesUsed).slice(0, 6),
+    concentrationImpact: stringOr(safeSet.concentrationImpact, "none"),
+    assumptions: arrayOfStrings(safeSet.assumptions).slice(0, 8),
+    reasons: arrayOfStrings(safeSet.reasons).slice(0, 6),
+    warnings,
+    pieces: [piece]
   };
 }
 
@@ -404,15 +437,14 @@ function recommendationResponseFormat() {
   return {
     type: "json_schema",
     json_schema: {
-      name: "combat_recommendations",
+      name: "combat_option_recommendations",
       strict: true,
       schema: {
         type: "object",
         additionalProperties: false,
-        required: ["turnAssessment", "recommendedOptionId", "missingInfo", "recommendations"],
+        required: ["guidance", "missingInfo", "recommendations"],
         properties: {
-          turnAssessment: { type: "string" },
-          recommendedOptionId: { type: "string" },
+          guidance: { type: "string" },
           missingInfo: { type: "array", items: { type: "string" } },
           recommendations: {
             type: "array",
@@ -431,9 +463,8 @@ function recommendationSchema() {
     type: "object",
     additionalProperties: false,
     required: [
-      "id", "rank", "category", "title", "score", "confidence", "legality",
-      "riskLevel", "explanation", "expectedOutcome", "movement", "planPieces",
-      "freeInteraction", "reactionPlan", "resourcesUsed",
+      "id", "rank", "category", "optionId", "name", "score", "confidence", "legality",
+      "riskLevel", "explanation", "resourcesUsed",
       "concentrationImpact", "assumptions", "reasons", "warnings"
     ],
     properties: {
@@ -443,41 +474,18 @@ function recommendationSchema() {
         type: "string",
         enum: ["best_overall", "damage", "defense", "support", "control", "resource_conserving", "escape_or_reposition", "other"]
       },
-      title: { type: "string" },
+      optionId: { type: "string" },
+      name: { type: "string" },
       score: { type: "number" },
       confidence: { type: "string", enum: ["low", "medium", "high"] },
       legality: { type: "string", enum: ["legal", "conditional", "risky", "invalid"] },
       riskLevel: { type: "string", enum: ["low", "medium", "high"] },
       explanation: { type: "string" },
-      expectedOutcome: { type: "string" },
-      movement: { type: "string" },
-      planPieces: {
-        type: "array",
-        minItems: 1,
-        maxItems: 10,
-        items: actionPieceSchema()
-      },
-      freeInteraction: { type: "string" },
-      reactionPlan: { type: "string" },
       resourcesUsed: { type: "array", items: { type: "string" } },
       concentrationImpact: { type: "string" },
       assumptions: { type: "array", items: { type: "string" } },
       reasons: { type: "array", items: { type: "string" } },
       warnings: { type: "array", items: { type: "string" } }
-    }
-  };
-}
-
-function actionPieceSchema() {
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: ["slot", "optionId", "name", "explanation"],
-    properties: {
-      slot: { type: "string" },
-      optionId: { type: "string" },
-      name: { type: "string" },
-      explanation: { type: "string" }
     }
   };
 }

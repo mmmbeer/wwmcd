@@ -13,9 +13,11 @@ import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
   renderAiRecommendationSets,
-  renderRecommendationWizardPanel
+  renderRecommendationWizardPanel,
+  setRecommendationAnswers
 } from "./recommendationWizardPanel.js";
 import { openAiRecommendationModal } from "./aiRecommendationModal.js";
+import { openRecommendationOptionsModal } from "./recommendationOptionsModal.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
@@ -125,6 +127,16 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     aiRecommendationSets = [];
     renderActionTabs(root, snapshot, services);
   }, {
+    onHelpClick: () => openRecommendationOptionsModal({
+      modalApi: services.modalApi,
+      groups,
+      answers: getRecommendationAnswers(),
+      onApply: ({ answers }) => {
+        setRecommendationAnswers(answers);
+        aiRecommendationSets = [];
+        renderActionTabs(root, snapshot, services);
+      }
+    }),
     onAiClick: () => openAiRecommendationModal({
       modalApi: services.modalApi,
       storage: services.storage,
@@ -143,6 +155,11 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       answers: getRecommendationAnswers(),
       showToast: services.showToast,
       openSettings: services.openAiSettings,
+      onAnswersChanged: (answers) => {
+        setRecommendationAnswers(answers);
+        aiRecommendationSets = [];
+        renderActionTabs(root, snapshot, services);
+      },
       onRecommendations: (sets) => {
         aiRecommendationSets = sets;
         aiRecommendationCharacterId = snapshot.activeCharacter?.id ?? null;

@@ -1,6 +1,52 @@
 # Development Plan
 
-## Current Session: AI Provider Selection
+## Current Session: Recommendation Wizard Modal Flow
+
+### Implemented
+
+- Replaced the inline Recommendation Wizard selectors with a compact summary plus `Help Me!`, `Use AI!`, and `Reset` actions.
+- Added a reusable recommendation options modal with primary choices for goal, situation, range, and resource use.
+- Added a collapsible advanced panel for DC, rolls, and concentration preferences.
+- Updated modal changes to rerank the existing recommended action table through the deterministic recommendation data flow.
+- Updated the AI modal to reuse the same options, collect a freeform situation description, and keep AI guidance visible in the modal before returning to recommended actions.
+- Changed the AI recommendation contract from full turn plans to a ranked list of existing recommended action options.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `js/player-combat/ui/recommendationOptionsModal.js`
+- `js/player-combat/ui/recommendationWizardPanel.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- AI guidance is shown after the request completes, but there is not yet a follow-up clarification workflow for missing battlefield facts.
+- `npm run build` is unavailable because this repo does not have a `package.json`.
+
+### Manual Test Checklist
+
+1. Open Recommendations and confirm the wizard shows `Help Me!`, summary chips, and `Reset`.
+2. Click `Help Me!`, change goal, situation, range, resources, and advanced options, then apply and confirm the recommendation table reranks.
+3. Confirm `Use AI!` appears only when an API key and model are selected.
+4. Click `Use AI!`, enter recommendation options plus a situation description, request recommendations, and confirm guidance appears in the modal before returning.
+5. Return to Recommendations and confirm AI results are shown as a ranked action option list using existing option IDs.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\recommendationOptionsModal.js`
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --test tests\aiRecommendationService.test.mjs`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: AI Provider Selection
 
 ### Implemented
 

@@ -7,7 +7,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   const combatState = snapshot.combatState;
   const availableOptions = summarizeGroups(groups);
   return {
-    schemaVersion: "combat-turn-recommendation/v2",
+    schemaVersion: "combat-option-recommendation/v3",
     character: summarizeCharacter(character),
     combatState: summarizeCombatState(combatState, character),
     turnRules: buildTurnRules(character, combatState),
@@ -21,7 +21,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
       .map(summarizeRecommendationSet),
     instructionHints: {
       useOnlyOptionIds: true,
-      preferCompleteTurnPlans: true,
+      preferOptionList: true,
       markMissingInfoExplicitly: true,
       doNotInventEnemyStats: true,
       unavailableOptionsAreForAwarenessOnly: true

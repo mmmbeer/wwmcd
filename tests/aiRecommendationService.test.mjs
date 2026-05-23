@@ -54,19 +54,20 @@ test("AI recommendation service falls back when json_schema response format is u
 
   assert.equal(calls.length, 2);
   assert.equal(calls[0].responseFormat.type, "json_schema");
-  assert.ok(JSON.stringify(calls[0].responseFormat).includes("planPieces"));
+  assert.ok(JSON.stringify(calls[0].responseFormat).includes("optionId"));
+  assert.equal(JSON.stringify(calls[0].responseFormat).includes("planPieces"), false);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"action\""), false);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"bonusAction\""), false);
   assert.equal(calls[0].temperature, 0.15);
   assert.equal(calls[1].responseFormat, undefined);
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
-  assert.match(calls[1].messages[1].content, /ranked complete turn plans/);
-  assert.match(calls[1].messages[1].content, /planPieces/);
+  assert.match(calls[1].messages[1].content, /ranked list of individual recommended options/);
+  assert.match(calls[1].messages[1].content, /optionIndex/);
   assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
   assert.equal(recommendations.sets, recommendations.recommendations);
 });
 
-test("normalization preserves full turn plan pieces for extra attacks and class riders", () => {
+test("normalization converts legacy turn plan pieces into a single recommended option", () => {
   const payload = responseWithAction("attack_rapier", "Rapier");
   payload.recommendations[0].planPieces = [
     {
@@ -94,9 +95,9 @@ test("normalization preserves full turn plan pieces for extra attacks and class 
     unavailableOptions: {}
   });
 
-  assert.deepEqual(result.recommendations[0].pieces.map((piece) => piece.slot), ["Attack 1", "Attack 2", "Rider"]);
-  assert.equal(result.recommendations[0].pieces[2].optionId, "feature_sneak_attack");
-  assert.equal(result.recommendations[0].action.slot, "Attack 1");
+  assert.deepEqual(result.recommendations[0].pieces.map((piece) => piece.slot), ["Option"]);
+  assert.equal(result.recommendations[0].pieces[0].optionId, "attack_rapier");
+  assert.equal(result.recommendations[0].action.slot, "Option");
 });
 
 test("normalization flags invented option IDs without dropping the recommendation", () => {
@@ -123,7 +124,7 @@ test("normalization tolerates malformed recommendation objects", () => {
   });
 
   assert.equal(result.recommendations.length, 1);
-  assert.equal(result.recommendations[0].title, "AI turn plan 1");
+  assert.equal(result.recommendations[0].title, "AI option 1");
   assert.equal(result.recommendations[0].action.name, "None");
 });
 
@@ -154,7 +155,7 @@ test("normalization treats duplicate option names as unmatched without an option
   assert.match(result.recommendations[0].warnings.join(" "), /Multiple available options are named "Strike"/);
 });
 
-test("normalization warns on extra explicit actions but allows numbered extra attacks", () => {
+test("normalization treats AI results as single options instead of action-economy plans", () => {
   const payload = responseWithAction("attack_rapier", "Rapier");
   payload.recommendations[0].planPieces = [
     { slot: "Attack 1", optionId: "attack_rapier", name: "Rapier", explanation: "First swing." },
@@ -181,8 +182,8 @@ test("normalization warns on extra explicit actions but allows numbered extra at
     }
   });
 
-  assert.match(overBudget.recommendations[0].warnings.join(" "), /more than one explicit Action/);
-  assert.match(overBudget.recommendations[0].warnings.join(" "), /more than one Bonus Action/);
+  assert.doesNotMatch(overBudget.recommendations[0].warnings.join(" "), /more than one explicit Action/);
+  assert.doesNotMatch(overBudget.recommendations[0].warnings.join(" "), /more than one Bonus Action/);
 });
 
 test("normalization flags unavailable matched options", () => {
@@ -245,11 +246,11 @@ test("structured output unsupported detector matches Groq response format errors
 });
 
 test("user message builder includes shared tactical instructions and context JSON", () => {
-  const message = buildRecommendationUserMessage({ schemaVersion: "combat-turn-recommendation/v2" });
-  assert.match(message, /complete turn plans/);
+  const message = buildRecommendationUserMessage({ schemaVersion: "combat-option-recommendation/v3" });
+  assert.match(message, /individual recommended options/);
   assert.match(message, /optionIndex/);
   assert.match(message, /classTactics/);
-  assert.match(message, /combat-turn-recommendation\/v2/);
+  assert.match(message, /combat-option-recommendation\/v3/);
 });
 
 test("user message builder compacts oversized tactical context", () => {

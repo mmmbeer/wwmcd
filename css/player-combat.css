@@ -1841,12 +1841,17 @@ body.has-turn-progress .app-shell {
   flex: 0 0 auto;
 }
 
+.recommendation-summary,
 .recommendation-questions {
   display: flex;
   gap: 6px;
   align-items: end;
   min-width: 0;
   overflow-x: auto;
+}
+
+.recommendation-summary {
+  align-items: center;
 }
 
 .recommendation-question {
@@ -1888,8 +1893,13 @@ body.has-turn-progress .app-shell {
   font-size: 0.68rem;
 }
 
+.recommendation-help-button {
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+}
+
 .recommendation-ai-button {
-  min-width: 34px;
   min-height: 28px;
   padding: 4px 8px;
   color: var(--accent-gold-soft);
@@ -2229,6 +2239,7 @@ body.has-turn-progress .app-shell {
 }
 
 .ai-options-form,
+.recommendation-options-form,
 .ai-recommendation-modal {
   display: grid;
   gap: var(--space-3);
@@ -2237,6 +2248,35 @@ body.has-turn-progress .app-shell {
 .ai-options-form .form-field {
   display: grid;
   gap: var(--space-2);
+}
+
+.recommendation-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: var(--space-2);
+}
+
+.recommendation-options-form .recommendation-question,
+.ai-recommendation-modal .recommendation-question {
+  flex: initial;
+}
+
+.recommendation-advanced-panel {
+  border: 1px solid rgba(190, 143, 72, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.12);
+  padding: var(--space-2);
+}
+
+.recommendation-advanced-panel summary {
+  color: var(--accent-gold-soft);
+  font-size: 0.74rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.recommendation-advanced-panel .recommendation-options-grid {
+  margin-top: var(--space-2);
 }
 
 .ai-options-actions,
@@ -2259,6 +2299,22 @@ body.has-turn-progress .app-shell {
 
 .ai-loading[hidden] {
   display: none;
+}
+
+.ai-guidance-panel {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid rgba(93, 169, 233, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(93, 169, 233, 0.09);
+  padding: var(--space-2);
+}
+
+.ai-guidance-panel p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .ai-recommendation-results .recommendation-set-list {
