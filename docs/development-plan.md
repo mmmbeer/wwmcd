@@ -1,6 +1,41 @@
 # Development Plan
 
-## Current Session: Action Complete Follow-Up Details
+## Current Session: Resource Icon Columns
+
+### Implemented
+
+- Replaced visible resource text in resource columns with compact resource icons.
+- Resource icons keep the resource name in `title` and `aria-label` so the tooltip/accessibility text remains available.
+- Extracted shared resource icon rendering into `resourceIcon.js`.
+- Updated the `Action Complete` follow-up resource column to use icons, matching the compact action tables.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/followupOptionRenderer.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/resourceIcon.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Resource icons are generic by resource family rather than unique art per class feature.
+
+### Manual Test Checklist
+
+1. Complete an action that offers a resource-spending follow-up and confirm the resource column shows an icon, not text.
+2. Hover/focus the icon and confirm the resource name appears as tooltip/accessibility text.
+3. Open compact action rows with resource costs and confirm they still show icons with tooltips.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\resourceIcon.js`
+- `node --check js\player-combat\ui\followupOptionRenderer.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\playerCombatActions.test.mjs tests\mobileActionList.test.mjs`
+
+## Previous Session: Action Complete Follow-Up Details
 
 ### Implemented
 

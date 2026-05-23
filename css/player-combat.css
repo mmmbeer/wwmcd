@@ -3430,6 +3430,10 @@ body.is-busy {
 
 .resource-badge,
 .concentration-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
   border: 1px solid var(--accent-purple);
   border-radius: 50%;
   background: rgba(178, 107, 232, 0.16);
@@ -3505,6 +3509,8 @@ body.is-busy {
 }
 
 .followup-resource {
+  display: inline-grid;
+  place-items: center;
   color: var(--text-secondary);
   font-size: 0.76rem;
   font-weight: 800;

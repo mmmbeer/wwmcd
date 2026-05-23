@@ -251,7 +251,8 @@ test("post-action followup buttons show type resource and name columns", () => {
   assert.match(html, /type-badge/);
   assert.match(html, /bonus action/);
   assert.match(html, /followup-resource/);
-  assert.match(html, />Focus</);
+  assert.match(html, /title="Focus"/);
+  assert.doesNotMatch(html, />Focus</);
   assert.match(html, /followup-name/);
   assert.match(html, />Flurry of Blows</);
   assert.match(html, /Make two unarmed strikes/);

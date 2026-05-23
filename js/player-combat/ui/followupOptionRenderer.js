@@ -1,9 +1,10 @@
 import { escapeHtml } from "./renderUtils.js";
 import { isDependentOption } from "../recommendations/recommendationPrerequisites.js";
+import { renderResourceIcon, resourceLabel } from "./resourceIcon.js";
 
 export function renderFollowupButton(option) {
   const badge = optionTypeLabel(option);
-  const resource = followupResourceLabel(option);
+  const resource = followupResource(option);
   const description = followupDescription(option);
   const descriptionId = `followup-description-${escapeHtml(option.id)}`;
   return `
@@ -13,7 +14,7 @@ export function renderFollowupButton(option) {
       </button>
       <button class="btn btn-secondary followup-option" type="button" data-followup-use="${escapeHtml(option.id)}">
         <span class="type-badge type-${escapeHtml(badge.key)}">${escapeHtml(badge.label)}</span>
-        <span class="followup-resource">${escapeHtml(resource || "-")}</span>
+        <span class="followup-resource">${renderResourceIcon(resource, { className: "resource-badge", empty: "-" })}</span>
         <span class="followup-name">${escapeHtml(option.name)}</span>
       </button>
       <div class="followup-description" id="${descriptionId}" data-followup-description="${escapeHtml(option.id)}" hidden>
@@ -38,16 +39,8 @@ function cssEscape(value) {
   return globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, "\\$&");
 }
 
-function followupResourceLabel(option) {
-  const resource = option.cost?.resource;
-  if (resource) {
-    return [resource.name ?? resource.id, resource.amount && Number(resource.amount) !== 1 ? `x${resource.amount}` : null]
-      .filter(Boolean)
-      .join(" ");
-  }
-  if (typeof option.resource === "string") return option.resource;
-  if (option.resource?.name) return option.resource.name;
-  return "";
+function followupResource(option) {
+  return option.cost?.resource ?? (resourceLabel(option.resource) ? option.resource : null);
 }
 
 function followupDescription(option) {
