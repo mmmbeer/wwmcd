@@ -9,9 +9,6 @@ import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
 import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
 import { renderActionTabs } from "./ui/actionTabs.js";
-import { resolveActionRoll } from "./ui/actionRollModal.js";
-import { renderPlannedTurnBar } from "./ui/mobileActionList.js";
-import { clearPlannedTurn, confirmPlannedTurn } from "./ui/plannedTurnState.js";
 import { createToast } from "./ui/toast.js";
 import { longRestNotice, shortRestNotice, showTransitionNotice } from "./ui/transitionNotice.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
@@ -34,8 +31,7 @@ export async function createPlayerCombatApp() {
     turnPanel: document.querySelector("#turn-economy-panel"),
     spellcastingBar: document.querySelector("#spellcasting-bar"),
     statusBar: document.querySelector("#combat-status-bar"),
-    tabs: document.querySelector("#action-tabs"),
-    plannedTurnBar: document.querySelector("#planned-turn-bar")
+    tabs: document.querySelector("#action-tabs")
   };
 
   let latestSnapshot = null;
@@ -60,13 +56,10 @@ export async function createPlayerCombatApp() {
         onSettingsChanged: () => render(latestSnapshot)
       })
     });
-    renderPlannedTurn(roots.plannedTurnBar, snapshot, { stateManager, modalApi, showToast, busyApi });
   };
 
   eventBus.on("state:changed", render);
-  window.addEventListener("combat:planned-turn-changed", () => {
-    if (latestSnapshot) render(latestSnapshot);
-  });
+  window.addEventListener("combat:end-turn-requested", () => showEndTurnModal({ modalApi, stateManager, busyApi }));
 
   stateManager.initializeAppState();
 
@@ -83,47 +76,26 @@ export async function createPlayerCombatApp() {
   return { stateManager };
 }
 
-function renderPlannedTurn(root, snapshot, { stateManager, modalApi, showToast, busyApi }) {
-  if (!root) return;
-  if (!snapshot.activeCharacter || !snapshot.combatState) {
-    root.innerHTML = "";
-    return;
+function showEndTurnModal({ modalApi, stateManager, busyApi }) {
+  let snapshot = stateManager.getSnapshot?.();
+  if (snapshot?.combatState?.turnActive !== false) {
+    stateManager.endTurn();
+    snapshot = stateManager.getSnapshot?.();
   }
-
-  root.innerHTML = renderPlannedTurnBar(snapshot);
-  root.querySelector("[data-plan-clear]")?.addEventListener("click", () => clearPlannedTurn());
-  root.querySelector("[data-plan-confirm]")?.addEventListener("click", async () => {
-    const result = await confirmPlannedTurn(stateManager, {
-      beforeUseOption: (option) => rollAttackBeforeUse(option, { modalApi, stateManager })
-    });
-    if (!result.ok) {
-      showToast({ type: "info", message: "Turn plan is still queued." });
-      return;
-    }
-    showToast({
-      type: "success",
-      message: result.optionCount || result.movementUsed ? "Actions taken." : "No planned actions to take."
-    });
-    showTurnCompleteModal({ modalApi, stateManager, busyApi });
-  });
-}
-
-function rollAttackBeforeUse(option, { modalApi, stateManager }) {
-  if (!isAttackOption(option)) return Promise.resolve(true);
-  return resolveActionRoll({ modalApi, stateManager, option });
-}
-
-function isAttackOption(option) {
-  return option?.tags?.includes("attack")
-    || option?.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack");
-}
-
-function showTurnCompleteModal({ modalApi, stateManager, busyApi }) {
-  const snapshot = stateManager.getSnapshot?.();
+  const reactionAvailable = snapshot?.combatState && !snapshot.combatState.turn?.reactionUsed;
   const unused = unusedTurnFeatures(snapshot);
   const actions = [
+    reactionAvailable ? {
+      label: "Use Reaction",
+      variant: "secondary",
+      close: false,
+      onClick: () => {
+        modalApi.close();
+        window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: "reaction" } }));
+      }
+    } : null,
     {
-      label: "Continue Turn",
+      label: "Return",
       variant: "secondary"
     },
     {
@@ -131,16 +103,18 @@ function showTurnCompleteModal({ modalApi, stateManager, busyApi }) {
       variant: "primary",
       close: false,
       onClick: async () => {
-        await busyApi.run("Starting new turn...", () => stateManager.startTurn());
+        await busyApi.run("Starting new turn...", () => {
+          stateManager.startTurn();
+        });
         modalApi.close();
       }
     }
-  ];
+  ].filter(Boolean);
 
   modalApi.showModal({
-    title: "Actions Taken",
+    title: "Turn Complete",
     body: `
-      <p>Your queued actions have been taken.</p>
+      <p>Your turn is ready to end.</p>
       <p>You still have: ${escapeHeader(unused.length ? unused.join(", ") : "nothing unused this turn")}.</p>
     `,
     actions
@@ -193,10 +167,12 @@ function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast
   }
 
   root.innerHTML = `
+    <button class="btn btn-secondary" type="button" data-header-action="roll-log">Roll Log</button>
     <button class="btn btn-secondary" type="button" data-header-action="short-rest">Short Rest</button>
     <button class="btn btn-secondary" type="button" data-header-action="long-rest">Long Rest</button>
   `;
 
+  root.querySelector("[data-header-action='roll-log']")?.addEventListener("click", () => openRollLogModal(snapshot.combatState, modalApi));
   root.querySelector("[data-header-action='short-rest']")?.addEventListener("click", async (event) => {
     showTransitionNotice(event.currentTarget, shortRestNotice(snapshot.activeCharacter, snapshot.combatState));
     await busyApi.run("Taking short rest...", () => stateManager.takeShortRest());
@@ -205,6 +181,33 @@ function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast
     showTransitionNotice(event.currentTarget, longRestNotice(snapshot.activeCharacter, snapshot.combatState));
     await busyApi.run("Taking long rest...", () => stateManager.takeLongRest());
   });
+}
+
+function openRollLogModal(state, modalApi) {
+  const rolls = (state?.log ?? []).filter((entry) => entry.type === "roll" || looksLikeRoll(entry.message));
+  modalApi.showModal({
+    title: "Dice Log",
+    body: rolls.length ? `
+      <ol class="dice-log-list">
+        ${rolls.map((entry) => `
+          <li class="dice-log-entry">
+            <span>${escapeHeader(entry.message)}</span>
+            <small>R${escapeHeader(entry.round)} ${escapeHeader(formatTime(entry.at))}</small>
+          </li>
+        `).join("")}
+      </ol>
+    ` : `<p class="inline-message">No dice rolls yet.</p>`,
+    actions: [{ label: "Close", variant: "secondary" }]
+  });
+}
+
+function looksLikeRoll(message) {
+  return /:\s*-?\d+\s*\([^)]*(?:d\d+|modifier)/i.test(String(message ?? ""));
+}
+
+function formatTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, showToast, busyApi, onSettingsChanged }) {

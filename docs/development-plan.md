@@ -3061,3 +3061,49 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\combatStatusBar.js`
 - `node --check js\player-combat\ui\mobileActionList.js`
 - `node --test tests\*.test.mjs`
+
+### Immediate Action Workflow and Header Cleanup
+
+- Moved Dice Log out of the turn progress bar and into the header controls, positioned before the menu by the header action ordering.
+- Added `assets/favicon.png` as the browser favicon and rendered it as the app logo in the header.
+- Kept the turn progress bar sticky and made its action economy buttons filter the Actions tab by action, bonus action, reaction, or free/rider-style options.
+- Changed the Move progress item to immediately spend 5 ft of movement when tapped.
+- Removed the sticky planned-turn footer from the app shell.
+- Replaced planned action selection with an immediate `Use` flow:
+  - Validates availability and leveled-spell limits.
+  - Opens the roll modal first when a roll is required.
+  - Applies the selected option immediately after required rolls complete.
+  - Opens an Action Complete modal with immediate follow-up options plus Return and End Turn controls.
+- Added an End Turn button to the turn progress bar. End Turn marks the turn complete, then offers Reaction if still available or Start New Turn.
+
+### Files Changed
+
+- `index.html`
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The old planned-turn state module remains in place for existing tests and helper behavior, but the visible combat UI now uses immediate actions.
+- Follow-up suggestions are intentionally capped to a small set of available riders/actions so the completion modal stays compact.
+
+### Manual Test Steps
+
+1. Confirm the header shows the favicon logo, Roll Log button, rest controls, and Menu.
+2. Tap Action, Bonus, Reaction, and Free in the turn progress bar and confirm the Actions tab filters to that action type.
+3. Tap Move in the turn progress bar and confirm movement advances by 5 ft.
+4. Use an option with a roll and confirm the roll modal appears before the option is applied.
+5. After using an option, confirm the Action Complete modal shows available follow-ups plus Return and End Turn.
+6. Tap End Turn and confirm the modal offers Use Reaction when reaction remains, or Start New Turn.
+
+### Immediate Workflow Verification
+
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\*.test.mjs`

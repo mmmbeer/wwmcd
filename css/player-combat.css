@@ -2938,7 +2938,17 @@ body.is-busy {
 }
 
 .app-header {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+}
+
+.app-logo {
+  order: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+  object-fit: contain;
 }
 
 .utility-title {
@@ -3047,7 +3057,7 @@ body.is-busy {
 
 /* Screenshot-aligned turn progress and vitals */
 .turn-progress {
-  grid-template-columns: repeat(5, minmax(68px, 1fr)) 42px;
+  grid-template-columns: repeat(5, minmax(68px, 1fr)) minmax(70px, 0.9fr);
   gap: 0;
   border: 1px solid var(--border-muted);
   border-right: 0;
@@ -3096,9 +3106,31 @@ body.is-busy {
   font-family: var(--font-display);
 }
 
-.turn-move-add,
-.turn-log {
+.turn-movement {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.turn-movement .turn-segment {
   border-radius: 0;
+}
+
+.turn-move-add,
+.turn-log,
+.turn-end {
+  border-radius: 0;
+}
+
+.turn-end {
+  min-height: 66px;
+  border: 0;
+  border-right: 1px solid var(--border-muted);
+  background: linear-gradient(180deg, #e6b75f, #a86d20);
+  color: #171009;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 
 .combat-status-bar {
@@ -3269,4 +3301,8 @@ body.is-busy {
   .action-row--spell {
     grid-template-columns: 20px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(38px, 0.6fr) 56px;
   }
+}
+
+.app-shell {
+  padding-bottom: 0;
 }

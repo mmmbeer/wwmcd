@@ -1,6 +1,6 @@
 import { escapeHtml } from "./renderUtils.js";
 import { isDependentOption } from "../recommendations/recommendationPrerequisites.js";
-import { getPlannedOptionForSlot, getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
+import { getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
 
 export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false } = {}) {
   if (group === "log") return renderLog(label, combatState);
@@ -73,7 +73,7 @@ function renderActionRow(option, group) {
         </button>
         <button class="action-select-main"
           type="button"
-          data-plan-option="${escapeHtml(option.id)}"
+          data-use-option="${escapeHtml(option.id)}"
           aria-pressed="${selected ? "true" : "false"}"
           ${unavailable ? "disabled" : ""}
           ${unavailable ? `aria-label="${escapeHtml(`${option.name}. Unavailable: ${unavailableText(option)}`)}"` : ""}>
@@ -146,12 +146,7 @@ function renderActionButtonLabel(label) {
 }
 
 function plannedButtonLabel(option, rowKind, selected) {
-  if (isSequencedAttackOption(option)) return attackSequenceButtonLabel(option, selected);
-  if (selected) return "Planned";
-  if (option.cost?.movement) return "Add to turn";
-  const planned = getPlannedOptionForSlot(option);
-  if (planned && planned.id !== option.id) return `Replace ${planned.name}`;
-  return "Add to turn";
+  return "Use";
 }
 
 function renderCostBadge(option) {

@@ -1,8 +1,8 @@
 import { formatFeet } from "./renderUtils.js";
 import { getAttackCount } from "../rules/attackCountRules.js";
-import { getPlannedTurn, selectPlannedOption } from "./plannedTurnState.js";
+import { getPlannedTurn } from "./plannedTurnState.js";
 
-export function renderTurnEconomyPanel(root, snapshot, { modalApi }) {
+export function renderTurnEconomyPanel(root, snapshot, { stateManager }) {
   const character = snapshot.activeCharacter;
   const state = snapshot.combatState;
 
@@ -25,59 +25,27 @@ export function renderTurnEconomyPanel(root, snapshot, { modalApi }) {
       ${segment("reaction", "Reaction", state.turn.reactionUsed, plan.reaction ? 0.55 : 0)}
       ${segment("free", "Free", false, plan.freeActions.length ? 1 : 0, 1, "Unlimited")}
       <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""} ${plannedMovement ? "is-planned" : ""}">
-        <button class="turn-segment" type="button" data-group="movement" style="--turn-progress-fill: ${escapeHtml(movementProgress(speed, movementUsed, plannedMovement))}">
+        <button class="turn-segment" type="button" data-move="5" style="--turn-progress-fill: ${escapeHtml(movementProgress(speed, movementUsed, plannedMovement))}" aria-label="Use 5 feet of movement">
           ${progressCircle("move")}
           <span class="turn-label">Move</span>
           <strong>${movement}</strong>
         </button>
-        <button class="turn-move-add" type="button" data-move="5" aria-label="Add 5 feet of movement">+</button>
       </div>
-      <button class="turn-log" type="button" data-roll-log>Log</button>
+      <button class="turn-end" type="button" data-end-turn>End Turn</button>
     </nav>
   `;
 
-  root.querySelector("[data-roll-log]").addEventListener("click", () => openRollLogModal(state, modalApi));
   root.querySelector("[data-move='5']").addEventListener("click", () => {
-    selectPlannedOption({
-      id: "movement_walk",
-      name: "Move",
-      available: movementUsed + plannedMovement < speed,
-      cost: { movement: true },
-      movement: { remaining: speed - movementUsed, speed, step: 5 }
-    });
+    stateManager.useMovement(5);
+  });
+  root.querySelector("[data-end-turn]").addEventListener("click", () => {
+    window.dispatchEvent(new CustomEvent("combat:end-turn-requested"));
   });
   root.querySelectorAll("[data-group]").forEach((button) => {
     button.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("combat:select-option-group", { detail: { group: button.dataset.group } }));
     });
   });
-}
-
-function openRollLogModal(state, modalApi) {
-  const rolls = (state.log ?? []).filter((entry) => entry.type === "roll" || looksLikeRoll(entry.message));
-  modalApi.showModal({
-    title: "Dice Log",
-    body: rolls.length ? `
-      <ol class="dice-log-list">
-        ${rolls.map((entry) => `
-          <li class="dice-log-entry">
-            <span>${escapeHtml(entry.message)}</span>
-            <small>R${escapeHtml(entry.round)} ${escapeHtml(formatTime(entry.at))}</small>
-          </li>
-        `).join("")}
-      </ol>
-    ` : `<p class="inline-message">No dice rolls yet.</p>`,
-    actions: [{ label: "Close", variant: "secondary" }]
-  });
-}
-
-function looksLikeRoll(message) {
-  return /:\s*-?\d+\s*\([^)]*(?:d\d+|modifier)/i.test(String(message ?? ""));
-}
-
-function formatTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function escapeHtml(value) {

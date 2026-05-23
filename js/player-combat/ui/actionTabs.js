@@ -6,8 +6,9 @@ import {
 } from "../recommendations/recommendationScoring.js";
 import { canPairAfterPrimary, isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { findOption } from "./actionOptionHandlers.js";
+import { resolveActionRoll } from "./actionRollModal.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
-import { getPlannedTurn, selectPlannedOption, validatePlannedOption } from "./plannedTurnState.js";
+import { getPlannedTurn, validatePlannedOption } from "./plannedTurnState.js";
 import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
@@ -32,6 +33,7 @@ const GROUP_LABELS = {
 let selectedGroup = "recommended";
 let selectedSpellLevel = null;
 let selectedSpellCost = null;
+let selectedActionCost = null;
 let hideUnavailable = false;
 let lastRender = null;
 let cachedSnapshot = null;
@@ -91,6 +93,7 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       selectedGroup = button.dataset.tabGroup;
       selectedSpellLevel = null;
       selectedSpellCost = null;
+      selectedActionCost = null;
       renderActionTabs(root, snapshot, services);
     });
   });
@@ -105,6 +108,7 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       selectedGroup = nextGroup;
       selectedSpellLevel = nextSpellLevel;
       selectedSpellCost = nextSpellCost;
+      selectedActionCost = null;
       renderActionTabs(root, snapshot, services);
     });
   });
@@ -148,8 +152,8 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     })
   });
 
-  root.querySelectorAll("[data-plan-option]").forEach((button) => {
-    button.addEventListener("click", () => selectPlanOptionById(button.dataset.planOption, groups, combatState, services));
+  root.querySelectorAll("[data-use-option], [data-plan-option]").forEach((button) => {
+    button.addEventListener("click", () => useOptionById(button.dataset.useOption ?? button.dataset.planOption, groups, combatState, services));
   });
 
   root.querySelectorAll("[data-toggle-action-detail]").forEach((button) => {
@@ -158,10 +162,10 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
 
 }
 
-async function selectPlanOptionById(optionId, groups, combatState, services) {
+async function useOptionById(optionId, groups, combatState, services) {
   const option = findOption(groups, optionId);
   if (!option) {
-    services.showToast?.({ type: "warning", message: "That recommendation is not available in the current action list." });
+    services.showToast?.({ type: "warning", message: "That option is not available in the current action list." });
     return;
   }
   const validation = validatePlannedOption(option, { combatState });
@@ -173,8 +177,68 @@ async function selectPlanOptionById(optionId, groups, combatState, services) {
     const confirmed = await confirmConcentrationChange(services.modalApi, option, combatState);
     if (!confirmed) return;
   }
-  const result = selectPlannedOption(option, { combatState });
-  if (!result.ok) services.showToast?.({ type: "warning", message: result.message });
+  const rolled = await resolveActionRoll({ modalApi: services.modalApi, stateManager: services.stateManager, option });
+  if (!rolled) return;
+  if (option.cost?.movement) {
+    services.stateManager.useMovement(Number(option.movement?.step ?? 5));
+  } else {
+    services.stateManager.useCombatOption(option);
+  }
+  showAfterUseModal(option, services);
+}
+
+function showAfterUseModal(option, services) {
+  const snapshot = services.stateManager.getSnapshot?.();
+  const character = snapshot?.activeCharacter;
+  const combatState = snapshot?.combatState;
+  if (!character || !combatState) return;
+  const groups = getCombatOptions({ character, combatState, referenceData: snapshot.referenceData });
+  const followups = followupOptions(groups, option);
+  const body = document.createElement("div");
+  body.className = "post-action-modal";
+  body.innerHTML = `
+    <p>${escapeHtml(option.name)} was used.</p>
+    ${followups.length ? `
+      <div class="post-action-followups">
+        <span class="section-label">Available Next</span>
+        ${followups.map((entry) => `<button class="btn btn-secondary" type="button" data-followup-use="${escapeHtml(entry.id)}">${escapeHtml(entry.name)}</button>`).join("")}
+      </div>
+    ` : `<p class="inline-message">No immediate riders or follow-up actions are currently available.</p>`}
+  `;
+  services.modalApi.showModal({
+    title: "Action Complete",
+    body,
+    actions: [
+      { label: "Return", variant: "secondary" },
+      { label: "End Turn", variant: "primary", close: false, onClick: () => endTurnFromModal(services) }
+    ]
+  });
+  body.querySelectorAll("[data-followup-use]").forEach((button) => {
+    button.addEventListener("click", () => {
+      services.modalApi.close();
+      useOptionById(button.dataset.followupUse, groups, combatState, services);
+    });
+  });
+}
+
+function followupOptions(groups, usedOption) {
+  const options = [
+    ...(groups.resources ?? []),
+    ...(groups.free ?? []),
+    ...(groups.attacks ?? []),
+    ...(groups.actions ?? []),
+    ...(groups.bonus ?? []),
+    ...(groups.reaction ?? [])
+  ];
+  return options
+    .filter((option) => option.id !== usedOption.id && option.available !== false)
+    .filter((option) => isDependentOption(option) || option.cost?.action || option.cost?.bonus || option.cost?.reaction)
+    .slice(0, 6);
+}
+
+function endTurnFromModal(services) {
+  services.modalApi.close();
+  window.dispatchEvent(new CustomEvent("combat:end-turn-requested"));
 }
 
 function willReplaceConcentration(option, combatState) {
@@ -278,9 +342,11 @@ function bindGroupSelection() {
   if (bindGroupSelection.bound) return;
   bindGroupSelection.bound = true;
   window.addEventListener("combat:select-option-group", (event) => {
-    selectedGroup = normalizeSelectedGroup(event.detail?.group ?? selectedGroup);
+    const requestedGroup = event.detail?.group ?? selectedGroup;
+    selectedGroup = normalizeSelectedGroup(requestedGroup);
     selectedSpellLevel = event.detail?.spellLevel ?? null;
     selectedSpellCost = event.detail?.spellCost ?? null;
+    selectedActionCost = actionCostFilterForGroup(requestedGroup);
     lastRender?.();
     document.querySelector("#actions-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -299,6 +365,15 @@ function combinedActionOptions(groups) {
     ...(groups.movement ?? []),
     ...(groups.resources ?? [])
   ];
+}
+
+function actionCostFilterForGroup(group) {
+  return {
+    actions: "action",
+    bonus: "bonus",
+    reaction: "reaction",
+    free: "free"
+  }[group] ?? null;
 }
 
 function constrainedRecommendations(rankedEntries) {
@@ -328,11 +403,19 @@ function filterOptions(group, options, hideUnavailableOptions) {
     const levelMatches = selectedSpellLevel === null || option.spell?.level === selectedSpellLevel;
     const costMatches = !selectedSpellCost || option.cost?.[selectedSpellCost];
     return levelMatches && costMatches;
-  }) : options;
+  }) : group === "actions" && selectedActionCost ? options.filter((option) => actionCostMatches(option, selectedActionCost)) : options;
   return filtered
     .filter((option) => !hideUnavailableOptions || option.available !== false)
     .slice()
     .sort((a, b) => Number(a.available === false) - Number(b.available === false));
+}
+
+function actionCostMatches(option, cost) {
+  if (cost === "action") return Boolean(option.cost?.action);
+  if (cost === "bonus") return Boolean(option.cost?.bonus);
+  if (cost === "reaction") return Boolean(option.cost?.reaction);
+  if (cost === "free") return Boolean(option.cost?.object || (!option.cost?.action && !option.cost?.bonus && !option.cost?.reaction && !option.cost?.movement));
+  return true;
 }
 
 function aiRecommendationCount(result) {
