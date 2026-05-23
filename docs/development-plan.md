@@ -3180,3 +3180,31 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 ### Sticky Header Verification
 
 - `node --check js\player-combat\app.js`
+
+### Action Economy Follow-Up Corrections
+
+- Kept movement options in the Movement category and labeled them as movement actions in action rows and follow-up buttons.
+- Replaced the turn rail's `Free / Unlimited` display with an object interaction tracker that shows one object interaction per round.
+- Filtered the post-action modal through prerequisite compatibility so hit riders such as Sneak Attack only appear after compatible weapon attacks, not after unrelated actions or spells.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionOptionRenderers.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/turnEconomyPanel.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Open Actions and confirm Move appears as movement, not free.
+2. Use Object Interaction and confirm the object tracker is spent and further object interaction is unavailable.
+3. Use a rogue spell action and confirm the Action Complete modal does not offer Sneak Attack.
+4. Use a compatible rogue weapon attack and confirm Sneak Attack can still appear as a rider.
+
+### Action Economy Follow-Up Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\turnEconomyPanel.js`
+- `node --test tests\playerCombatActions.test.mjs`

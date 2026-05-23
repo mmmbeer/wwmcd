@@ -6,6 +6,7 @@ import { transformCombatData } from "../js/player-combat/data/combatDataTransfor
 import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 import { resetLongRestResources } from "../js/player-combat/rules/restRules.js";
+import { followupOptions } from "../js/player-combat/ui/actionTabs.js";
 
 const combatState = {
   turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
@@ -194,6 +195,47 @@ test("leveled spells become unavailable after one leveled spell has been cast th
 
   assert.equal(groups.spells.find((option) => option.name === "Healing Word").available, false);
   assert.ok(groups.spells.find((option) => option.name === "Healing Word").unavailableReasons.some((reason) => /Bless/.test(reason)));
+});
+
+test("movement stays in the movement group and object interaction is limited", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter(),
+    combatState,
+    referenceData: null
+  });
+  const afterObject = getCombatOptions({
+    character: baseCharacter(),
+    combatState: { ...combatState, turn: { ...combatState.turn, objectInteractionUsed: true } },
+    referenceData: null
+  });
+
+  assert.ok(groups.movement.some((option) => option.id === "movement_walk"));
+  assert.equal(groups.free.some((option) => option.id === "movement_walk"), false);
+  assert.equal(groups.free.find((option) => option.id === "basic_object_interaction").available, true);
+  assert.equal(afterObject.free.find((option) => option.id === "basic_object_interaction").available, false);
+});
+
+test("post-action followups exclude hit riders after non-attack actions", () => {
+  const spell = { id: "spell_fire_bolt", name: "Fire Bolt", source: "spell", cost: { action: true }, spell: { level: 0 } };
+  const rapier = {
+    id: "weapon_rapier",
+    name: "Rapier",
+    source: "weapon",
+    cost: { action: true },
+    tags: ["attack", "weapon"],
+    rolls: [{ id: "attack", type: "attack", formula: "1d20+5" }]
+  };
+  const sneakAttack = {
+    id: "feature_sneak_attack",
+    name: "Sneak Attack",
+    available: true,
+    description: "Once per turn, add damage to an eligible finesse or ranged weapon hit.",
+    meta: ["Requires advantage or an ally adjacent to the target", "Finesse or ranged weapon"]
+  };
+  const groups = { resources: [], free: [sneakAttack], movement: [], attacks: [], actions: [], bonus: [], reaction: [] };
+
+  assert.equal(followupOptions(groups, spell).some((option) => option.id === "feature_sneak_attack"), false);
+  assert.equal(followupOptions(groups, rapier).some((option) => option.id === "feature_sneak_attack"), true);
 });
 
 

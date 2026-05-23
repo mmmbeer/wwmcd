@@ -434,7 +434,7 @@ function costLabel(option) {
   if (option.cost?.reaction) return "Reaction";
   if (option.cost?.movement) return "Movement";
   if (option.cost?.action) return "Action";
-  if (option.cost?.object) return "Free";
+  if (option.cost?.object) return "Object";
   return option.resource ?? "Option";
 }
 

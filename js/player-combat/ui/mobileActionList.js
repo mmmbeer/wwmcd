@@ -261,7 +261,9 @@ function typeLabel(option) {
   if (isDependentOption(option) && !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction) return { key: "rider", label: "rider" };
   if (option.cost?.bonus) return { key: "bonus", label: "bonus action" };
   if (option.cost?.reaction) return { key: "reaction", label: "reaction" };
-  if (option.cost?.object || !option.cost?.action || option.cost?.movement) return { key: "free", label: "free" };
+  if (option.cost?.movement) return { key: "movement", label: "movement" };
+  if (option.cost?.object) return { key: "free", label: "object" };
+  if (!option.cost?.action) return { key: "free", label: "free" };
   return { key: "action", label: "action" };
 }
 

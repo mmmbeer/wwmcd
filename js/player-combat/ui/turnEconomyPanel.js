@@ -18,12 +18,13 @@ export function renderTurnEconomyPanel(root, snapshot, { stateManager }) {
   const movement = `${formatFeet(Math.min(movementUsed + plannedMovement, speed))}/${formatFeet(speed)}`;
   const actionsAvailable = getAttackCount(character, snapshot.referenceData);
   const actionStatus = plannedActionStatus(plan.action);
+  const objectInteractionUsed = Boolean(state.turn.objectInteractionUsed);
   root.innerHTML = `
     <nav class="turn-progress" aria-label="Action economy">
       ${segment("actions", "Action", state.turn.actionUsed, actionProgress(plan, actionsAvailable), actionsAvailable, actionStatus)}
       ${segment("bonus", "Bonus", state.turn.bonusActionUsed, plan.bonusAction ? 0.55 : 0)}
       ${segment("reaction", "Reaction", state.turn.reactionUsed, plan.reaction ? 0.55 : 0)}
-      ${segment("free", "Free", false, plan.freeActions.length ? 1 : 0, 1, "Unlimited")}
+      ${segment("free", "Object", objectInteractionUsed, objectInteractionUsed ? 1 : objectInteractionPlanned(plan) ? 0.55 : 0, 1, objectInteractionUsed ? null : objectInteractionPlanned(plan) ? "Planned" : "1/round")}
       <div class="turn-movement ${movementUsed >= speed ? "is-spent" : ""} ${plannedMovement ? "is-planned" : ""}">
         <button class="turn-segment" type="button" data-move="5" style="--turn-progress-fill: ${escapeHtml(movementProgress(speed, movementUsed, plannedMovement))}" aria-label="Use 5 feet of movement">
           ${progressCircle("move")}
@@ -90,6 +91,10 @@ function actionProgress(plan, fallbackAttackCount) {
 function movementProgress(speed, used, planned) {
   if (speed <= 0) return 0;
   return Math.max(0, Math.min(1, (used + planned) / speed));
+}
+
+function objectInteractionPlanned(plan) {
+  return plan.freeActions?.some((option) => option.cost?.object);
 }
 
 function plannedActionStatus(option) {

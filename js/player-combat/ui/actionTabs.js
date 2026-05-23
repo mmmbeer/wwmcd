@@ -231,10 +231,11 @@ function renderFollowupButton(option) {
   `;
 }
 
-function followupOptions(groups, usedOption) {
+export function followupOptions(groups, usedOption) {
   const options = [
     ...(groups.resources ?? []),
     ...(groups.free ?? []),
+    ...(groups.movement ?? []),
     ...(groups.attacks ?? []),
     ...(groups.actions ?? []),
     ...(groups.bonus ?? []),
@@ -242,7 +243,8 @@ function followupOptions(groups, usedOption) {
   ];
   return options
     .filter((option) => option.id !== usedOption.id && option.available !== false)
-    .filter((option) => isDependentOption(option) || option.cost?.action || option.cost?.bonus || option.cost?.reaction)
+    .filter((option) => !isDependentOption(option) || canPairAfterPrimary(option, usedOption))
+    .filter((option) => isDependentOption(option) || option.cost?.action || option.cost?.bonus || option.cost?.reaction || option.cost?.movement || option.cost?.object)
     .slice(0, 6);
 }
 
@@ -250,8 +252,10 @@ function optionTypeLabel(option) {
   if (isDependentOption(option) && !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction) return { key: "rider", label: "rider" };
   if (option.cost?.bonus) return { key: "bonus", label: "bonus action" };
   if (option.cost?.reaction) return { key: "reaction", label: "reaction" };
+  if (option.cost?.movement) return { key: "movement", label: "movement" };
   if (option.cost?.action && isSecondAttackOption(option)) return { key: "action", label: "second attack" };
   if (option.cost?.action) return { key: "action", label: "action" };
+  if (option.cost?.object) return { key: "free", label: "object" };
   return { key: "free", label: "free" };
 }
 
@@ -396,6 +400,7 @@ function actionCostFilterForGroup(group) {
     actions: "action",
     bonus: "bonus",
     reaction: "reaction",
+    movement: "movement",
     free: "free"
   }[group] ?? null;
 }
@@ -438,6 +443,7 @@ function actionCostMatches(option, cost) {
   if (cost === "action") return Boolean(option.cost?.action);
   if (cost === "bonus") return Boolean(option.cost?.bonus);
   if (cost === "reaction") return Boolean(option.cost?.reaction);
+  if (cost === "movement") return Boolean(option.cost?.movement);
   if (cost === "free") return Boolean(option.cost?.object || (!option.cost?.action && !option.cost?.bonus && !option.cost?.reaction && !option.cost?.movement));
   return true;
 }
