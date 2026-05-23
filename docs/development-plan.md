@@ -1,5 +1,31 @@
 # Development Plan
 
+## Current Session: PDF Druid Spell List Truncation
+
+### Implemented
+
+- Removed the 40-spell cap from combat spell option generation so high-level imported casters expose every parsed spell option.
+- Added a regression test for `docs/example-sheets/mwokasch_33709378.pdf` confirming all 166 imported druid spells become spell options.
+- Confirmed high-level spells such as `Storm of Vengeance` remain available when matching slots are present.
+
+### Files Changed
+
+- `js/player-combat/rules/spellActions.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The D&D Beyond PDF import still treats prepared markers as best-effort form-field data. This sheet imports the full druid list, but only cantrips are marked prepared by the source fields currently parsed.
+- Very large spell lists now render fully in the Spells tab; follow-up work may add search or stronger filters if the list feels too long on phones.
+
+### Manual Test Checklist
+
+1. Import `docs/example-sheets/mwokasch_33709378.pdf`.
+2. Open the Spells tab and confirm level 1 through level 9 druid spells appear.
+3. Filter or scroll to 9th-level spells and confirm `Storm of Vengeance` is present and usable while a 9th-level slot remains.
+4. Spend the 9th-level slot and confirm 9th-level spell options become unavailable with a clear reason.
+
 ## Current Session: AI Recommendation Table Integration
 
 ### Implemented

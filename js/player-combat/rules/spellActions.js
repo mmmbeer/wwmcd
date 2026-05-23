@@ -9,7 +9,7 @@ export function getSpellActions(character, combatState, referenceData) {
     ...(character?.spells?.cantrips ?? [])
   ]);
 
-  return spells.slice(0, 40).map((spell, index) => {
+  return spells.map((spell, index) => {
     const reference = findByName(referenceData?.indexes?.spellIndexByName ?? new Map(), spell.name) ?? {};
     return createSpellOption(character, combatState, referenceData, spell, reference, index);
   });

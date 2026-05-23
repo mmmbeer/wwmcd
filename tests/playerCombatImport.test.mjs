@@ -192,6 +192,17 @@ test("example PDF sheets add applicable imported feature actions", async () => {
   assert.ok(groups.reaction.some((option) => option.name === "Uncanny Dodge"));
 });
 
+test("example high-level druid PDF exposes all imported spell options", async () => {
+  const imported = await importCharacterFromPdfTextOrBuffer("docs/example-sheets/mwokasch_33709378.pdf");
+  const { character } = normalizeCharacter(imported.raw);
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: realReferenceData() });
+
+  assert.equal(character.spells.known.length, 166);
+  assert.equal(groups.spells.length, 166);
+  assert.ok(groups.spells.some((option) => option.name === "Storm of Vengeance"));
+  assert.equal(groups.spells.find((option) => option.name === "Storm of Vengeance").available, true);
+});
+
 test("rejects PDFs without fillable form fields", () => {
   const imported = importCharacterFromPdfText("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>", { sourceName: "flat.pdf" });
 
