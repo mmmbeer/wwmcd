@@ -7,12 +7,12 @@ import {
 import { canPairAfterPrimary, isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { findOption } from "./actionOptionHandlers.js";
 import { resolveActionRoll } from "./actionRollModal.js";
+import { recommendationTableOptions } from "./aiRecommendationTableAdapter.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
 import { getPlannedTurn, validatePlannedOption } from "./plannedTurnState.js";
 import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
-  renderAiRecommendationSets,
   renderRecommendationWizardPanel,
   setRecommendationAnswers
 } from "./recommendationWizardPanel.js";
@@ -68,7 +68,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     ? constrainedRecommendations(getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers(), referenceData: snapshot.referenceData }))
     : [];
   const baseOptions = visibleGroup === "recommended"
-    ? rankedRecommendations.map((entry) => entry.option)
+    ? recommendationTableOptions(rankedRecommendations, aiRecommendationSets, groups)
     : visibleGroup === "actions"
       ? combinedActionOptions(groups)
     : groups[visibleGroup] ?? [];
@@ -80,7 +80,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     <div class="option-tabs">
       ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasActiveAiSettings(storage) }) : ""}
       ${visibleGroup === "recommended"
-    ? aiRecommendationCount(aiRecommendationSets) ? renderAiRecommendationSets(aiRecommendationSets) : renderMobileActionList(visibleGroup, "Recommended This Turn", visibleOptions, combatState, { hideUnavailable })
+    ? renderMobileActionList(visibleGroup, "Recommended This Turn", visibleOptions, combatState, { hideUnavailable })
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
@@ -463,10 +463,6 @@ function actionCostMatches(option, cost) {
   if (cost === "movement") return Boolean(option.cost?.movement);
   if (cost === "free") return Boolean(option.cost?.object || (!option.cost?.action && !option.cost?.bonus && !option.cost?.reaction && !option.cost?.movement));
   return true;
-}
-
-function aiRecommendationCount(result) {
-  return (result?.recommendations ?? result?.sets ?? result ?? []).length;
 }
 
 function groupLabel(group) {

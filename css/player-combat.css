@@ -2069,9 +2069,17 @@ body.has-turn-progress .app-shell {
   opacity: 0.62;
 }
 
+.action-entry.is-ai-recommended {
+  box-shadow: inset 3px 0 0 var(--accent-blue);
+}
+
 .action-entry .action-row {
   border-bottom: 0;
   background: transparent;
+}
+
+.action-entry.is-ai-recommended .action-row {
+  background: linear-gradient(90deg, rgba(93, 169, 233, 0.12), transparent);
 }
 
 .action-expand-toggle {
@@ -2140,6 +2148,43 @@ body.has-turn-progress .app-shell {
   min-height: 22px;
   padding-block: 3px;
   background: rgba(217, 164, 65, 0.08);
+}
+
+.recommendation-row-summary.is-ai-recommendation strong {
+  border: 1px solid rgba(93, 169, 233, 0.45);
+  border-radius: var(--radius-sm);
+  background: rgba(93, 169, 233, 0.14);
+  color: var(--accent-blue);
+  padding: 4px 6px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recommendation-row-summary.is-ai-recommendation .recommendation-reason {
+  border-color: rgba(93, 169, 233, 0.32);
+  background: rgba(93, 169, 233, 0.09);
+}
+
+.ai-recommendation-detail {
+  display: grid;
+  flex: 1 0 100%;
+  gap: 4px;
+  min-width: 0;
+  border-left: 2px solid rgba(93, 169, 233, 0.45);
+  padding-left: var(--space-2);
+}
+
+.ai-recommendation-detail p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.ai-recommendation-detail strong {
+  color: var(--accent-blue);
 }
 
 .recommendation-detail strong {

@@ -1,6 +1,48 @@
 # Development Plan
 
-## Current Session: Recommendation Wizard Modal Flow
+## Current Session: AI Recommendation Table Integration
+
+### Implemented
+
+- Integrated AI recommendations into the same Recommended action data table used by procedural recommendations.
+- Added blue AI recommendation styling on table rows and detail badges.
+- Added AI guidance, explanation, confidence, legality, risk, resources, concentration impact, assumptions, and missing-info warnings to the expanded row detail.
+- Changed the AI modal so successful analysis replaces the form content instead of appending below `Get Recommendations`.
+- Preserved the `What else matters right now?` text between AI modal openings and while typing.
+- Split AI-to-table adaptation into `js/player-combat/ui/aiRecommendationTableAdapter.js` to keep `actionTabs.js` below the project file-size limit.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `js/player-combat/ui/aiRecommendationTableAdapter.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `tests/aiRecommendationTableAdapter.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- AI recommendations still depend on returned option IDs matching current app options. Unmatched AI options are ignored rather than rendered as unusable rows.
+- The retained situation text is session-local JavaScript state, not persisted through a browser refresh.
+
+### Manual Test Checklist
+
+1. Open `Use AI!`, enter text in `What else matters right now?`, close and reopen the modal, and confirm the text remains.
+2. Click `Get Recommendations` and confirm the modal content is replaced by AI guidance.
+3. Return to Recommended actions and confirm AI picks appear as normal table rows with blue AI styling.
+4. Expand an AI-recommended row and confirm the AI explanation/guidance appears in the details.
+5. Use an AI-recommended action and confirm it follows the same roll/use path as procedural rows.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\aiRecommendationTableAdapter.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --test tests\aiRecommendationService.test.mjs tests\recommendationScoring.test.mjs`
+
+## Previous Session: Recommendation Wizard Modal Flow
 
 ### Implemented
 

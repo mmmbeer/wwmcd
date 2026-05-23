@@ -7,6 +7,8 @@ import {
 } from "./recommendationOptionsModal.js";
 import { escapeHtml } from "./renderUtils.js";
 
+let savedAiNotes = "";
+
 export function openAiRecommendationModal({
   modalApi,
   storage,
@@ -21,7 +23,7 @@ export function openAiRecommendationModal({
 }) {
   const body = document.createElement("div");
   body.className = "ai-recommendation-modal";
-  body.innerHTML = renderInitialBody({ settings: getAiSettings(storage), groups, answers });
+  body.innerHTML = renderInitialBody({ settings: getAiSettings(storage), groups, answers, notes: savedAiNotes });
   bindEvents(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, openSettings, onAnswersChanged, onRecommendations });
   modalApi.showModal({
     title: "AI Recommendations",
@@ -30,7 +32,7 @@ export function openAiRecommendationModal({
   });
 }
 
-function renderInitialBody({ settings, groups, answers }) {
+function renderInitialBody({ settings, groups, answers, notes }) {
   const active = getActiveAiProviderSettings(settings);
   const ready = Boolean(active.apiKey && active.model);
   return `
@@ -41,7 +43,7 @@ function renderInitialBody({ settings, groups, answers }) {
     `}
     <label class="field ai-notes-field">
       <span class="field-label">What else matters right now?</span>
-      <textarea data-ai-notes placeholder="Enemy resistances, ally danger, battlefield hazards, monster AC, expected saves, positioning, objectives, or table rulings."></textarea>
+      <textarea data-ai-notes placeholder="Enemy resistances, ally danger, battlefield hazards, monster AC, expected saves, positioning, objectives, or table rulings.">${escapeHtml(notes)}</textarea>
     </label>
     <button class="btn btn-primary" type="button" data-ai-get-recommendations ${ready ? "" : "disabled"}>Get Recommendations</button>
     <div class="ai-loading" data-ai-loading hidden>
@@ -54,6 +56,9 @@ function renderInitialBody({ settings, groups, answers }) {
 
 function bindEvents(body, services) {
   body.querySelector("[data-ai-open-settings]")?.addEventListener("click", () => services.openSettings?.());
+  body.querySelector("[data-ai-notes]")?.addEventListener("input", (event) => {
+    savedAiNotes = event.currentTarget.value;
+  });
   body.querySelector("[data-ai-get-recommendations]")?.addEventListener("click", () => requestRecommendations(body, services));
 }
 
@@ -64,6 +69,7 @@ async function requestRecommendations(body, { modalApi, storage, snapshot, group
   const loading = body.querySelector("[data-ai-loading]");
   const status = body.querySelector("[data-ai-status]");
   const notes = body.querySelector("[data-ai-notes]")?.value ?? "";
+  savedAiNotes = notes;
   const nextAnswers = {
     ...answers,
     ...readRecommendationOptionsForm(body)
@@ -82,7 +88,7 @@ async function requestRecommendations(body, { modalApi, storage, snapshot, group
       context
     });
     onRecommendations?.(recommendations);
-    status.innerHTML = renderAiGuidance(recommendations);
+    body.innerHTML = renderAiGuidance(recommendations);
     body.querySelector("[data-ai-return]")?.addEventListener("click", () => modalApi.close());
     showToast?.({ type: "success", message: "AI recommendation list updated." });
   } catch (error) {

@@ -65,8 +65,9 @@ function renderActionRow(option, group) {
   const unavailable = option.available === false;
   const selected = isOptionPlanned(option);
   const rowKind = rowKindFor(option, group);
+  const aiRecommended = option.recommendation?.source === "ai";
   return `
-    <article class="action-entry ${selected ? "is-selected" : ""} ${unavailable ? "is-unavailable" : ""}" role="listitem">
+    <article class="action-entry ${selected ? "is-selected" : ""} ${unavailable ? "is-unavailable" : ""} ${aiRecommended ? "is-ai-recommended" : ""}" role="listitem">
       <div class="action-row action-row--${escapeHtml(rowKind)}">
         <button class="action-expand-toggle" type="button" data-toggle-action-detail="${escapeHtml(option.id)}" aria-expanded="false" aria-label="Show details for ${escapeHtml(option.name)}">
           <span aria-hidden="true">v</span>
@@ -121,10 +122,32 @@ function renderRecommendationSummary(option) {
   const recommendation = option.recommendation;
   if (!recommendation) return "";
   const reasons = recommendation.reasons ?? [];
+  const isAi = recommendation.source === "ai";
   return `
-    <div class="recommendation-row-summary" aria-label="Recommendation details">
-      <strong>Recommendation</strong>
+    <div class="recommendation-row-summary ${isAi ? "is-ai-recommendation" : ""}" aria-label="Recommendation details">
+      <strong>${isAi ? "AI Recommendation" : "Recommendation"}</strong>
       ${reasons.slice(0, 3).map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
+      ${renderAiRecommendationDetail(recommendation)}
+    </div>
+  `;
+}
+
+function renderAiRecommendationDetail(recommendation) {
+  if (recommendation.source !== "ai") return "";
+  const details = [
+    ["Guidance", recommendation.guidance],
+    ["Why", recommendation.summary || recommendation.explanation],
+    ["Confidence", recommendation.confidence],
+    ["Legality", recommendation.legality],
+    ["Risk", recommendation.riskLevel],
+    ["Resources", recommendation.resourcesUsed?.join(", ")],
+    ["Concentration", recommendation.concentrationImpact],
+    ["Assumptions", recommendation.assumptions?.join(", ")]
+  ].filter(([, value]) => value);
+  if (!details.length) return "";
+  return `
+    <div class="ai-recommendation-detail">
+      ${details.map(([label, value]) => `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`).join("")}
     </div>
   `;
 }
