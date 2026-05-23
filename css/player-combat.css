@@ -3499,8 +3499,14 @@ body.is-busy {
 
 .app-header {
   top: 0;
+  z-index: 20;
 }
 
 .turn-progress {
   top: var(--sticky-header-height);
+  z-index: 9;
+}
+
+.utility-menu {
+  z-index: 30;
 }

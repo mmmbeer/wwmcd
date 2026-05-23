@@ -3330,3 +3330,19 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --test tests\aiRecommendationContext.test.mjs`
 - `node --test tests\aiRecommendationService.test.mjs`
 - `node --test tests\recommendationScoring.test.mjs`
+
+### Header Menu Layering Fix
+
+- Raised the sticky header stacking layer above the sticky turn progress rail so the header utility menu is no longer hidden beneath the progress bar.
+- Kept the turn progress rail offset by `--sticky-header-height` so the sticky header and rail remain vertically aligned.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Load a character and scroll until both the header and turn progress rail are sticky.
+2. Open the header `Menu` dropdown and confirm all menu items render above the turn progress rail.
+3. Resize to phone width and confirm the header, dropdown, and progress rail do not overlap incoherently.
