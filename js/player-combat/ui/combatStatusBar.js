@@ -32,6 +32,7 @@ export function renderCombatStatusBar(root, snapshot, { stateManager, modalApi }
   const hpPercent = maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0;
   root.innerHTML = `
     <section class="combat-status-bar" aria-label="Combat status">
+      <span class="section-label combat-section-label">Vitals</span>
       <div class="character-crest" aria-hidden="true">${escapeHtml(crest(character.name))}</div>
       <div class="character-status-main">
         <div class="character-identity-line">${escapeHtml(identityLine(character))}</div>

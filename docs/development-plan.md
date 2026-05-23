@@ -2960,3 +2960,36 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 3. Lower current HP in the combat controls.
 4. Tap `Long Rest` and confirm current HP returns to max HP.
 5. Confirm spell slots and limited resources still reset after Long Rest.
+
+### Compact Combat UI Reorganization
+
+- Reorganized the combat screen to follow the screenshot pattern: title/rest controls, sticky turn progress, Vitals, Resources, four-tab action navigation, and a vertically scrolling action table card.
+- Reduced the visible action tabs to `Recommendations`, `Attacks`, `Spells`, and `Actions`.
+- The `Actions` tab now combines standard actions, bonus actions, reactions, free actions, movement, and resource-triggered options so the simplified tab bar does not hide combat choices.
+- Added a visible `Vitals` section label and kept the existing Resources bar as the resource section.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/combatStatusBar.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The Resources bar remains horizontally scrollable when a character has many spell levels or limited resources.
+- The compact table height is CSS-based and may need final tuning after a device/browser visual pass with several real imported sheets.
+
+### Manual Test Steps
+
+1. Import or load a character with HP, spell slots, limited resources, attacks, spells, bonus actions, and reactions.
+2. Confirm the screen order is title/rest controls, sticky turn progress, Vitals, Resources, tab bar, and the scrolling table card.
+3. Switch between `Recommendations`, `Attacks`, `Spells`, and `Actions`.
+4. Confirm bonus actions, reactions, free actions, movement, and resource options appear under `Actions`.
+5. Scroll the table card and confirm the top status sections remain organized and the page does not require horizontal scrolling except compact resource chips/tables where expected.
+
+### Compact Combat UI Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\combatStatusBar.js`
+- `node --test tests\*.test.mjs`

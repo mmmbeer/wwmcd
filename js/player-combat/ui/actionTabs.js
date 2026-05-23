@@ -18,13 +18,10 @@ import { openAiRecommendationModal } from "./aiRecommendationModal.js";
 import { escapeHtml } from "./renderUtils.js";
 
 const NAV_GROUPS = [
-  ["recommended", "Recommendation"],
+  ["recommended", "Recommendations"],
   ["attacks", "Attacks"],
-  ["actions", "Actions"],
   ["spells", "Spells"],
-  ["bonus", "Bonus"],
-  ["free", "Free"],
-  ["reaction", "Reaction"]
+  ["actions", "Actions"]
 ];
 const GROUP_LABELS = {
   ...Object.fromEntries(NAV_GROUPS),
@@ -71,6 +68,8 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     : [];
   const baseOptions = visibleGroup === "recommended"
     ? rankedRecommendations.map((entry) => entry.option).slice(0, 8)
+    : visibleGroup === "actions"
+      ? combinedActionOptions(groups)
     : groups[visibleGroup] ?? [];
   const visibleOptions = filterOptions(visibleGroup, baseOptions, hideUnavailable);
   root.innerHTML = `
@@ -282,12 +281,27 @@ function bindGroupSelection() {
   if (bindGroupSelection.bound) return;
   bindGroupSelection.bound = true;
   window.addEventListener("combat:select-option-group", (event) => {
-    selectedGroup = event.detail?.group ?? selectedGroup;
+    selectedGroup = normalizeSelectedGroup(event.detail?.group ?? selectedGroup);
     selectedSpellLevel = event.detail?.spellLevel ?? null;
     selectedSpellCost = event.detail?.spellCost ?? null;
     lastRender?.();
     document.querySelector("#actions-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+}
+
+function normalizeSelectedGroup(group) {
+  return ["bonus", "free", "reaction", "movement", "resources", "log"].includes(group) ? "actions" : group;
+}
+
+function combinedActionOptions(groups) {
+  return [
+    ...(groups.actions ?? []),
+    ...(groups.bonus ?? []),
+    ...(groups.reaction ?? []),
+    ...(groups.free ?? []),
+    ...(groups.movement ?? []),
+    ...(groups.resources ?? [])
+  ];
 }
 
 function filterOptions(group, options, hideUnavailableOptions) {

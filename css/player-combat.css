@@ -2931,3 +2931,116 @@ body.is-busy {
     font-size: 0.78rem;
   }
 }
+
+/* Organized combat screen: title, sticky progress, vitals, resources, tabs, scrollable table */
+.app-shell {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+}
+
+.app-header {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.utility-title {
+  order: 1;
+}
+
+.header-actions {
+  order: 2;
+}
+
+.utility-icon {
+  order: 3;
+  width: auto;
+  min-width: 38px;
+  padding: 0 8px;
+  font-size: 0;
+  line-height: 1;
+}
+
+.utility-icon::before {
+  content: "Menu";
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.utility-menu {
+  right: var(--space-3);
+  left: auto;
+}
+
+.turn-progress {
+  position: sticky;
+  top: 49px;
+  z-index: 7;
+}
+
+.combat-status-bar {
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+}
+
+.combat-section-label {
+  grid-column: 1 / -1;
+  min-height: 16px;
+}
+
+.spellcasting-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+}
+
+.action-panel {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.option-nav {
+  grid-template-columns: repeat(4, minmax(max-content, 1fr));
+}
+
+.option-nav .btn {
+  width: 100%;
+}
+
+.option-tabs {
+  min-height: 0;
+}
+
+.action-list-shell,
+.recommendation-set-list {
+  border: 1px solid rgba(190, 143, 72, 0.28);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.12)),
+    var(--bg-panel);
+  overflow: hidden;
+}
+
+.action-list,
+.recommendation-set-list {
+  max-height: calc(100dvh - 395px);
+  min-height: 240px;
+  overflow-y: auto;
+}
+
+.recommendation-set-list {
+  align-content: start;
+}
+
+@media (max-width: 390px) {
+  .turn-progress {
+    top: 45px;
+  }
+
+  .option-nav {
+    grid-template-columns: repeat(4, max-content);
+  }
+
+  .action-list,
+  .recommendation-set-list {
+    max-height: calc(100dvh - 380px);
+    min-height: 220px;
+  }
+}
