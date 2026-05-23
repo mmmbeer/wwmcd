@@ -1,6 +1,39 @@
 # Development Plan
 
-## Current Session: Action Complete Follow-Up Columns
+## Current Session: Action Complete Follow-Up Details
+
+### Implemented
+
+- Added a chevron control to each `Available Next` follow-up in the `Action Complete` modal.
+- Follow-up descriptions now expand inline without triggering the action use button.
+- Description text pulls from long descriptions, spell references, feature action text, basic descriptions, or metadata.
+- Kept the follow-up columns as `action type | resource | name`.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/followupOptionRenderer.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Follow-ups with no description or metadata show a short fallback message.
+
+### Manual Test Checklist
+
+1. Complete an action that offers follow-ups.
+2. Tap the chevron beside a follow-up and confirm its description opens inline.
+3. Tap the follow-up row itself and confirm it still uses the action.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\followupOptionRenderer.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --test tests\playerCombatActions.test.mjs`
+
+## Previous Session: Action Complete Follow-Up Columns
 
 ### Implemented
 

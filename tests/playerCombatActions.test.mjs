@@ -7,7 +7,7 @@ import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 import { resetLongRestResources } from "../js/player-combat/rules/restRules.js";
 import { followupOptions } from "../js/player-combat/ui/actionTabs.js";
-import { renderFollowupButton } from "../js/player-combat/ui/followupOptionRenderer.js";
+import { renderFollowupButton, toggleFollowupDescription } from "../js/player-combat/ui/followupOptionRenderer.js";
 
 const combatState = {
   turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
@@ -243,15 +243,33 @@ test("post-action followup buttons show type resource and name columns", () => {
   const html = renderFollowupButton({
     id: "feature_flurry_of_blows",
     name: "Flurry of Blows",
+    description: "Make two unarmed strikes as a bonus action.",
     cost: { bonus: true, resource: { id: "resource-ki", name: "Focus", amount: 1 } }
   });
 
+  assert.match(html, /data-followup-toggle/);
   assert.match(html, /type-badge/);
   assert.match(html, /bonus action/);
   assert.match(html, /followup-resource/);
   assert.match(html, />Focus</);
   assert.match(html, /followup-name/);
   assert.match(html, />Flurry of Blows</);
+  assert.match(html, /Make two unarmed strikes/);
+});
+
+test("post-action followup description toggle opens inline details", () => {
+  const root = documentLike(renderFollowupButton({
+    id: "feature_flurry_of_blows",
+    name: "Flurry of Blows",
+    description: "Make two unarmed strikes as a bonus action.",
+    cost: { bonus: true, resource: { name: "Focus" } }
+  }));
+
+  toggleFollowupDescription(root, "feature_flurry_of_blows");
+
+  assert.equal(root.toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(root.panel.hidden, false);
+  assert.equal(root.toggle.querySelector("span").textContent, "^");
 });
 
 
@@ -820,6 +838,39 @@ function baseCharacter(overrides = {}) {
     spells: { prepared: [], known: [], cantrips: [] },
     features: { class: [], race: [], feats: [], other: [] },
     ...overrides
+  };
+}
+
+function documentLike(html) {
+  const state = { expanded: "false", hidden: /\shidden/.test(html), icon: "v" };
+  return {
+    toggle: {
+      getAttribute: (name) => (name === "aria-expanded" ? state.expanded : null),
+      setAttribute: (name, value) => {
+        if (name === "aria-expanded") state.expanded = value;
+      },
+      querySelector: () => ({
+        get textContent() {
+          return state.icon;
+        },
+        set textContent(value) {
+          state.icon = value;
+        }
+      })
+    },
+    panel: {
+      get hidden() {
+        return state.hidden;
+      },
+      set hidden(value) {
+        state.hidden = value;
+      }
+    },
+    querySelector(selector) {
+      if (selector.startsWith("[data-followup-toggle=")) return this.toggle;
+      if (selector.startsWith("[data-followup-description=")) return this.panel;
+      return null;
+    }
   };
 }
 

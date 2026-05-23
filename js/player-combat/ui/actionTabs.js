@@ -8,7 +8,7 @@ import { canPairAfterPrimary, isDependentOption } from "../recommendations/recom
 import { findOption } from "./actionOptionHandlers.js";
 import { resolveActionRoll } from "./actionRollModal.js";
 import { recommendationTableOptions } from "./aiRecommendationTableAdapter.js";
-import { renderFollowupButton } from "./followupOptionRenderer.js";
+import { renderFollowupButton, toggleFollowupDescription } from "./followupOptionRenderer.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
 import { getPlannedTurn, validatePlannedOption } from "./plannedTurnState.js";
 import {
@@ -244,6 +244,9 @@ function showAfterUseModal(option, services) {
       services.modalApi.close();
       useOptionById(button.dataset.followupUse, groups, combatState, services);
     });
+  });
+  body.querySelectorAll("[data-followup-toggle]").forEach((button) => {
+    button.addEventListener("click", () => toggleFollowupDescription(body, button.dataset.followupToggle));
   });
 }
 
