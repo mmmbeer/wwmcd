@@ -18,6 +18,7 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --sticky-header-height: 50px;
   color-scheme: light;
 }
 
@@ -3347,4 +3348,12 @@ body.is-busy {
 
 .app-shell {
   padding-bottom: 0;
+}
+
+.app-header {
+  top: 0;
+}
+
+.turn-progress {
+  top: var(--sticky-header-height);
 }

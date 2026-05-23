@@ -22,6 +22,8 @@ export async function createPlayerCombatApp() {
   const showToast = createToast(document.querySelector("#toast-region"));
   const busyApi = createBusyOverlay(document.querySelector("#busy-overlay"));
   const roots = {
+    appShell: document.querySelector("#player-combat-app"),
+    appHeader: document.querySelector(".app-header"),
     appTitle: document.querySelector("#app-title"),
     headerCharacter: document.querySelector("#header-character"),
     headerActions: document.querySelector("#header-actions"),
@@ -56,8 +58,10 @@ export async function createPlayerCombatApp() {
         onSettingsChanged: () => render(latestSnapshot)
       })
     });
+    updateStickyHeaderOffset(roots);
   };
 
+  installStickyHeaderOffset(roots);
   eventBus.on("state:changed", render);
   window.addEventListener("combat:end-turn-requested", () => showEndTurnModal({ modalApi, stateManager, busyApi }));
 
@@ -74,6 +78,20 @@ export async function createPlayerCombatApp() {
   }
 
   return { stateManager };
+}
+
+function installStickyHeaderOffset(roots) {
+  updateStickyHeaderOffset(roots);
+  window.addEventListener("resize", () => updateStickyHeaderOffset(roots));
+  if (!roots.appHeader || typeof ResizeObserver === "undefined") return;
+  const observer = new ResizeObserver(() => updateStickyHeaderOffset(roots));
+  observer.observe(roots.appHeader);
+}
+
+function updateStickyHeaderOffset(roots) {
+  if (!roots.appShell || !roots.appHeader) return;
+  const height = Math.ceil(roots.appHeader.getBoundingClientRect().height);
+  roots.appShell.style.setProperty("--sticky-header-height", `${height}px`);
 }
 
 function showEndTurnModal({ modalApi, stateManager, busyApi }) {

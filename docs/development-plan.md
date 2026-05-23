@@ -3158,3 +3158,25 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 
 - `node --check js\player-combat\ui\mobileActionList.js`
 - `node --test tests\*.test.mjs`
+
+### Sticky Header and Progress Offset Fix
+
+- Kept the compact app header sticky at the top of the viewport.
+- Added a measured `--sticky-header-height` offset so the turn progress rail sticks below the header instead of overlapping it.
+- Re-applied the progress offset at the end of the stylesheet so it wins over earlier mobile and layout overrides.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/app.js`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Import or load a character, then scroll the combat screen and confirm the header remains pinned to the top.
+2. Confirm the turn progress rail remains pinned directly below the header while scrolling.
+3. Resize to phone width and confirm the header and progress rail do not overlap.
+
+### Sticky Header Verification
+
+- `node --check js\player-combat\app.js`
