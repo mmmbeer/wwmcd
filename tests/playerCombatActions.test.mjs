@@ -6,7 +6,7 @@ import { transformCombatData } from "../js/player-combat/data/combatDataTransfor
 import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 import { resetLongRestResources } from "../js/player-combat/rules/restRules.js";
-import { hasActionRollModal } from "../js/player-combat/ui/actionRollModal.js";
+import { hasActionRollModal, removeRollButtonAfterSuccess } from "../js/player-combat/ui/actionRollModal.js";
 import { followupOptions } from "../js/player-combat/ui/actionTabs.js";
 import { renderActionUseConfirmation, shouldConfirmActionUse } from "../js/player-combat/ui/actionUseConfirmModal.js";
 import { renderFollowupButton, toggleFollowupDescription } from "../js/player-combat/ui/followupOptionRenderer.js";
@@ -305,6 +305,16 @@ test("action use confirmation is skipped when another action modal already appli
     ]
   }), true);
   assert.equal(hasActionRollModal({ name: "Hide", cost: { action: true }, description: "Make a Dexterity (Stealth) check." }), false);
+});
+
+test("successful action rolls remove the current Roll button", () => {
+  let removed = false;
+  const button = { remove: () => { removed = true; } };
+
+  assert.equal(removeRollButtonAfterSuccess({ ok: false }, button), false);
+  assert.equal(removed, false);
+  assert.equal(removeRollButtonAfterSuccess({ ok: true }, button), true);
+  assert.equal(removed, true);
 });
 
 

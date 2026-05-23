@@ -1,6 +1,72 @@
 # Development Plan
 
-## Current Session: Spell Attacks and Attack Action Rules
+## Current Session: End Turn Return Safety
+
+### Implemented
+
+- Fixed the end-turn modal so opening it no longer resets the active turn.
+- `Return` now safely closes the modal without spending/resetting action, bonus action, reaction, or movement state.
+- `Start New Turn` is now the only path that commits `endTurn()` for an active turn, then starts the next turn.
+- Added regression tests for returning from the modal and for already-ended turns.
+
+### Files Changed
+
+- `js/player-combat/app.js`
+- `tests/endTurnModal.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The modal still uses `Start New Turn` as the commit action label; it both ends the current active turn and starts the next one.
+
+### Manual Test Checklist
+
+1. Use an action or bonus action.
+2. Click `End Turn`.
+3. Click `Return` and confirm the used action/bonus action state is unchanged.
+4. Click `End Turn`, then `Start New Turn`, and confirm the turn resets only then.
+
+### Verification Completed
+
+- `node --check js\player-combat\app.js`
+- `node --test tests\endTurnModal.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: One Roll Per Action Modal
+
+### Implemented
+
+- Removed the current action modal's `Roll` button after a successful roll.
+- Failed roll attempts keep the `Roll` button available so invalid extra dice can be corrected.
+- Modal action handlers now receive the clicked button, allowing controls to update themselves without querying unrelated modal buttons.
+- Follow-on actions still open new roll modals with their own fresh `Roll` button.
+
+### Files Changed
+
+- `js/player-combat/ui/actionRollModal.js`
+- `js/player-combat/ui/modal.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The roll result remains visible after rolling; only the button is removed to prevent rerolls in the same modal.
+
+### Manual Test Checklist
+
+1. Open an action roll modal and click `Roll`; confirm the `Roll` button disappears.
+2. Click `OK` and confirm the action completes normally.
+3. Use a follow-on action with a roll and confirm its new modal has a `Roll` button.
+4. Enter invalid extra dice, click `Roll`, and confirm the button remains available for correction.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --check js\player-combat\ui\modal.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: Spell Attacks and Attack Action Rules
 
 ### Implemented
 

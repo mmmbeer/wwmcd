@@ -94,12 +94,8 @@ function updateStickyHeaderOffset(roots) {
   roots.appShell.style.setProperty("--sticky-header-height", `${height}px`);
 }
 
-function showEndTurnModal({ modalApi, stateManager, busyApi }) {
-  let snapshot = stateManager.getSnapshot?.();
-  if (snapshot?.combatState?.turnActive !== false) {
-    stateManager.endTurn();
-    snapshot = stateManager.getSnapshot?.();
-  }
+export function showEndTurnModal({ modalApi, stateManager, busyApi }) {
+  const snapshot = stateManager.getSnapshot?.();
   const reactionAvailable = snapshot?.combatState && !snapshot.combatState.turn?.reactionUsed;
   const unused = unusedTurnFeatures(snapshot);
   const actions = [
@@ -122,6 +118,10 @@ function showEndTurnModal({ modalApi, stateManager, busyApi }) {
       close: false,
       onClick: async () => {
         await busyApi.run("Starting new turn...", () => {
+          const current = stateManager.getSnapshot?.();
+          if (current?.combatState?.turnActive !== false) {
+            stateManager.endTurn();
+          }
           stateManager.startTurn();
         });
         modalApi.close();

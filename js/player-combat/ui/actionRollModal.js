@@ -12,6 +12,12 @@ export function hasActionRollModal(option) {
   return rollBundle(option).length > 0;
 }
 
+export function removeRollButtonAfterSuccess(result, button) {
+  if (!result?.ok) return false;
+  button?.remove?.();
+  return true;
+}
+
 async function resolveActionRolls({ modalApi, stateManager, option }) {
   const repeat = rollRepeatCount(option);
   for (let index = 1; index <= repeat; index += 1) {
@@ -73,12 +79,13 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
           label: "Roll",
           variant: "primary",
           close: false,
-          onClick: () => {
+          onClick: ({ button } = {}) => {
             const result = rollForForm(body, option, rolls, { rollIndex, rollTotal });
             const summary = formatBundleSummary(result);
             if (result.ok) {
               stateManager.logRoll(result, summary);
               rolled = true;
+              removeRollButtonAfterSuccess(result, button);
             }
             body.querySelector("[data-roll-feedback]").innerHTML = renderResult(result, summary);
           }

@@ -38,7 +38,7 @@ export function createModal(root) {
       button.type = "button";
       button.textContent = action.label;
       button.addEventListener("click", () => {
-        action.onClick?.();
+        action.onClick?.({ button, action });
         if (action.close !== false) close();
       });
       actionRow.append(button);
