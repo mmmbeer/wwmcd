@@ -6,12 +6,14 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
   const availableOptions = summarizeGroups(groups);
-  return {
+  const playerIntent = summarizePlayerIntent(answers, userNotes);
+  return pruneEmpty({
     schemaVersion: "combat-option-recommendation/v3",
-    character: summarizeCharacter(character),
+    character: summarizeCharacter(character, combatState),
     combatState: summarizeCombatState(combatState, character),
     turnRules: buildTurnRules(character, combatState),
-    playerIntent: summarizePlayerIntent(answers, userNotes),
+    playerIntent,
+    battlefieldKnowledge: summarizeBattlefieldKnowledge(playerIntent, availableOptions),
     classTactics: summarizeClassTactics(character),
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups),
@@ -24,9 +26,10 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
       preferOptionList: true,
       markMissingInfoExplicitly: true,
       doNotInventEnemyStats: true,
+      useCommonLoreFromUserNotesAsAssumptions: true,
       unavailableOptionsAreForAwarenessOnly: true
     }
-  };
+  });
 }
 
 export function summarizeClassTactics(character) {
@@ -66,6 +69,11 @@ export function buildTurnRules(character, combatState) {
       useOnlyAvailableOptions: true,
       optionsWithAvailableFalseAreConditionalOrUnavailable: true,
       markUncertainRangeLineOfSightOrTargetingAsConditional: true
+    },
+    positioningPolicy: {
+      avoidUnnecessaryMeleeForFragileCharacters: true,
+      preferEffectiveRangedOptionsWhenCurrentRangeAndLineOfSightSupportThem: true,
+      explainAnyRecommendationToMoveCloserOrEnterMelee: true
     }
   };
 }
@@ -101,9 +109,9 @@ export function buildOptionIndex(availableOptions) {
   );
 }
 
-function summarizeCharacter(character) {
+function summarizeCharacter(character, combatState) {
   if (!character) return null;
-  return {
+  return pruneEmpty({
     name: character.name,
     level: character.level,
     race: character.race?.name,
@@ -118,8 +126,8 @@ function summarizeCharacter(character) {
     features: summarizeFeatureBuckets(character.features),
     traits: summarizeList(character.race?.features, 24),
     equipment: summarizeInventory(character.inventory),
-    spells: summarizeSpells(character.spells)
-  };
+    spells: summarizeSpells(character.spells, character, combatState)
+  });
 }
 
 function summarizeCombatState(state, character) {
@@ -164,35 +172,34 @@ function summarizeInventory(inventory = {}) {
   };
 }
 
-function summarizeSpells(spells = {}) {
-  return {
+function summarizeSpells(spells = {}, character, combatState) {
+  return pruneEmpty({
     spellcastingAbility: spells.spellcastingAbility,
     attackBonus: spells.attackBonus,
     saveDc: spells.saveDc,
     cantrips: summarizeList(spells.cantrips, 30),
-    prepared: summarizeList(spells.prepared, 80),
-    known: summarizeList(spells.known, 100)
-  };
+    prepared: summarizeList(filterCastableSpells(spells.prepared, character, combatState), 80),
+    known: summarizeList(filterCastableSpells(spells.known, character, combatState), 100)
+  });
 }
 
 function summarizeGroups(groups = {}) {
-  return Object.fromEntries(OPTION_GROUPS.map((group) => [
+  return pruneEmpty(Object.fromEntries(OPTION_GROUPS.map((group) => [
     group,
-    (groups[group] ?? [])
-      .filter((option) => option.available !== false)
+    prioritizeOptionsForContext((groups[group] ?? []).filter((option) => option.available !== false))
       .slice(0, 40)
       .map(summarizeOption)
-  ]));
+  ])));
 }
 
 export function summarizeUnavailableGroups(groups = {}) {
-  return Object.fromEntries(OPTION_GROUPS.map((group) => [
+  return pruneEmpty(Object.fromEntries(OPTION_GROUPS.map((group) => [
     group,
     (groups[group] ?? [])
       .filter((option) => option.available === false)
       .slice(0, 20)
       .map(summarizeOption)
-  ]));
+  ])));
 }
 
 function summarizeRecommendationSet(set) {
@@ -227,6 +234,7 @@ function summarizeOption(option) {
     attack: safeOption.attack ?? null,
     range: safeOption.range ?? null,
     rolls: Array.isArray(safeOption.rolls) ? safeOption.rolls : [],
+    damageTypes: inferDamageTypes(safeOption, spell),
     tags: Array.isArray(safeOption.tags) ? safeOption.tags : [],
     meta: Array.isArray(safeOption.meta) ? safeOption.meta : [],
     spell: spell ? {
@@ -247,6 +255,102 @@ function summarizeOption(option) {
       350
     )
   };
+}
+
+function filterCastableSpells(spells = [], character, combatState) {
+  return (spells ?? []).filter((spell) => {
+    const level = normalizeSpellLevel(spell?.level);
+    return level === 0 || remainingSpellSlots(character, combatState, level) > 0;
+  });
+}
+
+function remainingSpellSlots(character, combatState, level) {
+  const slots = character?.resources?.spellSlots ?? {};
+  const max = spellSlotMax(slots[level]);
+  const used = Number(combatState?.resourcesUsed?.spellSlots?.[level] ?? 0);
+  return Math.max(0, max - used);
+}
+
+function spellSlotMax(value) {
+  if (value && typeof value === "object") return Number(value.available ?? value.max ?? value.value ?? 0);
+  return Number(value ?? 0);
+}
+
+function normalizeSpellLevel(level) {
+  if (String(level).toLowerCase() === "cantrip") return 0;
+  const numeric = Number(level);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function prioritizeOptionsForContext(options) {
+  return [...options].sort((left, right) => optionContextPriority(right) - optionContextPriority(left));
+}
+
+function optionContextPriority(option) {
+  let score = option?.recommended ? 20 : 0;
+  if (option?.available === false) score -= 100;
+  if (option?.source === "basic") score += 70;
+  if (option?.spell) {
+    score += 30 + Number(option.spell.level ?? 0) * 8;
+    if (option.spell.concentration) score += 3;
+  }
+  if (option?.cost?.resource || option?.resource) score += 10;
+  if (option?.rolls?.some((roll) => roll.type === "damage" || roll.id === "damage")) score += 8;
+  if (option?.cost?.action) score += 4;
+  if (option?.cost?.bonus) score += 3;
+  return score;
+}
+
+function summarizeBattlefieldKnowledge(playerIntent, availableOptions) {
+  const notes = [playerIntent?.userNotes, playerIntent?.situation].filter(Boolean).join(" ");
+  const creatures = inferCreaturesFromText(notes);
+  const avoidDamageTypes = [...new Set(creatures.flatMap((creature) => creature.commonAvoidDamageTypes ?? []))];
+  const impactedOptions = avoidDamageTypes.length ? optionsWithDamageTypes(availableOptions, avoidDamageTypes) : [];
+
+  return pruneEmpty({
+    source: "User tactical notes and common D&D monster lore.",
+    inferencePolicy: "Treat these as reasonable assumptions from named creatures, not exact stat blocks. Mention uncertainty when the DM's version may differ.",
+    inferredCreatures: creatures,
+    avoidDamageTypes,
+    impactedOptions
+  });
+}
+
+function inferCreaturesFromText(text) {
+  const normalized = String(text ?? "").toLowerCase();
+  return COMMON_CREATURE_LORE
+    .filter((entry) => entry.pattern.test(normalized))
+    .map(({ pattern, ...entry }) => entry);
+}
+
+function optionsWithDamageTypes(groups, avoidDamageTypes) {
+  const avoid = new Set(avoidDamageTypes);
+  return Object.values(groups ?? {})
+    .flat()
+    .filter((option) => (option.damageTypes ?? []).some((type) => avoid.has(type)))
+    .slice(0, 12)
+    .map((option) => ({
+      id: option.id,
+      name: option.name,
+      damageTypes: option.damageTypes.filter((type) => avoid.has(type))
+    }));
+}
+
+function inferDamageTypes(option, spell) {
+  const explicit = [
+    option.damageType,
+    option.damage?.type,
+    ...(Array.isArray(option.rolls) ? option.rolls.map((roll) => roll.damageType ?? roll.typeLabel) : [])
+  ];
+  const text = [
+    ...explicit,
+    option.name,
+    option.description,
+    option.longDescription,
+    option.featureAction?.description,
+    spell?.reference?.description
+  ].filter(Boolean).join(" ");
+  return DAMAGE_TYPES.filter((type) => new RegExp(`\\b${type}\\b`, "i").test(text));
 }
 
 function summarizeList(items = [], max = 20) {
@@ -274,6 +378,16 @@ function trimText(value, max) {
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
 }
 
+function pruneEmpty(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => {
+    if (entry == null || entry === "") return false;
+    if (Array.isArray(entry)) return entry.length > 0;
+    if (typeof entry === "object") return Object.keys(entry).length > 0;
+    return true;
+  }));
+}
+
 function normalizeClassName(value) {
   return String(value ?? "")
     .toLowerCase()
@@ -281,3 +395,20 @@ function normalizeClassName(value) {
     .trim()
     .split(/\s+/)[0] ?? "";
 }
+
+const DAMAGE_TYPES = ["acid", "cold", "fire", "force", "lightning", "necrotic", "poison", "psychic", "radiant", "thunder"];
+
+const COMMON_CREATURE_LORE = [
+  { name: "red dragon", pattern: /\bred\s+dragon\b/, commonAvoidDamageTypes: ["fire"], note: "Red dragons are commonly fire-immune." },
+  { name: "gold dragon", pattern: /\bgold\s+dragon\b/, commonAvoidDamageTypes: ["fire"], note: "Gold dragons are commonly fire-immune." },
+  { name: "brass dragon", pattern: /\bbrass\s+dragon\b/, commonAvoidDamageTypes: ["fire"], note: "Brass dragons are commonly fire-immune." },
+  { name: "blue dragon", pattern: /\bblue\s+dragon\b/, commonAvoidDamageTypes: ["lightning"], note: "Blue dragons are commonly lightning-immune." },
+  { name: "bronze dragon", pattern: /\bbronze\s+dragon\b/, commonAvoidDamageTypes: ["lightning"], note: "Bronze dragons are commonly lightning-immune." },
+  { name: "green dragon", pattern: /\bgreen\s+dragon\b/, commonAvoidDamageTypes: ["poison"], note: "Green dragons are commonly poison-immune." },
+  { name: "black dragon", pattern: /\bblack\s+dragon\b/, commonAvoidDamageTypes: ["acid"], note: "Black dragons are commonly acid-immune." },
+  { name: "copper dragon", pattern: /\bcopper\s+dragon\b/, commonAvoidDamageTypes: ["acid"], note: "Copper dragons are commonly acid-immune." },
+  { name: "white dragon", pattern: /\bwhite\s+dragon\b/, commonAvoidDamageTypes: ["cold"], note: "White dragons are commonly cold-immune." },
+  { name: "silver dragon", pattern: /\bsilver\s+dragon\b/, commonAvoidDamageTypes: ["cold"], note: "Silver dragons are commonly cold-immune." },
+  { name: "fire elemental", pattern: /\bfire\s+elemental\b/, commonAvoidDamageTypes: ["fire", "poison"], note: "Fire elementals commonly ignore fire and poison." },
+  { name: "frost giant", pattern: /\bfrost\s+giant\b/, commonAvoidDamageTypes: ["cold"], note: "Frost giants are commonly cold-immune." }
+];

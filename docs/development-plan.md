@@ -3296,3 +3296,37 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\ui\turnEconomyPanel.js`
 - `node --test tests\playerCombatActions.test.mjs`
+
+### AI Recommendation Context Audit
+
+- Filtered AI character spell summaries to omit leveled spells when no matching slot remains, while keeping cantrips.
+- Prioritized available options before request-context trimming so high-level castable spells and reusable basic actions are less likely to be crowded out by long low-level lists.
+- Removed empty context sections from the primary AI context to avoid spending request budget on blank groups.
+- Added battlefield knowledge inferred from player tactical notes and common D&D creature lore, including damage-type avoidance for named creatures such as red dragons.
+- Updated recommendation prompts to use inferred battlefield knowledge as assumptions, avoid obvious ineffective damage types, and avoid closing to melee with fragile or wounded ranged characters unless the context supports it.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Creature lore is intentionally conservative and only covers a small set of high-confidence named creatures today.
+- The AI still depends on player notes or wizard answers for exact range, line of sight, target count, ally positions, and table-specific monster changes.
+
+### Manual Test Steps
+
+1. Open AI recommendations for a high-level caster with spent 9th-level slots and available 8th-level slots; confirm 9th-level spells are absent from context and available 8th-level options can still be recommended.
+2. Enter notes such as `adult red dragon at long range`; confirm fire-damage options are treated as poor choices or warned against.
+3. Use a wounded, low-HP ranged character at long range; confirm recommendations prefer strong ranged options over closing to melee unless notes justify closing.
+
+### AI Recommendation Audit Verification
+
+- `node --test tests\aiRecommendationContext.test.mjs`
+- `node --test tests\aiRecommendationService.test.mjs`
+- `node --test tests\recommendationScoring.test.mjs`

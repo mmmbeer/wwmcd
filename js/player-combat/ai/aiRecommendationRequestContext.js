@@ -27,6 +27,7 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     combatState: context?.combatState,
     turnRules: context?.turnRules,
     playerIntent: context?.playerIntent,
+    battlefieldKnowledge: context?.battlefieldKnowledge,
     classTactics: compactClassTactics(context?.classTactics),
     availableOptions,
     unavailableOptions: compactOptionGroups(context?.unavailableOptions, unavailableLimit, 80),

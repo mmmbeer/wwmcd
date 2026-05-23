@@ -85,11 +85,122 @@ test("AI recommendation context includes versioned tactical context", () => {
   assert.equal(context.classTactics.wizard, undefined);
   assert.equal(context.classTactics.rogue.reminderQuestions.includes("Does the rogue have advantage?"), true);
   assert.equal(context.availableOptions.attacks[0].attack.count, 2);
-  assert.equal(context.availableOptions.spells.length, 0);
+  assert.equal(context.availableOptions.spells, undefined);
   assert.equal(context.unavailableOptions.spells[0].id, "spell_fireball");
   assert.equal(context.optionIndex.some((option) => option.id === "attack_rapier"), true);
   assert.equal(context.optionIndex.some((option) => option.id === "spell_fireball"), false);
   assert.equal(context.deterministicRecommendations[0].pieces[0].option.id, "attack_rapier");
+});
+
+test("AI recommendation context prioritizes castable high-level spells and omits spent spell summaries", () => {
+  const lowLevelSpells = Array.from({ length: 48 }, (_, index) => ({
+    id: `spell_low_${index}`,
+    name: `Low Spell ${index}`,
+    source: "spell",
+    group: "actions",
+    available: true,
+    cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+    spell: { level: 1, concentration: false, range: "60 feet" },
+    description: "Deal 1d6 force damage."
+  }));
+  const highLevelSpell = {
+    id: "spell_sunburst",
+    name: "Sunburst",
+    source: "spell",
+    group: "actions",
+    available: true,
+    cost: { action: true, resource: { type: "spellSlot", level: 8 } },
+    spell: { level: 8, concentration: false, range: "150 feet" },
+    description: "Deal 12d6 radiant damage."
+  };
+
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Ilyra",
+        classes: [{ name: "Wizard", level: 17 }],
+        race: {},
+        combat: { maxHp: 80 },
+        resources: { spellSlots: { 1: 4, 8: 1, 9: 1 } },
+        features: {},
+        inventory: {},
+        spells: {
+          prepared: [
+            { name: "Magic Missile", level: 1 },
+            { name: "Sunburst", level: 8 },
+            { name: "Meteor Swarm", level: 9 }
+          ],
+          known: []
+        }
+      },
+      combatState: {
+        current: { hp: 34 },
+        turn: {},
+        resourcesUsed: { spellSlots: { 9: 1 } }
+      }
+    },
+    groups: { actions: [...lowLevelSpells, highLevelSpell] },
+    recommendationSets: [],
+    answers: {},
+    userNotes: ""
+  });
+
+  assert.equal(context.availableOptions.actions.some((option) => option.id === "spell_sunburst"), true);
+  assert.equal(context.character.spells.prepared.some((spell) => spell.name === "Sunburst"), true);
+  assert.equal(context.character.spells.prepared.some((spell) => spell.name === "Meteor Swarm"), false);
+});
+
+test("AI recommendation context infers common creature lore from player notes", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Ilyra",
+        classes: [{ name: "Wizard", level: 9 }],
+        race: {},
+        combat: { maxHp: 60 },
+        resources: { spellSlots: { 3: 2 } },
+        features: {},
+        inventory: {},
+        spells: {}
+      },
+      combatState: { current: { hp: 28 }, turn: {}, resourcesUsed: { spellSlots: {} } }
+    },
+    groups: {
+      actions: [
+        {
+          id: "spell_fireball",
+          name: "Fireball",
+          source: "spell",
+          group: "actions",
+          available: true,
+          cost: { action: true },
+          description: "Each creature takes fire damage.",
+          spell: { level: 3, concentration: false, range: "150 feet" }
+        },
+        {
+          id: "spell_lightning_bolt",
+          name: "Lightning Bolt",
+          source: "spell",
+          group: "actions",
+          available: true,
+          cost: { action: true },
+          description: "Creatures in a line take lightning damage.",
+          spell: { level: 3, concentration: false, range: "100 feet" }
+        }
+      ]
+    },
+    recommendationSets: [],
+    answers: {},
+    userNotes: "Fighting an adult red dragon."
+  });
+
+  assert.equal(context.battlefieldKnowledge.inferredCreatures[0].name, "red dragon");
+  assert.deepEqual(context.battlefieldKnowledge.avoidDamageTypes, ["fire"]);
+  assert.deepEqual(context.battlefieldKnowledge.impactedOptions, [{
+    id: "spell_fireball",
+    name: "Fireball",
+    damageTypes: ["fire"]
+  }]);
 });
 
 test("AI recommendation context tolerates malformed deterministic recommendations", () => {
