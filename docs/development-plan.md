@@ -1,6 +1,116 @@
 # Development Plan
 
-## Current Session: AI Combo Recommendations
+## Current Session: Weapon Range and Variant Import
+
+### Implemented
+
+- Imported weapon range objects into normalized weapon properties as `Range (normal/long)` when present.
+- Parsed `Range (XX/YY)` as normal and long weapon range for ranged and thrown weapons.
+- Split thrown weapons into separate melee and thrown attack options.
+- Split versatile weapons into one-handed and two-handed attack options, using the versatile damage die for the two-handed profile.
+- Preserved melee reach for thrown weapon melee profiles while using normal/long range for thrown profiles.
+
+### Files Changed
+
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/rules/weaponActions.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Thrown versatile weapons produce one-handed, two-handed, and thrown profiles. The thrown profile uses the base damage die.
+
+### Manual Test Checklist
+
+1. Import or create a ranged weapon with `Range (150/600)` and confirm the attack shows normal `150` and long `600`.
+2. Import or create a thrown weapon with `Thrown (20/60)` and confirm both melee and thrown attacks appear.
+3. Import or create a versatile weapon with `Versatile (1d10)` and confirm one-handed and two-handed attack rows appear with different damage dice.
+
+### Verification Completed
+
+- `node --check js\player-combat\rules\weaponActions.js`
+- `node --check js\player-combat\normalizers\characterNormalizer.js`
+- `node --test tests\playerCombatActions.test.mjs`
+
+## Previous Session: Attack Row Damage Display
+
+### Implemented
+
+- Added a compact damage column to the shared mobile action row used by Attacks and Recommendations.
+- Attack rows now show range, damage dice, visible damage type text/icon, and attack bonus/DC instead of omitting damage from the collapsed table.
+- Added regression coverage for damage dice and type in both Attacks and Recommended rows.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/mobileActionList.js`
+- `tests/mobileActionList.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The compact row shows the primary damage roll. Additional rider damage remains available in expanded details and roll flows.
+
+### Manual Test Checklist
+
+1. Open Attacks for a weapon user and confirm each attack row shows range, damage dice, damage type, and attack bonus.
+2. Open Recommendations and confirm recommended attacks show the same damage fields.
+3. Check a narrow mobile width and confirm the row remains readable without overlapping controls.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check tests\mobileActionList.test.mjs`
+- `node --test tests\mobileActionList.test.mjs tests\playerCombatImport.test.mjs`
+
+## Previous Session: Recommendation Wizard Advanced Defaults
+
+### Implemented
+
+- Hid advanced recommendation filters from the compact Recommendation Wizard card summary.
+- Moved `Resources` into the modal advanced options with `DC`, `Rolls`, and `Concentration`.
+- Added contextual defaults:
+  - `Resources` defaults to `spend` for anything other than a single-target situation.
+  - `Resources` defaults to `normal` for single-target situations.
+  - `Resources` defaults to `conserve` when fewer than 20% of collective spendable resources remain.
+  - `Concentration` defaults to `avoid changing` when the character is already concentrating, otherwise `allow`.
+- Kept modal resources default responsive to situation changes until the user manually changes the resources selector.
+
+### Files Changed
+
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `js/player-combat/ui/recommendationOptionsModal.js`
+- `js/player-combat/ui/recommendationWizardPanel.js`
+- `tests/recommendationScoring.test.mjs`
+- `tests/recommendationOptionsModal.test.mjs`
+- `tests/recommendationWizardPanel.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Resource scarcity is calculated from spell slots plus tracked class/limited-use resources. Consumables and item charges are not included yet.
+
+### Manual Test Checklist
+
+1. Open Recommendations and confirm the compact wizard card shows only Goal, Situation, and Range.
+2. Open `Help Me!` and confirm Resources appears under Advanced options.
+3. Change Situation to Multiple Foes, Big Bad, Big Bad + Minions, Ally in danger, or Self in danger and confirm untouched Resources defaults to Spend.
+4. With fewer than 20% tracked resources remaining, open the modal and confirm Resources defaults to Conserve.
+5. While already concentrating, open the modal and confirm Concentration defaults to Avoid changing.
+
+### Verification Completed
+
+- `node --check js\player-combat\recommendations\recommendationScoring.js`
+- `node --check js\player-combat\ui\recommendationOptionsModal.js`
+- `node --check js\player-combat\ui\recommendationWizardPanel.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --test tests\recommendationScoring.test.mjs tests\recommendationOptionsModal.test.mjs tests\recommendationWizardPanel.test.mjs tests\aiRecommendationContext.test.mjs`
+
+## Previous Session: AI Combo Recommendations
 
 ### Implemented
 

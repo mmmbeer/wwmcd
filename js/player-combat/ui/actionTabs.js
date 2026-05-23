@@ -14,7 +14,8 @@ import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
   renderRecommendationWizardPanel,
-  setRecommendationAnswers
+  setRecommendationAnswers,
+  syncRecommendationAnswers
 } from "./recommendationWizardPanel.js";
 import { openAiRecommendationModal } from "./aiRecommendationModal.js";
 import { openRecommendationOptionsModal } from "./recommendationOptionsModal.js";
@@ -63,6 +64,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   }
 
   const groups = getCachedGroups(snapshot);
+  syncRecommendationAnswers({ character, combatState });
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   const rankedRecommendations = visibleGroup === "recommended"
     ? constrainedRecommendations(getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers(), referenceData: snapshot.referenceData }))
@@ -78,7 +80,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
       ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
     </nav>
     <div class="option-tabs">
-      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasActiveAiSettings(storage) }) : ""}
+      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasActiveAiSettings(storage), character, combatState }) : ""}
       ${visibleGroup === "recommended"
     ? renderMobileActionList(visibleGroup, "Recommended This Turn", visibleOptions, combatState, { hideUnavailable })
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
@@ -127,12 +129,16 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
     aiRecommendationSets = [];
     renderActionTabs(root, snapshot, services);
   }, {
+    character: snapshot.activeCharacter,
+    combatState,
     onHelpClick: () => openRecommendationOptionsModal({
       modalApi: services.modalApi,
       groups,
+      character: snapshot.activeCharacter,
+      combatState,
       answers: getRecommendationAnswers(),
       onApply: ({ answers }) => {
-        setRecommendationAnswers(answers);
+        setRecommendationAnswers(answers, { character: snapshot.activeCharacter, combatState });
         aiRecommendationSets = [];
         renderActionTabs(root, snapshot, services);
       }
@@ -142,6 +148,8 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       storage: services.storage,
       snapshot,
       groups,
+      character: snapshot.activeCharacter,
+      combatState,
       recommendationSets: getRankedRecommendationSets({
         rankedEntries: getRankedRecommendations({
           groups,
@@ -156,7 +164,7 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
       showToast: services.showToast,
       openSettings: services.openAiSettings,
       onAnswersChanged: (answers) => {
-        setRecommendationAnswers(answers);
+        setRecommendationAnswers(answers, { character: snapshot.activeCharacter, combatState });
         aiRecommendationSets = [];
         renderActionTabs(root, snapshot, services);
       },

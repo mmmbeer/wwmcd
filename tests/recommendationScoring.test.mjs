@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  getContextualRecommendationAnswers,
   getDefaultRecommendationAnswers,
   getRankedRecommendations,
   getRankedRecommendationSets,
@@ -120,6 +121,49 @@ test("wizard questions adapt to available spells, resources, and concentration",
   assert.ok(questions.find((question) => question.id === "situation").options.some(([value]) => value === "bigBadMinions"));
   assert.ok(questions.find((question) => question.id === "distance").options.some(([value]) => value === "long"));
   assert.ok(questions.some((question) => question.id === "difficulty"));
+});
+
+test("recommendation defaults spend resources for non-single target unless resources are low", () => {
+  const character = {
+    resources: {
+      spellSlots: { 1: 4 },
+      classResources: [{ id: "resource-ki", name: "Ki", max: 4 }],
+      limitedUses: []
+    }
+  };
+
+  assert.equal(getDefaultRecommendationAnswers({
+    character,
+    combatState: baseCombatState(),
+    answers: { situation: "multiple" }
+  }).resources, "spend");
+  assert.equal(getDefaultRecommendationAnswers({
+    character,
+    combatState: baseCombatState(),
+    answers: { situation: "single" }
+  }).resources, "normal");
+  assert.equal(getDefaultRecommendationAnswers({
+    character,
+    combatState: {
+      ...baseCombatState(),
+      resourcesUsed: { spellSlots: { 1: 4 }, classResources: { "resource-ki": 3 } }
+    },
+    answers: { situation: "multiple" }
+  }).resources, "conserve");
+});
+
+test("recommendation defaults avoid changing existing concentration", () => {
+  assert.equal(getDefaultRecommendationAnswers({
+    combatState: { ...baseCombatState(), current: { concentration: "Bless", conditions: [] } }
+  }).concentration, "avoid");
+
+  assert.equal(getContextualRecommendationAnswers({
+    situation: "multiple",
+    resources: "normal",
+    concentration: "allow"
+  }, {
+    combatState: { ...baseCombatState(), current: { concentration: "Bless", conditions: [] } }
+  }).concentration, "avoid");
 });
 
 test("big bad plus minions favors area pressure over single-target damage", () => {

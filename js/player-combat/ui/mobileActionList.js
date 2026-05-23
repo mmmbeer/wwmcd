@@ -96,6 +96,7 @@ function renderRowCells(option, rowKind, selected) {
     ${renderCostBadge(option)}
     ${renderNameCell(option)}
     <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
+    ${renderDamageCell(option)}
     <span class="action-fact">${escapeHtml(hitDcLabel(option) || "-")}</span>
     ${renderActionButtonLabel(buttonLabel)}
   `;
@@ -107,6 +108,7 @@ function renderActionDetail(option) {
       ${detailFact("Source", option.source ? titleCase(option.source) : "")}
       ${detailFact("Range", rangeLabel(option))}
       ${detailFact("Roll", primaryRollLabel(option))}
+      ${detailFact("Damage", damageLabel(option))}
       ${detailFact("Resource", resourceLabel(option))}
     </div>
     ${descriptionText(option) ? `<p>${escapeHtml(descriptionText(option))}</p>` : `<p>No additional description is available.</p>`}
@@ -340,8 +342,8 @@ function attackModeLabel(option) {
 }
 
 function damageLabel(option) {
-  const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
-  return damage?.formula ?? "";
+  const damage = primaryDamageRoll(option);
+  return [damage?.formula, damage?.damageType].filter(Boolean).join(" ");
 }
 
 function resourceIconSvg(resource) {
@@ -354,14 +356,20 @@ function resourceIconSvg(resource) {
 }
 
 function renderDamageCell(option) {
-  const damage = option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage");
+  const damage = primaryDamageRoll(option);
   if (!damage) return `<span class="action-fact">-</span>`;
   return `
     <span class="action-fact damage-cell">
       <span>${escapeHtml(damage.formula)}</span>
-      ${damage.damageType ? renderDamageTypeIcon(damage.damageType) : ""}
+      ${damage.damageType ? `<span class="damage-type-label">${escapeHtml(damage.damageType)}</span>${renderDamageTypeIcon(damage.damageType)}` : ""}
     </span>
   `;
+}
+
+function primaryDamageRoll(option) {
+  return option.rolls?.find((roll) => roll.type === "damage" && roll.id === "damage")
+    ?? option.rolls?.find((roll) => roll.type === "damage")
+    ?? null;
 }
 
 function renderDamageTypeIcon(type) {

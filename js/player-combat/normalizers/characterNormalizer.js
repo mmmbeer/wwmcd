@@ -325,7 +325,11 @@ function normalizeInventoryItem(item) {
     quantity: numberValue(item?.quantity ?? item?.stackSize, 1),
     damage,
     damageType,
-    properties: properties || definition?.propertiesText || item?.propertiesText || ""
+    range: definition?.range ?? item?.range ?? null,
+    properties: [
+      properties || definition?.propertiesText || item?.propertiesText || "",
+      formatWeaponRange(definition?.range ?? item?.range)
+    ].filter(Boolean).join(", ")
   };
 }
 
@@ -405,6 +409,14 @@ function formatRange(range) {
   const distance = range.rangeValue ?? range.distance;
   const aoe = range.aoeValue ? `${range.aoeValue} ft ${range.aoeType ?? "area"}` : "";
   return [distance ? `${distance} ft` : "", aoe].filter(Boolean).join(", ");
+}
+
+function formatWeaponRange(range) {
+  if (!range) return "";
+  if (typeof range === "string") return range;
+  const normal = range.normalRange ?? range.range ?? range.rangeValue ?? range.distance;
+  const long = range.longRange ?? range.long ?? range.aoeValue;
+  return normal && long ? `Range (${normal}/${long})` : "";
 }
 
 function first(obj, paths) {

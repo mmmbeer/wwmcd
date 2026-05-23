@@ -1,13 +1,20 @@
 import {
   getDefaultRecommendationAnswers,
-  getRecommendationQuestionConfig
+  getRecommendationQuestionConfig,
+  getContextualRecommendationAnswers
 } from "../recommendations/recommendationScoring.js";
 import { escapeHtml } from "./renderUtils.js";
+
+const SUMMARY_QUESTIONS = ["goal", "situation", "distance"];
 
 let recommendationAnswers = getDefaultRecommendationAnswers();
 
 export function getRecommendationAnswers() {
   return { ...recommendationAnswers };
+}
+
+export function syncRecommendationAnswers(context = {}) {
+  recommendationAnswers = getContextualRecommendationAnswers(recommendationAnswers, context);
 }
 
 export function updateRecommendationAnswer(key, value) {
@@ -17,19 +24,21 @@ export function updateRecommendationAnswer(key, value) {
   };
 }
 
-export function setRecommendationAnswers(answers = {}) {
+export function setRecommendationAnswers(answers = {}, context = {}) {
   recommendationAnswers = {
-    ...getDefaultRecommendationAnswers(),
+    ...getDefaultRecommendationAnswers(context),
     ...answers
   };
 }
 
-export function resetRecommendationAnswers() {
-  recommendationAnswers = getDefaultRecommendationAnswers();
+export function resetRecommendationAnswers(context = {}) {
+  recommendationAnswers = getDefaultRecommendationAnswers(context);
 }
 
-export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabled = false } = {}) {
-  const questions = getRecommendationQuestionConfig(groups, recommendationAnswers);
+export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabled = false, character, combatState } = {}) {
+  recommendationAnswers = getContextualRecommendationAnswers(recommendationAnswers, { character, combatState });
+  const questions = getRecommendationQuestionConfig(groups, recommendationAnswers, { character, combatState })
+    .filter((question) => SUMMARY_QUESTIONS.includes(question.id));
   return `
     <section class="recommendation-wizard" aria-label="Recommendation wizard">
       <div class="recommendation-wizard__header">
@@ -47,7 +56,7 @@ export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabl
   `;
 }
 
-export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, onAiClick } = {}) {
+export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, onAiClick, character, combatState } = {}) {
   root.querySelectorAll("[data-recommendation-answer]").forEach((select) => {
     select.addEventListener("change", () => {
       updateRecommendationAnswer(select.dataset.recommendationAnswer, select.value);
@@ -57,7 +66,7 @@ export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, on
 
   root.querySelector("[data-recommendation-help]")?.addEventListener("click", () => onHelpClick?.());
   root.querySelector("[data-recommendation-reset]")?.addEventListener("click", () => {
-    resetRecommendationAnswers();
+    resetRecommendationAnswers({ character, combatState });
     onChange();
   });
 

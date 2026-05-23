@@ -2029,7 +2029,7 @@ body.has-turn-progress .app-shell {
 }
 
 .action-row--attack {
-  grid-template-columns: 22px 46px 62px minmax(100px, 1.3fr) minmax(54px, 0.65fr) minmax(54px, 0.65fr) minmax(76px, 0.9fr) 68px;
+  grid-template-columns: 22px 46px 62px minmax(100px, 1.3fr) minmax(54px, 0.65fr) minmax(70px, 0.9fr) minmax(54px, 0.65fr) minmax(76px, 0.9fr) 68px;
 }
 
 .action-select-main {
@@ -2515,6 +2515,14 @@ body.has-turn-progress .app-shell {
   display: inline-flex;
   gap: 5px;
   align-items: center;
+  min-width: 0;
+}
+
+.damage-type-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: lowercase;
 }
 
 .damage-type-icon {
@@ -2770,7 +2778,7 @@ body.has-turn-progress .app-shell {
   }
 
   .action-row--attack {
-    grid-template-columns: 20px 42px 52px minmax(82px, 1.3fr) minmax(46px, 0.65fr) minmax(46px, 0.65fr) minmax(62px, 0.9fr) 60px;
+    grid-template-columns: 20px 42px 52px minmax(82px, 1.3fr) minmax(46px, 0.65fr) minmax(58px, 0.85fr) minmax(46px, 0.65fr) minmax(62px, 0.9fr) 60px;
   }
 
   .action-effect small {
@@ -3377,11 +3385,11 @@ body.is-busy {
   border-top: 1px solid rgba(190, 143, 72, 0.16);
 }
 
-/* Unified compact action rows: chevron, resource, source, type, name, range, DC, use */
+/* Unified compact action rows: chevron, resource, source, type, name, range, damage, DC, use */
 .action-row,
 .action-row--attack,
 .action-row--spell {
-  grid-template-columns: 22px 24px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(46px, 0.65fr) 64px;
+  grid-template-columns: 22px 24px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(68px, 0.85fr) minmax(46px, 0.65fr) 64px;
 }
 
 .resource-cell {
@@ -3489,7 +3497,7 @@ body.is-busy {
   .action-row,
   .action-row--attack,
   .action-row--spell {
-    grid-template-columns: 20px 22px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(38px, 0.6fr) 56px;
+    grid-template-columns: 20px 22px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(54px, 0.78fr) minmax(38px, 0.6fr) 56px;
   }
 }
 

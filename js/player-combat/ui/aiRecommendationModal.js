@@ -23,7 +23,7 @@ export function openAiRecommendationModal({
 }) {
   const body = document.createElement("div");
   body.className = "ai-recommendation-modal";
-  body.innerHTML = renderInitialBody({ settings: getAiSettings(storage), groups, answers, notes: savedAiNotes });
+  body.innerHTML = renderInitialBody({ settings: getAiSettings(storage), snapshot, groups, answers, notes: savedAiNotes });
   bindEvents(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, openSettings, onAnswersChanged, onRecommendations });
   modalApi.showModal({
     title: "AI Recommendations",
@@ -32,11 +32,14 @@ export function openAiRecommendationModal({
   });
 }
 
-function renderInitialBody({ settings, groups, answers, notes }) {
+function renderInitialBody({ settings, snapshot, groups, answers, notes }) {
   const active = getActiveAiProviderSettings(settings);
   const ready = Boolean(active.apiKey && active.model);
   return `
-    ${renderRecommendationOptionsControls(groups, answers)}
+    ${renderRecommendationOptionsControls(groups, answers, {
+      character: snapshot.activeCharacter,
+      combatState: snapshot.combatState
+    })}
     ${ready ? "" : `
       <p class="inline-message warning">Save a provider API key and select a model in AI Options before requesting recommendations.</p>
       <button class="btn btn-primary" type="button" data-ai-open-settings>Open AI Options</button>

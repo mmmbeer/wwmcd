@@ -31,11 +31,24 @@ const MOBILITY_TERMS = /\b(move|dash|disengage|teleport|misty step|fly|climb|swi
 const AREA_TERMS = /\b(cone|cube|sphere|radius|line|each creature|creatures of your choice|area)\b/i;
 const SAVE_OR_SUCK_TERMS = /\b(stun|restrain|paralyze|banish|hold|incapacitated|frighten|charm|restrained|prone)\b/i;
 
-export function getDefaultRecommendationAnswers() {
-  return { ...DEFAULT_ANSWERS };
+export function getDefaultRecommendationAnswers(context = {}) {
+  const situation = context.answers?.situation ?? DEFAULT_ANSWERS.situation;
+  return {
+    ...DEFAULT_ANSWERS,
+    resources: defaultResourceAnswer({
+      character: context.character,
+      combatState: context.combatState,
+      situation
+    }),
+    concentration: context.combatState?.current?.concentration ? "avoid" : "allow"
+  };
 }
 
-export function getRecommendationQuestionConfig(groups, answers = DEFAULT_ANSWERS) {
+export function getRecommendationQuestionConfig(groups, answers = DEFAULT_ANSWERS, context = {}) {
+  const defaults = getDefaultRecommendationAnswers({
+    ...context,
+    answers
+  });
   const options = collectOptions(groups);
   const hasSpells = options.some((option) => option.source === "spell" || option.spell);
   const hasResources = options.some((option) => option.cost?.resource || option.resource);
@@ -119,8 +132,18 @@ export function getRecommendationQuestionConfig(groups, answers = DEFAULT_ANSWER
     } : null
   ].filter(Boolean).map((question) => ({
     ...question,
-    value: answers[question.id] ?? DEFAULT_ANSWERS[question.id]
+    value: answers[question.id] ?? defaults[question.id]
   }));
+}
+
+export function getContextualRecommendationAnswers(answers = {}, context = {}) {
+  const defaults = getDefaultRecommendationAnswers({ ...context, answers });
+  return {
+    ...defaults,
+    ...answers,
+    resources: !answers.resources || answers.resources === DEFAULT_ANSWERS.resources ? defaults.resources : answers.resources,
+    concentration: !answers.concentration || answers.concentration === DEFAULT_ANSWERS.concentration ? defaults.concentration : answers.concentration
+  };
 }
 
 export function getRankedRecommendations({ groups, character, combatState, answers = {}, referenceData, tacticalMetadata }) {
@@ -225,6 +248,41 @@ function resourceFitScore(option, answers) {
   if (answers.resources === "conserve") return -72;
   if (answers.resources === "spend") return 18;
   return -4;
+}
+
+function defaultResourceAnswer({ character, combatState, situation }) {
+  const resourceRatio = remainingSpendableResourceRatio(character, combatState);
+  if (resourceRatio !== null && resourceRatio < 0.2) return "conserve";
+  return situation && situation !== "single" ? "spend" : "normal";
+}
+
+function remainingSpendableResourceRatio(character, combatState) {
+  const resources = spendableResources(character, combatState);
+  if (!resources.length) return null;
+  const total = resources.reduce((sum, resource) => sum + resource.max, 0);
+  const remaining = resources.reduce((sum, resource) => sum + Math.max(0, resource.max - resource.used), 0);
+  return total > 0 ? remaining / total : null;
+}
+
+function spendableResources(character, combatState) {
+  const spellSlots = Object.entries(character?.resources?.spellSlots ?? {}).map(([level, value]) => {
+    const max = spellSlotMax(value);
+    const used = Number(combatState?.resourcesUsed?.spellSlots?.[level] ?? 0);
+    return { max, used };
+  });
+  const limited = [
+    ...(character?.resources?.classResources ?? []),
+    ...(character?.resources?.limitedUses ?? [])
+  ].map((resource) => ({
+    max: Number(resource?.max ?? 0),
+    used: Number(combatState?.resourcesUsed?.classResources?.[resource?.id] ?? 0)
+  }));
+  return [...spellSlots, ...limited].filter((resource) => resource.max > 0);
+}
+
+function spellSlotMax(value) {
+  if (value && typeof value === "object") return Number(value.available ?? value.max ?? value.value ?? 0);
+  return Number(value ?? 0);
 }
 
 function applySituationAdjustments(scores, option, context) {

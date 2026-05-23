@@ -319,6 +319,55 @@ test("weapon attacks expose melee/ranged range metadata and use cost", () => {
   assert.equal(longbow.range.label, "150/600 ft");
 });
 
+test("weapon attacks split thrown and versatile weapon profiles", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      stats: { str: 16, dex: 14, con: 12, int: 10, wis: 12, cha: 10 },
+      inventory: {
+        weapons: [
+          { name: "Dagger", type: "Simple Melee Weapon", properties: "Finesse, Light, Thrown (20/60)", damage: { diceString: "1d4" }, damageType: "piercing" },
+          { name: "Quarterstaff", type: "Simple Melee Weapon", properties: "Versatile (1d8)", damage: { diceString: "1d6" }, damageType: "bludgeoning" }
+        ]
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  const daggerMelee = groups.attacks.find((option) => option.name === "Dagger");
+  const daggerThrown = groups.attacks.find((option) => option.name === "Dagger (thrown)");
+  const staffOneHanded = groups.attacks.find((option) => option.name === "Quarterstaff (one-handed)");
+  const staffTwoHanded = groups.attacks.find((option) => option.name === "Quarterstaff (two-handed)");
+
+  assert.equal(daggerMelee.range.type, "melee");
+  assert.equal(daggerMelee.range.label, "5 ft");
+  assert.equal(daggerThrown.range.type, "ranged");
+  assert.equal(daggerThrown.range.normal, 20);
+  assert.equal(daggerThrown.range.long, 60);
+  assert.equal(staffOneHanded.rolls.find((roll) => roll.id === "damage").formula, "1d6+3");
+  assert.equal(staffTwoHanded.rolls.find((roll) => roll.id === "damage").formula, "1d8+3");
+});
+
+test("weapon attacks import normal and long range from range property text", () => {
+  const groups = getCombatOptions({
+    character: baseCharacter({
+      inventory: {
+        weapons: [
+          { name: "Net", type: "Martial Ranged Weapon", properties: "Thrown, Range (5/15)", damage: { diceString: "1d1" }, damageType: "bludgeoning" }
+        ]
+      }
+    }),
+    combatState,
+    referenceData: null
+  });
+
+  const netThrown = groups.attacks.find((option) => option.name === "Net (thrown)");
+
+  assert.equal(netThrown.range.label, "5/15 ft");
+  assert.equal(netThrown.range.normal, 5);
+  assert.equal(netThrown.range.long, 15);
+});
+
 test("monk martial arts waits for Attack action and flurry spends Ki", () => {
   const character = baseCharacter({
     classes: [{ name: "Monk", level: 3 }],
