@@ -17,6 +17,14 @@ const availableRapier = {
   available: true
 };
 
+const availableSneakAttack = {
+  id: "feature_sneak_attack",
+  name: "Sneak Attack",
+  available: true,
+  tags: ["rider"],
+  resource: { name: "Sneak Attack" }
+};
+
 const unavailableFireball = {
   id: "spell_fireball",
   name: "Fireball",
@@ -46,12 +54,47 @@ test("AI recommendation service falls back when json_schema response format is u
 
   assert.equal(calls.length, 2);
   assert.equal(calls[0].responseFormat.type, "json_schema");
+  assert.ok(JSON.stringify(calls[0].responseFormat).includes("planPieces"));
   assert.equal(calls[0].temperature, 0.15);
   assert.equal(calls[1].responseFormat, undefined);
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
   assert.match(calls[1].messages[1].content, /ranked complete turn plans/);
+  assert.match(calls[1].messages[1].content, /planPieces/);
   assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
   assert.equal(recommendations.sets, recommendations.recommendations);
+});
+
+test("normalization preserves full turn plan pieces for extra attacks and class riders", () => {
+  const payload = responseWithAction("attack_rapier", "Rapier");
+  payload.recommendations[0].planPieces = [
+    {
+      slot: "Attack 1",
+      optionId: "attack_rapier",
+      name: "Rapier",
+      explanation: "First Extra Attack swing."
+    },
+    {
+      slot: "Attack 2",
+      optionId: "attack_rapier",
+      name: "Rapier",
+      explanation: "Second Extra Attack swing."
+    },
+    {
+      slot: "Rider",
+      optionId: "feature_sneak_attack",
+      name: "Sneak Attack",
+      explanation: "Apply only if the attack qualifies."
+    }
+  ];
+
+  const result = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: { attacks: [availableRapier], resources: [availableSneakAttack] },
+    unavailableOptions: {}
+  });
+
+  assert.deepEqual(result.recommendations[0].pieces.map((piece) => piece.slot), ["Attack 1", "Attack 2", "Rider"]);
+  assert.equal(result.recommendations[0].pieces[2].optionId, "feature_sneak_attack");
+  assert.equal(result.recommendations[0].action.slot, "Attack 1");
 });
 
 test("normalization flags invented option IDs without dropping the recommendation", () => {
@@ -204,6 +247,14 @@ function recommendation(optionId, name) {
     explanation: "Best available turn plan.",
     expectedOutcome: "Deal reliable damage.",
     movement: "Stay in range.",
+    planPieces: [
+      {
+        slot: "Action",
+        optionId,
+        name,
+        explanation: "Uses the main action."
+      }
+    ],
     action: {
       slot: "Action",
       optionId,

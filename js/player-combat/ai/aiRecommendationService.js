@@ -22,6 +22,14 @@ The response must be a single JSON object with this exact shape:
       "explanation": "why this complete turn plan is recommended",
       "expectedOutcome": "what this plan is trying to accomplish",
       "movement": "movement recommendation or none",
+      "planPieces": [
+        {
+          "slot": "Attack 1",
+          "optionId": "copy the exact id from an available option",
+          "name": "copy the exact option name",
+          "explanation": "why this piece belongs in the full turn"
+        }
+      ],
       "action": {
         "slot": "Action",
         "optionId": "copy the exact id from an available option when possible",
@@ -83,6 +91,9 @@ export function buildRecommendationUserMessage(context) {
     "- Return ranked complete turn plans, not individual actions.",
     "- Use optionId values from optionIndex or availableOptions whenever possible.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
+    "- Fill planPieces with every concrete option in the turn: attacks, extra attacks, class-feature riders, bonus actions, free actions, movement options, and reaction plans when they have option IDs.",
+    "- For characters with multiple attacks, include separate planPieces such as Attack 1 and Attack 2 when supported by availableOptions or deterministicRecommendations.",
+    "- Include class-feature riders such as Sneak Attack or Divine Smite only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
     "- Include different tactical categories when possible.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
     "- Include missingInfo for facts that would materially change the recommendation.",
@@ -139,16 +150,22 @@ export function normalizeAiResponse(text, contextOrOptions) {
 
 export function normalizeRecommendationSet(set, index, optionMap) {
   const legacyPieces = Array.isArray(set.actions) ? set.actions : [];
-  const action = normalizeActionPiece(set.action ?? legacyPieces[0], optionMap, "Action");
-  const bonusAction = normalizeActionPiece(set.bonusAction ?? legacyPieces.find(isBonusPiece), optionMap, "Bonus Action");
-  const extraPieces = legacyPieces.slice(1).filter((piece) => !isBonusPiece(piece)).map((piece) => (
-    normalizeActionPiece(piece, optionMap, stringOr(piece.slot, "Action"))
-  ));
+  const normalizedPlanPieces = normalizePlanPieces(set.planPieces, optionMap);
+  const hasPlanPieces = normalizedPlanPieces.length > 0;
+  const action = hasPlanPieces
+    ? findPlanPiece(normalizedPlanPieces, isActionPiece) ?? normalizeActionPiece(set.action, optionMap, "Action")
+    : normalizeActionPiece(set.action ?? legacyPieces[0], optionMap, "Action");
+  const bonusAction = hasPlanPieces
+    ? findPlanPiece(normalizedPlanPieces, isBonusPiece) ?? normalizeActionPiece(set.bonusAction, optionMap, "Bonus Action")
+    : normalizeActionPiece(set.bonusAction ?? legacyPieces.find(isBonusPiece), optionMap, "Bonus Action");
+  const pieces = hasPlanPieces
+    ? normalizedPlanPieces
+    : [action, bonusAction, ...legacyPieces.slice(1).filter((piece) => !isBonusPiece(piece)).map((piece) => (
+      normalizeActionPiece(piece, optionMap, stringOr(piece.slot, "Action"))
+    ))].filter(Boolean);
 
   const validationWarnings = [
-    ...validateMatchedPiece(action),
-    ...validateMatchedPiece(bonusAction),
-    ...extraPieces.flatMap(validateMatchedPiece)
+    ...pieces.flatMap(validateMatchedPiece)
   ];
   const warnings = [...arrayOfStrings(set.warnings), ...validationWarnings].slice(0, 8);
   const legality = validationWarnings.length
@@ -176,8 +193,16 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     assumptions: arrayOfStrings(set.assumptions).slice(0, 8),
     reasons: arrayOfStrings(set.reasons).slice(0, 6),
     warnings,
-    pieces: [action, bonusAction, ...extraPieces].filter(Boolean)
+    pieces
   };
+}
+
+function normalizePlanPieces(pieces, optionMap) {
+  if (!Array.isArray(pieces)) return [];
+  return pieces
+    .slice(0, 10)
+    .map((piece) => normalizeActionPiece(piece, optionMap, stringOr(piece?.slot, "Action")))
+    .filter((piece) => piece.name.toLowerCase() !== "none" || piece.optionId);
 }
 
 export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
@@ -223,6 +248,15 @@ export function downgradeLegality(value) {
 
 function isBonusPiece(piece) {
   return String(piece?.slot ?? "").toLowerCase().includes("bonus");
+}
+
+function isActionPiece(piece) {
+  const slot = String(piece?.slot ?? "").toLowerCase();
+  return slot.includes("action") || slot.includes("attack");
+}
+
+function findPlanPiece(pieces, predicate) {
+  return pieces.find(predicate) ?? null;
 }
 
 function buildOptionMap(contextOrOptions) {
@@ -352,7 +386,7 @@ function recommendationSchema() {
     additionalProperties: false,
     required: [
       "id", "rank", "category", "title", "score", "confidence", "legality",
-      "riskLevel", "explanation", "expectedOutcome", "movement", "action",
+      "riskLevel", "explanation", "expectedOutcome", "movement", "planPieces", "action",
       "bonusAction", "freeInteraction", "reactionPlan", "resourcesUsed",
       "concentrationImpact", "assumptions", "reasons", "warnings"
     ],
@@ -371,6 +405,12 @@ function recommendationSchema() {
       explanation: { type: "string" },
       expectedOutcome: { type: "string" },
       movement: { type: "string" },
+      planPieces: {
+        type: "array",
+        minItems: 1,
+        maxItems: 10,
+        items: actionPieceSchema()
+      },
       action: actionPieceSchema(),
       bonusAction: actionPieceSchema(),
       freeInteraction: { type: "string" },

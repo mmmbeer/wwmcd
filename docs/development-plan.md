@@ -1,5 +1,43 @@
 # Development Plan
 
+## Current Session: AI Full-Turn Plan Pieces
+
+### Implemented
+
+- Expanded the AI recommendation response contract with `planPieces` so the model can return every concrete turn option, not just one action and one bonus action.
+- Updated the recommendation prompt and user-message requirements to call out extra attacks, class-feature riders, bonus actions, free actions, movement options, and reaction options.
+- Updated AI response normalization to prefer `planPieces` and preserve repeated attacks plus class-feature riders such as Sneak Attack or Divine Smite when those option IDs are provided.
+- Kept `action` and `bonusAction` normalized for backwards-compatible UI details.
+- Added regression coverage for a full AI plan containing two attack pieces plus a class rider.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `tests/aiRecommendationService.test.mjs`
+- `docs/ai-enhancement.md`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The AI can only include class features that are present in `availableOptions`, `optionIndex`, or deterministic recommendations.
+- Hit-triggered pieces are still conditional at planning time until the player actually rolls and confirms a hit.
+
+### Manual Test Checklist
+
+1. Request AI recommendations for a character with Extra Attack and confirm each attack appears as a separate plan piece.
+2. Request AI recommendations for a rogue and confirm Sneak Attack appears only when its option ID is available or the plan is clearly conditional on qualification.
+3. Request AI recommendations for a paladin and confirm Divine Smite is treated as a hit-triggered rider, not a standalone action.
+4. Confirm AI recommendation cards still stage individual option pieces through the existing planned-turn controls.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ai\aiRecommendationPrompt.js`
+- `node --check tests\aiRecommendationService.test.mjs`
+- `node --test tests\aiRecommendationService.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
 ## Current Session: Class-Specific AI Tactics
 
 ### Implemented

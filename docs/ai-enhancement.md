@@ -362,6 +362,14 @@ The response must be a single JSON object with this exact shape:
       "explanation": "why this complete turn plan is recommended",
       "expectedOutcome": "what this plan is trying to accomplish",
       "movement": "movement recommendation or none",
+      "planPieces": [
+        {
+          "slot": "Attack 1",
+          "optionId": "copy the exact id from an available option",
+          "name": "copy the exact option name",
+          "explanation": "why this piece belongs in the full turn"
+        }
+      ],
       "action": {
         "slot": "Action",
         "optionId": "copy the exact id from an available option when possible",
@@ -527,6 +535,7 @@ function actionPieceSchema() {
 - AI responses include top-level missing information.
 - Each recommendation includes category, confidence, legality, risk level, assumptions, resources used, and concentration impact.
 - Each recommendation has clearly separated movement, action, bonus action, free interaction, and reaction plan.
+- Each recommendation includes `planPieces` for every concrete option in the full turn, including extra attacks and class-feature riders when available.
 - The schema remains strict.
 
 ---
@@ -547,6 +556,9 @@ function buildRecommendationUserMessage(context) {
     "Requirements:",
     "- Return ranked complete turn plans, not individual actions.",
     "- Use optionId values from optionIndex or availableOptions whenever possible.",
+    "- Fill planPieces with every concrete option in the turn: attacks, extra attacks, class-feature riders, bonus actions, free actions, movement options, and reaction plans when they have option IDs.",
+    "- For characters with multiple attacks, include separate planPieces such as Attack 1 and Attack 2 when supported by availableOptions or deterministicRecommendations.",
+    "- Include class-feature riders such as Sneak Attack or Divine Smite only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
     "- Include different tactical categories when possible.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
     "- Include missingInfo for facts that would materially change the recommendation.",
