@@ -23,6 +23,10 @@ test("AI recommendations are merged into the procedural recommendation table opt
         riskLevel: "low",
         reasons: ["Strong damage"],
         warnings: ["Confirm range."],
+        pieces: [
+          { slot: "Action", optionId: "attack_rapier", name: "Rapier", explanation: "Attack the target." },
+          { slot: "Rider", optionId: "feature_sneak_attack", name: "Sneak Attack", explanation: "Apply on a qualifying hit." }
+        ],
         assumptions: ["Target is visible."],
         resourcesUsed: [],
         concentrationImpact: "none"
@@ -36,6 +40,7 @@ test("AI recommendations are merged into the procedural recommendation table opt
   assert.equal(merged[0].recommendation.source, "ai");
   assert.equal(merged[0].recommendation.guidance, "Finish the low-health enemy before it acts.");
   assert.deepEqual(merged[0].recommendation.reasons, ["Strong damage"]);
+  assert.deepEqual(merged[0].recommendation.pieces.map((piece) => piece.name), ["Rapier", "Sneak Attack"]);
   assert.match(merged[0].recommendation.warnings.join(" "), /enemy AC/);
   assert.equal(merged[1].id, "basic_dodge");
 });

@@ -144,10 +144,27 @@ function renderAiRecommendationDetail(recommendation) {
     ["Concentration", recommendation.concentrationImpact],
     ["Assumptions", recommendation.assumptions?.join(", ")]
   ].filter(([, value]) => value);
-  if (!details.length) return "";
+  const pieces = Array.isArray(recommendation.pieces) ? recommendation.pieces : [];
+  if (!details.length && !pieces.length) return "";
   return `
     <div class="ai-recommendation-detail">
+      ${renderAiPlanPieces(pieces)}
       ${details.map(([label, value]) => `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`).join("")}
+    </div>
+  `;
+}
+
+function renderAiPlanPieces(pieces) {
+  if (!pieces.length) return "";
+  return `
+    <div class="recommendation-set-pieces">
+      ${pieces.map((piece) => `
+        <div class="recommendation-set-piece">
+          <span>${escapeHtml(piece.slot || "Option")}</span>
+          <strong>${escapeHtml(piece.name || piece.optionId || "Unknown option")}</strong>
+          ${piece.explanation ? `<small>${escapeHtml(piece.explanation)}</small>` : ""}
+        </div>
+      `).join("")}
     </div>
   `;
 }

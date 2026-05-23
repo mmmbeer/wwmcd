@@ -23,7 +23,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
       .map(summarizeRecommendationSet),
     instructionHints: {
       useOnlyOptionIds: true,
-      preferOptionList: true,
+      preferCompleteTurnPlans: true,
       markMissingInfoExplicitly: true,
       doNotInventEnemyStats: true,
       useCommonLoreFromUserNotesAsAssumptions: true,

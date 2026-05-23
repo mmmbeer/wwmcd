@@ -40,6 +40,7 @@ function aiRecommendationOption(recommendation, index, result, groups) {
       guidance: result?.guidance || result?.turnAssessment || "",
       summary: recommendation.summary,
       explanation: recommendation.pieces?.[0]?.explanation ?? "",
+      pieces: recommendation.pieces ?? [],
       assumptions: recommendation.assumptions ?? [],
       confidence: recommendation.confidence,
       legality: recommendation.legality,

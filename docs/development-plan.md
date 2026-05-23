@@ -1,6 +1,50 @@
 # Development Plan
 
-## Current Session: PDF Druid Spell List Truncation
+## Current Session: AI Combo Recommendations
+
+### Implemented
+
+- Restored the AI recommendation contract to return complete turn plans with `planPieces` instead of single top-level options only.
+- Updated AI prompt guidance to explicitly combine compatible actions, bonus actions, riders, resource spends, movement, and reaction reminders using provided option IDs.
+- Preserved normalized combo pieces in AI table row metadata so expanded recommendation details can show sequences like weapon attack plus Sneak Attack or Divine Smite.
+- Split the AI response prompt/schema into `aiRecommendationResponseContract.js` to keep the service module focused.
+
+### Files Changed
+
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationResponseContract.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ui/aiRecommendationTableAdapter.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `tests/aiRecommendationTableAdapter.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- AI combo pieces still require the underlying action/rider/resource options to exist in the app-provided option index.
+- Hit-triggered riders are planning-time recommendations and should remain conditional until the attack actually hits.
+
+### Manual Test Checklist
+
+1. Request AI recommendations for a rogue with Steady Aim, a ranged weapon attack, and Sneak Attack available; confirm one recommendation includes all compatible pieces.
+2. Request AI recommendations for a paladin with Divine Smite available; confirm smite appears as a rider/resource piece paired with an attack.
+3. Request AI recommendations for a monk with Flurry of Blows available; confirm the plan can include a monk weapon attack plus the focus-spending bonus action.
+4. Expand an AI recommendation row and confirm the full plan-piece sequence is visible.
+
+### Verification Completed
+
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ai\aiRecommendationResponseContract.js`
+- `node --check js\player-combat\ai\aiRecommendationPrompt.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\aiRecommendationTableAdapter.js`
+- `node --test tests\aiRecommendationService.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationTableAdapter.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: PDF Druid Spell List Truncation
 
 ### Implemented
 

@@ -79,7 +79,7 @@ test("AI recommendation context includes versioned tactical context", () => {
   assert.equal(context.playerIntent.userNotes, "Enemy is nearly defeated.");
   assert.equal(context.wizard, undefined);
   assert.equal(context.turnRules.actionEconomy.maxActions, 1);
-  assert.equal(context.instructionHints.preferOptionList, true);
+  assert.equal(context.instructionHints.preferCompleteTurnPlans, true);
   assert.equal(Boolean(context.classTactics.fighter), true);
   assert.equal(Boolean(context.classTactics.rogue), true);
   assert.equal(context.classTactics.wizard, undefined);

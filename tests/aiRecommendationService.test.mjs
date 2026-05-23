@@ -57,13 +57,13 @@ test("AI recommendation service falls back when json_schema response format is u
   assert.equal(calls.length, 2);
   assert.equal(calls[0].responseFormat.type, "json_schema");
   assert.ok(JSON.stringify(calls[0].responseFormat).includes("optionId"));
-  assert.equal(JSON.stringify(calls[0].responseFormat).includes("planPieces"), false);
+  assert.equal(JSON.stringify(calls[0].responseFormat).includes("planPieces"), true);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"action\""), false);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"bonusAction\""), false);
   assert.equal(calls[0].temperature, 0.15);
   assert.equal(calls[1].responseFormat.type, "json_object");
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
-  assert.match(calls[1].messages[1].content, /ranked list of individual recommended options/);
+  assert.match(calls[1].messages[1].content, /ranked list of complete turn plans/);
   assert.match(calls[1].messages[1].content, /optionIndex/);
   assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
   assert.equal(recommendations.sets, recommendations.recommendations);
@@ -93,7 +93,7 @@ test("AI recommendation service uses one JSON object request for Groq", async ()
   assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
 });
 
-test("normalization converts legacy turn plan pieces into a single recommended option", () => {
+test("normalization preserves combo turn plan pieces", () => {
   const payload = responseWithAction("attack_rapier", "Rapier");
   payload.recommendations[0].planPieces = [
     {
@@ -121,9 +121,10 @@ test("normalization converts legacy turn plan pieces into a single recommended o
     unavailableOptions: {}
   });
 
-  assert.deepEqual(result.recommendations[0].pieces.map((piece) => piece.slot), ["Option"]);
+  assert.deepEqual(result.recommendations[0].pieces.map((piece) => piece.slot), ["Attack 1", "Attack 2", "Rider"]);
   assert.equal(result.recommendations[0].pieces[0].optionId, "attack_rapier");
-  assert.equal(result.recommendations[0].action.slot, "Option");
+  assert.equal(result.recommendations[0].pieces[2].optionId, "feature_sneak_attack");
+  assert.equal(result.recommendations[0].action.slot, "Attack 1");
 });
 
 test("normalization flags invented option IDs without dropping the recommendation", () => {
@@ -150,7 +151,7 @@ test("normalization tolerates malformed recommendation objects", () => {
   });
 
   assert.equal(result.recommendations.length, 1);
-  assert.equal(result.recommendations[0].title, "AI option 1");
+  assert.equal(result.recommendations[0].title, "AI turn plan 1");
   assert.equal(result.recommendations[0].action.name, "None");
 });
 
@@ -181,7 +182,7 @@ test("normalization treats duplicate option names as unmatched without an option
   assert.match(result.recommendations[0].warnings.join(" "), /Multiple available options are named "Strike"/);
 });
 
-test("normalization treats AI results as single options instead of action-economy plans", () => {
+test("normalization validates complete turn plan action economy", () => {
   const payload = responseWithAction("attack_rapier", "Rapier");
   payload.recommendations[0].planPieces = [
     { slot: "Attack 1", optionId: "attack_rapier", name: "Rapier", explanation: "First swing." },
@@ -191,6 +192,7 @@ test("normalization treats AI results as single options instead of action-econom
     availableOptions: { attacks: [availableRapier] }
   });
   assert.doesNotMatch(extraAttacks.recommendations[0].warnings.join(" "), /more than one explicit Action/);
+  assert.deepEqual(extraAttacks.recommendations[0].pieces.map((piece) => piece.slot), ["Attack 1", "Attack 2"]);
 
   payload.recommendations[0].planPieces = [
     { slot: "Action", optionId: "attack_rapier", name: "Rapier", explanation: "Main action." },
@@ -208,8 +210,8 @@ test("normalization treats AI results as single options instead of action-econom
     }
   });
 
-  assert.doesNotMatch(overBudget.recommendations[0].warnings.join(" "), /more than one explicit Action/);
-  assert.doesNotMatch(overBudget.recommendations[0].warnings.join(" "), /more than one Bonus Action/);
+  assert.match(overBudget.recommendations[0].warnings.join(" "), /more than one explicit Action/);
+  assert.match(overBudget.recommendations[0].warnings.join(" "), /more than one Bonus Action/);
 });
 
 test("normalization flags unavailable matched options", () => {
@@ -279,7 +281,7 @@ test("schema request selection avoids providers and models likely to reject json
 
 test("user message builder includes shared tactical instructions and context JSON", () => {
   const message = buildRecommendationUserMessage({ schemaVersion: "combat-option-recommendation/v3" });
-  assert.match(message, /individual recommended options/);
+  assert.match(message, /complete turn plans/);
   assert.match(message, /optionIndex/);
   assert.match(message, /classTactics/);
   assert.match(message, /combat-option-recommendation\/v3/);

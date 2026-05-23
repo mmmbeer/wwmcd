@@ -1,61 +1,11 @@
 import { requestAiChat } from "./aiClient.js";
 import { AI_RECOMMENDATION_SYSTEM_PROMPT } from "./aiRecommendationPrompt.js";
 import { compactContextForRequest } from "./aiRecommendationRequestContext.js";
-
-const JSON_ONLY_PROMPT = `Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
-The response must be a single JSON object with this exact shape:
-{
-  "guidance": "brief tactical guidance for the player",
-  "missingInfo": ["important missing fact"],
-  "recommendations": [
-    {
-      "id": "rec-1",
-      "rank": 1,
-      "category": "best_overall",
-      "optionId": "copy the exact id from an available option",
-      "name": "copy the exact option name",
-      "score": 100,
-      "confidence": "high",
-      "legality": "legal",
-      "riskLevel": "medium",
-      "explanation": "why this option is recommended",
-      "resourcesUsed": ["resource name"],
-      "concentrationImpact": "none, starts concentration, maintains concentration, or replaces existing concentration",
-      "assumptions": ["assumption"],
-      "reasons": ["short reason"],
-      "warnings": ["short warning"]
-    }
-  ]
-}
-Use one to six recommendations.`;
-
-const FALLBACK_JSON_PROMPT = `The selected model does not support structured outputs.
-Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
-The response must be a single JSON object with this exact shape:
-{
-  "guidance": "brief tactical guidance for the player",
-  "missingInfo": ["important missing fact"],
-  "recommendations": [
-    {
-      "id": "rec-1",
-      "rank": 1,
-      "category": "best_overall",
-      "optionId": "copy the exact id from an available option",
-      "name": "copy the exact option name",
-      "score": 100,
-      "confidence": "high",
-      "legality": "legal",
-      "riskLevel": "medium",
-      "explanation": "why this complete turn plan is recommended",
-      "resourcesUsed": ["resource name"],
-      "concentrationImpact": "none, starts concentration, maintains concentration, or replaces existing concentration",
-      "assumptions": ["assumption"],
-      "reasons": ["short reason"],
-      "warnings": ["short warning"]
-    }
-  ]
-}
-Use one to six recommendations.`;
+import {
+  FALLBACK_JSON_PROMPT,
+  JSON_ONLY_PROMPT,
+  recommendationResponseFormat
+} from "./aiRecommendationResponseContract.js";
 
 export async function getAiRecommendations({ provider = "groq", apiKey, model, context, chatClient = requestAiChat }) {
   const request = shouldUseJsonSchema({ provider, model })
@@ -100,15 +50,18 @@ export function shouldAskClarifyingQuestion(aiResult) {
 export function buildRecommendationUserMessage(context) {
   const requestContext = compactContextForRequest(context);
   return [
-    "Recommend practical D&D 5e action options for the current player character.",
+    "Recommend practical D&D 5e combat turn plans for the current player character.",
     "",
     "Requirements:",
-    "- Return a ranked list of individual recommended options, not complete turn plans.",
+    "- Return a ranked list of complete turn plans using planPieces.",
     "- Use optionId values from optionIndex. availableOptions may be grouped ID lists for orientation.",
     "- Use battlefieldKnowledge to avoid obviously poor damage types or tactics against named creatures from the notes.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
-    "- Each recommendation must reference one concrete option from optionIndex or availableOptions.",
-    "- Include class-feature riders such as Sneak Attack or Divine Smite only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
+    "- Each planPiece must reference one concrete option from optionIndex or availableOptions.",
+    "- Combine compatible pieces when useful: attacks, Extra Attack pieces, bonus actions, riders, resource spends, free/object interactions, movement, and reaction reminders.",
+    "- Examples of useful combinations include Steady Aim plus Longbow plus Sneak Attack, weapon attack plus Divine Smite, and monk weapon plus Flurry of Blows when those option IDs are present.",
+    "- Include class-feature riders such as Sneak Attack, Divine Smite, Stunning Strike, or Flurry of Blows only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
+    "- Do not include more than one explicit Action or one Bonus Action unless the app-provided option is an Extra Attack/attack-count piece.",
     "- Include different tactical categories when useful.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
     "- Prefer strong ranged options over closing to melee for fragile or wounded characters unless the provided context supports closing.",
@@ -155,7 +108,7 @@ export function normalizeAiResponse(text, contextOrOptions) {
   const sets = Array.isArray(parsed?.recommendations) ? parsed.recommendations : [];
   const optionMap = buildOptionMap(contextOrOptions);
   const recommendations = sets.slice(0, 6)
-    .map((set, index) => normalizeRecommendationOption(set, index, optionMap))
+    .map((set, index) => normalizeRecommendationSet(set, index, optionMap))
     .sort((left, right) => left.rank - right.rank);
 
   return {
@@ -165,51 +118,6 @@ export function normalizeAiResponse(text, contextOrOptions) {
     missingInfo: arrayOfStrings(parsed?.missingInfo).slice(0, 8),
     recommendations,
     sets: recommendations
-  };
-}
-
-export function normalizeRecommendationOption(set, index, optionMap) {
-  const safeSet = set && typeof set === "object" ? set : {};
-  const legacyPiece = Array.isArray(safeSet.planPieces) ? safeSet.planPieces[0] : null;
-  const optionId = stringOr(safeSet.optionId, stringOr(legacyPiece?.optionId, stringOr(safeSet.action?.optionId, "")));
-  const name = stringOr(safeSet.name, stringOr(legacyPiece?.name, stringOr(safeSet.action?.name, "None")));
-  const piece = normalizeActionPiece({
-    slot: "Option",
-    optionId,
-    name,
-    explanation: stringOr(safeSet.explanation, stringOr(legacyPiece?.explanation, ""))
-  }, optionMap, "Option");
-  const validationWarnings = validateMatchedPiece(piece);
-  const warnings = [...arrayOfStrings(safeSet.warnings), ...validationWarnings].slice(0, 8);
-  const legality = validationWarnings.length
-    ? downgradeLegality(stringOr(safeSet.legality, "conditional"))
-    : legalEnum(safeSet.legality, "conditional");
-
-  return {
-    id: stringOr(safeSet.id, `ai-recommendation-${index + 1}`),
-    rank: Number(safeSet.rank) || index + 1,
-    category: categoryEnum(safeSet.category),
-    title: stringOr(safeSet.title, piece.name && piece.name !== "None" ? piece.name : `AI option ${index + 1}`),
-    optionId: piece.optionId,
-    name: piece.name,
-    option: piece.option,
-    score: Number(safeSet.score) || 0,
-    confidence: confidenceEnum(safeSet.confidence, "medium"),
-    legality,
-    riskLevel: riskEnum(safeSet.riskLevel, "medium"),
-    summary: stringOr(safeSet.explanation, ""),
-    expectedOutcome: stringOr(safeSet.expectedOutcome, ""),
-    movement: stringOr(safeSet.movement, ""),
-    action: piece,
-    bonusAction: null,
-    freeInteraction: stringOr(safeSet.freeInteraction, ""),
-    reactionPlan: stringOr(safeSet.reactionPlan, ""),
-    resourcesUsed: arrayOfStrings(safeSet.resourcesUsed).slice(0, 6),
-    concentrationImpact: stringOr(safeSet.concentrationImpact, "none"),
-    assumptions: arrayOfStrings(safeSet.assumptions).slice(0, 8),
-    reasons: arrayOfStrings(safeSet.reasons).slice(0, 6),
-    warnings,
-    pieces: [piece]
   };
 }
 
@@ -226,9 +134,13 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     : normalizeActionPiece(safeSet.bonusAction ?? legacyPieces.find(isBonusPiece), optionMap, "Bonus Action");
   const pieces = hasPlanPieces
     ? normalizedPlanPieces
-    : [action, bonusAction, ...legacyPieces.slice(1).filter((piece) => !isBonusPiece(piece)).map((piece) => (
+    : [
+      action,
+      bonusAction,
+      legacySingleOptionPiece(safeSet, optionMap, action),
+      ...legacyPieces.slice(1).filter((piece) => !isBonusPiece(piece)).map((piece) => (
       normalizeActionPiece(piece, optionMap, stringOr(piece.slot, "Action"))
-    ))].filter(Boolean);
+    ))].filter((piece) => piece && (piece.name.toLowerCase() !== "none" || piece.optionId));
 
   const validationWarnings = [
     ...pieces.flatMap(validateMatchedPiece),
@@ -238,12 +150,16 @@ export function normalizeRecommendationSet(set, index, optionMap) {
   const legality = validationWarnings.length
     ? downgradeLegality(stringOr(safeSet.legality, "conditional"))
     : legalEnum(safeSet.legality, "conditional");
+  const primaryPiece = action.optionId || action.name !== "None" ? action : pieces[0] ?? action;
 
   return {
     id: stringOr(safeSet.id, `ai-recommendation-${index + 1}`),
     rank: Number(safeSet.rank) || index + 1,
     category: categoryEnum(safeSet.category),
     title: stringOr(safeSet.title, `AI turn plan ${index + 1}`),
+    optionId: primaryPiece.optionId,
+    name: primaryPiece.name,
+    option: primaryPiece.option,
     score: Number(safeSet.score) || 0,
     confidence: confidenceEnum(safeSet.confidence, "medium"),
     legality,
@@ -262,6 +178,17 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     warnings,
     pieces
   };
+}
+
+function legacySingleOptionPiece(set, optionMap, existingAction) {
+  if (existingAction?.optionId || existingAction?.name !== "None") return null;
+  if (!set?.optionId && !set?.name) return null;
+  return normalizeActionPiece({
+    slot: stringOr(set.slot, "Action"),
+    optionId: stringOr(set.optionId, ""),
+    name: stringOr(set.name, ""),
+    explanation: stringOr(set.explanation, "")
+  }, optionMap, "Action");
 }
 
 function normalizePlanPieces(pieces, optionMap) {
@@ -473,61 +400,4 @@ function riskEnum(value, fallback) {
 
 function enumOr(value, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
-}
-
-function recommendationResponseFormat() {
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: "combat_option_recommendations",
-      strict: true,
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["guidance", "missingInfo", "recommendations"],
-        properties: {
-          guidance: { type: "string" },
-          missingInfo: { type: "array", items: { type: "string" } },
-          recommendations: {
-            type: "array",
-            minItems: 1,
-            maxItems: 6,
-            items: recommendationSchema()
-          }
-        }
-      }
-    }
-  };
-}
-
-function recommendationSchema() {
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "id", "rank", "category", "optionId", "name", "score", "confidence", "legality",
-      "riskLevel", "explanation", "resourcesUsed",
-      "concentrationImpact", "assumptions", "reasons", "warnings"
-    ],
-    properties: {
-      id: { type: "string" },
-      rank: { type: "integer" },
-      category: {
-        type: "string",
-        enum: ["best_overall", "damage", "defense", "support", "control", "resource_conserving", "escape_or_reposition", "other"]
-      },
-      optionId: { type: "string" },
-      name: { type: "string" },
-      score: { type: "number" },
-      confidence: { type: "string", enum: ["low", "medium", "high"] },
-      legality: { type: "string", enum: ["legal", "conditional", "risky", "invalid"] },
-      riskLevel: { type: "string", enum: ["low", "medium", "high"] },
-      explanation: { type: "string" },
-      resourcesUsed: { type: "array", items: { type: "string" } },
-      concentrationImpact: { type: "string" },
-      assumptions: { type: "array", items: { type: "string" } },
-      reasons: { type: "array", items: { type: "string" } },
-      warnings: { type: "array", items: { type: "string" } }
-    }
-  };
 }
