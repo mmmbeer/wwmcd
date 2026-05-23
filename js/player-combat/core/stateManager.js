@@ -165,7 +165,13 @@ export function createStateManager({ storage, eventBus }) {
     const character = getActiveCharacter();
     const speed = getEffectiveWalkSpeed(character, referenceData);
     const movementUsed = clamp((state?.turn.movementUsed ?? 0) + Number(amount || 0), 0, speed);
-    updateTurn({ movementUsed }, `Movement set to ${movementUsed} ft.`);
+    if (!state || movementUsed === Number(state.turn?.movementUsed ?? 0)) return;
+    combatStates[activeCharacterId] = {
+      ...state,
+      turn: { ...state.turn, movementUsed }
+    };
+    persistCombatStates();
+    emitChange();
   }
 
   function setSpellSlotUsed(level, used) {

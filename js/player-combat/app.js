@@ -37,15 +37,30 @@ export async function createPlayerCombatApp() {
   };
 
   let latestSnapshot = null;
+  let pendingActionTabsRender = 0;
   const render = (snapshot) => {
+    const previousSnapshot = latestSnapshot;
     latestSnapshot = snapshot;
+    const movementOnly = isMovementOnlyUpdate(previousSnapshot, snapshot);
     renderHeaderIdentity(roots, snapshot);
+    renderTurnEconomyPanel(roots.turnPanel, snapshot, { stateManager, modalApi });
+    renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
+
+    if (movementOnly) {
+      scheduleActionTabsRender();
+      updateStickyHeaderOffset(roots);
+      return;
+    }
+
     renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, showToast, busyApi, onSettingsChanged: () => render(latestSnapshot) });
     renderHeaderActions(roots.headerActions, snapshot, { stateManager, modalApi, showToast, busyApi });
     renderImportLauncher(roots.importLauncher, snapshot, { stateManager, modalApi, showToast, busyApi });
-    renderTurnEconomyPanel(roots.turnPanel, snapshot, { stateManager, modalApi });
     renderSpellcastingBar(roots.spellcastingBar, snapshot, stateManager);
-    renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
+    renderActionTabsSection(snapshot);
+    updateStickyHeaderOffset(roots);
+  };
+
+  function renderActionTabsSection(snapshot) {
     renderActionTabs(roots.tabs, snapshot, {
       stateManager,
       storage,
@@ -58,8 +73,17 @@ export async function createPlayerCombatApp() {
         onSettingsChanged: () => render(latestSnapshot)
       })
     });
-    updateStickyHeaderOffset(roots);
-  };
+  }
+
+  function scheduleActionTabsRender() {
+    if (pendingActionTabsRender) {
+      window.clearTimeout(pendingActionTabsRender);
+    }
+    pendingActionTabsRender = window.setTimeout(() => {
+      pendingActionTabsRender = 0;
+      if (latestSnapshot) renderActionTabsSection(latestSnapshot);
+    }, 75);
+  }
 
   installStickyHeaderOffset(roots);
   eventBus.on("state:changed", render);
@@ -78,6 +102,35 @@ export async function createPlayerCombatApp() {
   }
 
   return { stateManager };
+}
+
+function isMovementOnlyUpdate(previous, next) {
+  if (!previous || !next) return false;
+  if (previous.activeCharacterId !== next.activeCharacterId) return false;
+  if (previous.activeCharacter !== next.activeCharacter) return false;
+  if (previous.referenceData !== next.referenceData) return false;
+  if (previous.storageAvailable !== next.storageAvailable) return false;
+
+  const previousState = previous.combatState;
+  const nextState = next.combatState;
+  if (!previousState || !nextState) return false;
+  if (previousState === nextState) return false;
+  if (previousState.round !== nextState.round) return false;
+  if (previousState.turnActive !== nextState.turnActive) return false;
+  if (previousState.current !== nextState.current) return false;
+  if (previousState.resourcesUsed !== nextState.resourcesUsed) return false;
+  if (previousState.lastRoll !== nextState.lastRoll) return false;
+  if (previousState.log !== nextState.log) return false;
+  return isSameTurnExceptMovement(previousState.turn, nextState.turn);
+}
+
+function isSameTurnExceptMovement(previousTurn = {}, nextTurn = {}) {
+  const keys = new Set([...Object.keys(previousTurn), ...Object.keys(nextTurn)]);
+  keys.delete("movementUsed");
+  for (const key of keys) {
+    if (previousTurn[key] !== nextTurn[key]) return false;
+  }
+  return previousTurn.movementUsed !== nextTurn.movementUsed;
 }
 
 function installStickyHeaderOffset(roots) {

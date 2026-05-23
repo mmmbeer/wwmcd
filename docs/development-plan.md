@@ -1,6 +1,37 @@
 # Development Plan
 
-## Current Session: End Turn Return Safety
+## Current Session: Movement Click Performance
+
+### Implemented
+
+- Made direct movement taps update `movementUsed` without adding a combat-log entry for every 5-foot increment.
+- Added a movement-only render path that refreshes the turn progress and combat status immediately, then debounces the heavier action-tab refresh outside the click handler.
+- Preserved persistence of movement state after each tap.
+
+### Files Changed
+
+- `js/player-combat/app.js`
+- `js/player-combat/core/stateManager.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The action list still refreshes after movement changes, but it is deferred and debounced; the visible movement progress is the immediate source of truth.
+
+### Manual Test Checklist
+
+1. Import a high-option character, then tap `Move` repeatedly in the turn progress bar.
+2. Confirm the progress bar updates by 5 feet per tap without noticeable click stalls or repeated slow click-handler warnings.
+3. Refresh the page and confirm the latest movement used value persists.
+4. Open the Actions tab after movement changes and confirm the movement row reflects remaining movement.
+
+### Verification Completed
+
+- `node --check js\player-combat\app.js`
+- `node --check js\player-combat\core\stateManager.js`
+- `node --test tests\playerCombatImport.test.mjs tests\playerCombatActions.test.mjs`
+
+## Previous Session: End Turn Return Safety
 
 ### Implemented
 
