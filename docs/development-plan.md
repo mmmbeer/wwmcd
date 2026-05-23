@@ -1,6 +1,38 @@
 # Development Plan
 
-## Current Session: Weapon Range and Variant Import
+## Current Session: Action Complete Follow-Up Columns
+
+### Implemented
+
+- Changed `Action Complete` follow-up buttons to display `action type | resource | name`.
+- Added resource text for follow-ups that spend tracked resources such as Focus/Ki, spell slots, or command/superiority dice.
+- Split follow-up button rendering into `followupOptionRenderer.js` so `actionTabs.js` stays below the project file-size limit.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/followupOptionRenderer.js`
+- `tests/playerCombatActions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Follow-ups without a resource show `-` in the resource column to keep columns aligned.
+
+### Manual Test Checklist
+
+1. Use an attack that unlocks a rider and confirm follow-ups show type, resource, and name columns.
+2. Use a monk attack and confirm `Flurry of Blows` shows `bonus action | Focus | Flurry of Blows`.
+3. Use a character with command/superiority dice and confirm the dice resource name appears in the resource column.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\followupOptionRenderer.js`
+- `node --test tests\playerCombatActions.test.mjs`
+
+## Previous Session: Weapon Range and Variant Import
 
 ### Implemented
 

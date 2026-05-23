@@ -8,6 +8,7 @@ import { canPairAfterPrimary, isDependentOption } from "../recommendations/recom
 import { findOption } from "./actionOptionHandlers.js";
 import { resolveActionRoll } from "./actionRollModal.js";
 import { recommendationTableOptions } from "./aiRecommendationTableAdapter.js";
+import { renderFollowupButton } from "./followupOptionRenderer.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
 import { getPlannedTurn, validatePlannedOption } from "./plannedTurnState.js";
 import {
@@ -246,16 +247,6 @@ function showAfterUseModal(option, services) {
   });
 }
 
-function renderFollowupButton(option) {
-  const badge = optionTypeLabel(option);
-  return `
-    <button class="btn btn-secondary followup-option" type="button" data-followup-use="${escapeHtml(option.id)}">
-      <span class="type-badge type-${escapeHtml(badge.key)}">${escapeHtml(badge.label)}</span>
-      <span>${escapeHtml(option.name)}</span>
-    </button>
-  `;
-}
-
 export function followupOptions(groups, usedOption) {
   const options = [
     ...(groups.resources ?? []),
@@ -271,22 +262,6 @@ export function followupOptions(groups, usedOption) {
     .filter((option) => !isDependentOption(option) || canPairAfterPrimary(option, usedOption))
     .filter((option) => isDependentOption(option) || option.cost?.action || option.cost?.bonus || option.cost?.reaction || option.cost?.movement || option.cost?.object)
     .slice(0, 6);
-}
-
-function optionTypeLabel(option) {
-  if (isDependentOption(option) && !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction) return { key: "rider", label: "rider" };
-  if (option.cost?.bonus) return { key: "bonus", label: "bonus action" };
-  if (option.cost?.reaction) return { key: "reaction", label: "reaction" };
-  if (option.cost?.movement) return { key: "movement", label: "movement" };
-  if (option.cost?.action && isSecondAttackOption(option)) return { key: "action", label: "second attack" };
-  if (option.cost?.action) return { key: "action", label: "action" };
-  if (option.cost?.object) return { key: "free", label: "object" };
-  return { key: "free", label: "free" };
-}
-
-function isSecondAttackOption(option) {
-  return option.tags?.includes("attack")
-    || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack");
 }
 
 function endTurnFromModal(services) {

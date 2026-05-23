@@ -7,6 +7,7 @@ import { getAttackCount } from "../js/player-combat/rules/attackCountRules.js";
 import { getCombatOptions } from "../js/player-combat/rules/combatOptionsService.js";
 import { resetLongRestResources } from "../js/player-combat/rules/restRules.js";
 import { followupOptions } from "../js/player-combat/ui/actionTabs.js";
+import { renderFollowupButton } from "../js/player-combat/ui/followupOptionRenderer.js";
 
 const combatState = {
   turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, objectInteractionUsed: false, movementUsed: 0 },
@@ -236,6 +237,21 @@ test("post-action followups exclude hit riders after non-attack actions", () => 
 
   assert.equal(followupOptions(groups, spell).some((option) => option.id === "feature_sneak_attack"), false);
   assert.equal(followupOptions(groups, rapier).some((option) => option.id === "feature_sneak_attack"), true);
+});
+
+test("post-action followup buttons show type resource and name columns", () => {
+  const html = renderFollowupButton({
+    id: "feature_flurry_of_blows",
+    name: "Flurry of Blows",
+    cost: { bonus: true, resource: { id: "resource-ki", name: "Focus", amount: 1 } }
+  });
+
+  assert.match(html, /type-badge/);
+  assert.match(html, /bonus action/);
+  assert.match(html, /followup-resource/);
+  assert.match(html, />Focus</);
+  assert.match(html, /followup-name/);
+  assert.match(html, />Flurry of Blows</);
 });
 
 
