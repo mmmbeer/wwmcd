@@ -3133,3 +3133,28 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\ui\mobileActionList.js`
 - `node --test tests\*.test.mjs`
+
+### Sticky Progress and Row Alignment Fixes
+
+- Fixed later CSS overrides so the turn progress bar sticks to the top edge while scrolling.
+- Moved recommendation reason chips from the collapsed row into the expanded detail panel.
+- Added a dedicated source column before action type for compact rows, using single-letter markers for basic, feature, weapon, spell, and resource sources.
+- Widened HP numeric inputs so current HP values do not clip.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/mobileActionList.js`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Scroll the app and confirm turn progress remains pinned to the top.
+2. Open Recommendations and Actions; confirm source markers align in their own column.
+3. Expand a recommended row and confirm recommendation reasons are in the expanded detail, not the collapsed row.
+4. Enter two- or three-digit HP values and confirm the input text remains readable.
+
+### Sticky Progress Verification
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\*.test.mjs`

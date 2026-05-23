@@ -2638,8 +2638,8 @@ body.has-turn-progress .app-shell {
 
 .turn-progress {
   position: sticky;
-  top: 49px;
-  z-index: 7;
+  top: 0;
+  z-index: 9;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
 }
 
@@ -2912,7 +2912,7 @@ body.is-busy {
   }
 
   .turn-progress {
-    top: 45px;
+    top: 0;
   }
 
   .combat-status-bar,
@@ -2981,8 +2981,8 @@ body.is-busy {
 
 .turn-progress {
   position: sticky;
-  top: 49px;
-  z-index: 7;
+  top: 0;
+  z-index: 9;
 }
 
 .combat-status-bar {
@@ -3041,7 +3041,7 @@ body.is-busy {
 
 @media (max-width: 390px) {
   .turn-progress {
-    top: 45px;
+    top: 0;
   }
 
   .option-nav {
@@ -3200,7 +3200,7 @@ body.is-busy {
 }
 
 .vital-stat input {
-  width: 34px;
+  width: 48px;
   min-height: 22px;
   border: 1px solid var(--border-muted);
   border-radius: var(--radius-sm);
@@ -3229,11 +3229,11 @@ body.is-busy {
   border-top: 1px solid rgba(190, 143, 72, 0.16);
 }
 
-/* Unified compact action rows: chevron, resource, type, name, range, DC, use */
+/* Unified compact action rows: chevron, resource, source, type, name, range, DC, use */
 .action-row,
 .action-row--attack,
 .action-row--spell {
-  grid-template-columns: 22px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(46px, 0.65fr) 64px;
+  grid-template-columns: 22px 24px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(46px, 0.65fr) 64px;
 }
 
 .resource-cell {
@@ -3242,6 +3242,34 @@ body.is-busy {
   width: 20px;
   height: 20px;
   color: var(--text-muted);
+}
+
+.source-cell {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(190, 143, 72, 0.26);
+  border-radius: 50%;
+  background: rgba(217, 164, 65, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.source-spell {
+  border-color: rgba(74, 168, 232, 0.42);
+  color: var(--accent-blue);
+}
+
+.source-weapon {
+  border-color: rgba(224, 123, 95, 0.42);
+  color: #e07b5f;
+}
+
+.source-feature {
+  border-color: rgba(240, 138, 157, 0.42);
+  color: #f08a9d;
 }
 
 .resource-badge,
@@ -3313,7 +3341,7 @@ body.is-busy {
   .action-row,
   .action-row--attack,
   .action-row--spell {
-    grid-template-columns: 20px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(38px, 0.6fr) 56px;
+    grid-template-columns: 20px 22px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(38px, 0.6fr) 56px;
   }
 }
 

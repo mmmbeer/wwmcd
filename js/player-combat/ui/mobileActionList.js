@@ -80,7 +80,6 @@ function renderActionRow(option, group) {
           ${renderRowCells(option, rowKind, selected)}
         </button>
       </div>
-      ${renderRecommendationSummary(option)}
       <div class="action-detail-panel" data-action-detail="${escapeHtml(option.id)}" hidden>
         ${renderActionDetail(option)}
       </div>
@@ -92,6 +91,7 @@ function renderRowCells(option, rowKind, selected) {
   const buttonLabel = plannedButtonLabel(option, rowKind, selected);
   return `
     ${renderResourceIndicator(option)}
+    ${renderSourceBadge(option)}
     ${renderCostBadge(option)}
     ${renderNameCell(option)}
     <span class="action-fact">${escapeHtml(rangeLabel(option) || "-")}</span>
@@ -109,7 +109,7 @@ function renderActionDetail(option) {
       ${detailFact("Resource", resourceLabel(option))}
     </div>
     ${descriptionText(option) ? `<p>${escapeHtml(descriptionText(option))}</p>` : `<p>No additional description is available.</p>`}
-    ${option.recommendation?.reasons?.length ? `<p class="recommendation-detail"><strong>Recommendation:</strong> ${escapeHtml(option.recommendation.reasons.join(" · "))}</p>` : ""}
+    ${renderRecommendationSummary(option)}
     ${option.meta?.length ? `<ul class="option-meta">${option.meta.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
     ${option.recommendation?.warnings?.length ? `<p class="inline-message warning">${escapeHtml(option.recommendation.warnings.join(" "))}</p>` : ""}
     ${option.warnings?.length ? `<p class="inline-message warning">${escapeHtml(option.warnings.join(" "))}</p>` : ""}
@@ -123,6 +123,7 @@ function renderRecommendationSummary(option) {
   const reasons = recommendation.reasons ?? [];
   return `
     <div class="recommendation-row-summary" aria-label="Recommendation details">
+      <strong>Recommendation</strong>
       ${reasons.slice(0, 3).map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
     </div>
   `;
@@ -133,7 +134,6 @@ function renderNameCell(option) {
     <span class="action-name-cell">
       <span class="action-name-line">
         <strong>${escapeHtml(option.name)}</strong>
-        ${renderSourceBadge(option)}
       </span>
     </span>
   `;
@@ -153,8 +153,16 @@ function renderCostBadge(option) {
 }
 
 function renderSourceBadge(option) {
-  const source = option.source === "basic" ? "basic" : option.source === "feature" ? "feature" : option.spell ? "spell" : String(option.source || "basic").toLowerCase();
-  return renderTypeBadge(source);
+  const source = sourceType(option);
+  return `<span class="source-cell source-${escapeHtml(source.key)}" title="${escapeHtml(source.label)}" aria-label="${escapeHtml(source.label)}">${escapeHtml(source.short)}</span>`;
+}
+
+function sourceType(option) {
+  if (option.spell || option.source === "spell") return { key: "spell", label: "Spell", short: "S" };
+  if (option.source === "weapon" || option.tags?.includes("weapon") || option.tags?.includes("unarmed")) return { key: "weapon", label: "Weapon", short: "W" };
+  if (option.source === "feature" || option.featureAction) return { key: "feature", label: "Feature", short: "F" };
+  if (option.source === "resource") return { key: "resource", label: "Resource", short: "R" };
+  return { key: "basic", label: "Basic", short: "B" };
 }
 
 function renderResourceIndicator(option) {
