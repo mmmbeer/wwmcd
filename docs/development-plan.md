@@ -2993,3 +2993,34 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\actionTabs.js`
 - `node --check js\player-combat\ui\combatStatusBar.js`
 - `node --test tests\*.test.mjs`
+
+### Flat Recommendation Table Update
+
+- Changed deterministic recommendations from multi-step turn-set cards to the same compact action table used by the other tabs.
+- The Recommendations tab now lists ranked individual options across actions, attacks, spells, bonus actions, reactions, free actions, movement, and resource options.
+- Linked or conditional recommendations are marked unavailable when the player has planned an incompatible predicate action.
+- Disabled unavailable compact rows so conditional recommendation rows cannot be selected after their predicate no longer matches.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- AI recommendations still render as AI turn-plan cards because their response schema is plan-shaped; deterministic recommendations now use the flat table.
+- If a player already selected a conditional option and then changes the predicate action, the table marks the conditional row unavailable, but clearing/rebuilding the turn plan is still the cleanest recovery path.
+
+### Manual Test Steps
+
+1. Open the `Recommendations` tab and confirm it shows compact rows, not turn-set cards.
+2. Confirm ranked actions, attacks, spells, bonus actions, reactions, free actions, movement, and resource options can appear in the same table.
+3. Plan a non-attack action and confirm hit/attack-dependent recommendations become unavailable.
+4. Plan a compatible weapon attack and confirm attack-dependent recommendations remain selectable.
+5. Toggle `Available only` and confirm disabled conditional rows are hidden.
+
+### Flat Recommendation Table Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\mobileActionList.js`

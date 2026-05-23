@@ -4,6 +4,7 @@ import {
   getRankedRecommendations,
   getRankedRecommendationSets
 } from "../recommendations/recommendationScoring.js";
+import { canPairAfterPrimary, isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { findOption } from "./actionOptionHandlers.js";
 import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
 import { getPlannedTurn, selectPlannedOption, validatePlannedOption } from "./plannedTurnState.js";
@@ -11,7 +12,6 @@ import {
   bindRecommendationWizardEvents,
   getRecommendationAnswers,
   renderAiRecommendationSets,
-  renderRecommendationSets,
   renderRecommendationWizardPanel
 } from "./recommendationWizardPanel.js";
 import { openAiRecommendationModal } from "./aiRecommendationModal.js";
@@ -61,13 +61,10 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   const groups = getCachedGroups(snapshot);
   const visibleGroup = groups[selectedGroup] ? selectedGroup : "recommended";
   const rankedRecommendations = visibleGroup === "recommended"
-    ? getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers(), referenceData: snapshot.referenceData })
-    : [];
-  const recommendationSets = visibleGroup === "recommended"
-    ? getRankedRecommendationSets({ rankedEntries: rankedRecommendations, answers: getRecommendationAnswers() })
+    ? constrainedRecommendations(getRankedRecommendations({ groups, character, combatState, answers: getRecommendationAnswers(), referenceData: snapshot.referenceData }))
     : [];
   const baseOptions = visibleGroup === "recommended"
-    ? rankedRecommendations.map((entry) => entry.option).slice(0, 8)
+    ? rankedRecommendations.map((entry) => entry.option)
     : visibleGroup === "actions"
       ? combinedActionOptions(groups)
     : groups[visibleGroup] ?? [];
@@ -79,7 +76,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     <div class="option-tabs">
       ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasActiveAiSettings(storage) }) : ""}
       ${visibleGroup === "recommended"
-    ? aiRecommendationCount(aiRecommendationSets) ? renderAiRecommendationSets(aiRecommendationSets) : renderRecommendationSets(recommendationSets)
+    ? aiRecommendationCount(aiRecommendationSets) ? renderAiRecommendationSets(aiRecommendationSets) : renderMobileActionList(visibleGroup, "Recommended This Turn", visibleOptions, combatState, { hideUnavailable })
     : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
     </div>
   `;
@@ -302,6 +299,28 @@ function combinedActionOptions(groups) {
     ...(groups.movement ?? []),
     ...(groups.resources ?? [])
   ];
+}
+
+function constrainedRecommendations(rankedEntries) {
+  const plan = getPlannedTurn();
+  const plannedPrimary = plan.action;
+  if (!plannedPrimary) return rankedEntries;
+  return rankedEntries.map((entry) => {
+    if (!isDependentOption(entry.option) || canPairAfterPrimary(entry.option, plannedPrimary)) return entry;
+    const reason = `Requires a compatible predicate action instead of ${plannedPrimary.name}.`;
+    return {
+      ...entry,
+      option: {
+        ...entry.option,
+        available: false,
+        unavailableReasons: [...(entry.option.unavailableReasons ?? []), reason],
+        recommendation: {
+          ...(entry.option.recommendation ?? {}),
+          warnings: [...(entry.option.recommendation?.warnings ?? []), reason]
+        }
+      }
+    };
+  });
 }
 
 function filterOptions(group, options, hideUnavailableOptions) {

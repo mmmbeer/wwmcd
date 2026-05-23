@@ -74,6 +74,7 @@ function renderActionRow(option, group) {
           type="button"
           data-plan-option="${escapeHtml(option.id)}"
           aria-pressed="${selected ? "true" : "false"}"
+          ${unavailable ? "disabled" : ""}
           ${unavailable ? `aria-label="${escapeHtml(`${option.name}. Unavailable: ${unavailableText(option)}`)}"` : ""}>
           ${renderRowCells(option, rowKind, selected)}
         </button>
