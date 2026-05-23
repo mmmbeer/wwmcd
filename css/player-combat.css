@@ -3280,6 +3280,20 @@ body.is-busy {
   white-space: nowrap;
 }
 
+.post-action-followups {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.followup-option {
+  display: inline-flex;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  text-align: left;
+}
+
 @media (max-width: 520px) {
   .combat-status-bar {
     grid-template-columns: 38px minmax(0, 1fr);

@@ -3107,3 +3107,29 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\turnEconomyPanel.js`
 - `node --check js\player-combat\ui\mobileActionList.js`
 - `node --test tests\*.test.mjs`
+
+### Follow-Up Modal and Recommendation Row Cleanup
+
+- Follow-up options in the Action Complete modal now include a type badge such as `rider`, `bonus action`, `second attack`, `reaction`, or `action`.
+- Action data tables now default to hiding unavailable actions through the existing `Available only` toggle.
+- Recommendation row summaries no longer show rank or score chips; rows keep the recommendation reasons only.
+
+### Files Changed
+
+- `css/player-combat.css`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Use an action that unlocks follow-up options and confirm each follow-up button includes a type badge.
+2. Open each action tab and confirm unavailable options are hidden by default.
+3. Toggle `Available only` off and confirm unavailable options reappear.
+4. Open Recommendations and confirm row summaries show reasons without rank or score.
+
+### Follow-Up Cleanup Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\*.test.mjs`

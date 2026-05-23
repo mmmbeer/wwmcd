@@ -34,7 +34,7 @@ let selectedGroup = "recommended";
 let selectedSpellLevel = null;
 let selectedSpellCost = null;
 let selectedActionCost = null;
-let hideUnavailable = false;
+let hideUnavailable = true;
 let lastRender = null;
 let cachedSnapshot = null;
 let cachedGroups = null;
@@ -201,7 +201,7 @@ function showAfterUseModal(option, services) {
     ${followups.length ? `
       <div class="post-action-followups">
         <span class="section-label">Available Next</span>
-        ${followups.map((entry) => `<button class="btn btn-secondary" type="button" data-followup-use="${escapeHtml(entry.id)}">${escapeHtml(entry.name)}</button>`).join("")}
+        ${followups.map(renderFollowupButton).join("")}
       </div>
     ` : `<p class="inline-message">No immediate riders or follow-up actions are currently available.</p>`}
   `;
@@ -221,6 +221,16 @@ function showAfterUseModal(option, services) {
   });
 }
 
+function renderFollowupButton(option) {
+  const badge = optionTypeLabel(option);
+  return `
+    <button class="btn btn-secondary followup-option" type="button" data-followup-use="${escapeHtml(option.id)}">
+      <span class="type-badge type-${escapeHtml(badge.key)}">${escapeHtml(badge.label)}</span>
+      <span>${escapeHtml(option.name)}</span>
+    </button>
+  `;
+}
+
 function followupOptions(groups, usedOption) {
   const options = [
     ...(groups.resources ?? []),
@@ -234,6 +244,20 @@ function followupOptions(groups, usedOption) {
     .filter((option) => option.id !== usedOption.id && option.available !== false)
     .filter((option) => isDependentOption(option) || option.cost?.action || option.cost?.bonus || option.cost?.reaction)
     .slice(0, 6);
+}
+
+function optionTypeLabel(option) {
+  if (isDependentOption(option) && !option.cost?.action && !option.cost?.bonus && !option.cost?.reaction) return { key: "rider", label: "rider" };
+  if (option.cost?.bonus) return { key: "bonus", label: "bonus action" };
+  if (option.cost?.reaction) return { key: "reaction", label: "reaction" };
+  if (option.cost?.action && isSecondAttackOption(option)) return { key: "action", label: "second attack" };
+  if (option.cost?.action) return { key: "action", label: "action" };
+  return { key: "free", label: "free" };
+}
+
+function isSecondAttackOption(option) {
+  return option.tags?.includes("attack")
+    || option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack");
 }
 
 function endTurnFromModal(services) {

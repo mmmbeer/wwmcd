@@ -123,8 +123,6 @@ function renderRecommendationSummary(option) {
   const reasons = recommendation.reasons ?? [];
   return `
     <div class="recommendation-row-summary" aria-label="Recommendation details">
-      <span class="recommendation-rank">#${escapeHtml(recommendation.rank)}</span>
-      <span class="recommendation-score">${escapeHtml(recommendation.score)} pts</span>
       ${reasons.slice(0, 3).map((reason) => `<span class="recommendation-reason">${escapeHtml(reason)}</span>`).join("")}
     </div>
   `;
