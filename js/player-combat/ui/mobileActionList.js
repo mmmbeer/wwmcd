@@ -1,13 +1,15 @@
 import { escapeHtml } from "./renderUtils.js";
 import { isDependentOption } from "../recommendations/recommendationPrerequisites.js";
-import { attackCapacity, isAttackActionOption } from "../rules/attackActionRules.js";
-import { getPlannedTurn, isOptionPlanned } from "./plannedTurnState.js";
+import { isOptionPlanned } from "./plannedTurnState.js";
 import { renderResourceIcon } from "./resourceIcon.js";
+
+const rowHtmlCache = new Map();
+const ROW_CACHE_LIMIT = 600;
 
 export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false } = {}) {
   if (group === "log") return renderLog(label, combatState);
   const visibleOptions = options.length
-    ? options.map((option) => renderActionRow(option, group)).join("")
+    ? options.map((option) => renderCachedActionRow(option, group)).join("")
     : `<p class="inline-message">No ${escapeHtml(label.toLowerCase())} options yet.</p>`;
 
   return `
@@ -36,33 +38,6 @@ export function toggleActionDetail(root, optionId) {
   panel.hidden = expanded;
 }
 
-export function renderPlannedTurnBar(snapshot) {
-  const plan = getPlannedTurn();
-  const speed = Number(snapshot.activeCharacter?.combat?.speed?.walk ?? 0);
-  const used = Number(snapshot.combatState?.turn?.movementUsed ?? 0) + plan.movementUsed;
-  const remaining = Math.max(0, speed - used);
-  const hasPlan = Boolean(plan.action || plan.bonusAction || plan.reaction || plan.freeActions.length || plan.movementUsed);
-  return `
-    <section class="planned-turn-bar" aria-label="Planned turn">
-      <div class="planned-turn-title">
-        <span class="section-label">Planned Turn</span>
-        ${hasPlan ? "" : `<small>Tap actions to build your turn.</small>`}
-      </div>
-      <div class="planned-chips">
-        ${plannedActionChips(plan)}
-        ${chip("Bonus", plan.bonusAction?.name)}
-        ${chip("React", plan.reaction?.name)}
-        ${plan.freeActions.map((option) => chip("Free", option.name)).join("")}
-        ${chip("Move", `${remaining} ft left`)}
-      </div>
-      <div class="planned-actions">
-        <button class="btn btn-secondary" type="button" data-plan-clear ${hasPlan ? "" : "disabled"}>Clear</button>
-        <button class="btn btn-primary" type="button" data-plan-confirm ${hasPlan ? "" : "disabled"}>Act now</button>
-      </div>
-    </section>
-  `;
-}
-
 function renderActionRow(option, group) {
   const unavailable = option.available === false;
   const selected = isOptionPlanned(option);
@@ -88,6 +63,18 @@ function renderActionRow(option, group) {
       </div>
     </article>
   `;
+}
+
+function renderCachedActionRow(option, group) {
+  const key = actionRowCacheKey(option, group);
+  const cached = rowHtmlCache.get(key);
+  if (cached) return cached;
+  const html = renderActionRow(option, group);
+  rowHtmlCache.set(key, html);
+  if (rowHtmlCache.size > ROW_CACHE_LIMIT) {
+    rowHtmlCache.delete(rowHtmlCache.keys().next().value);
+  }
+  return html;
 }
 
 function renderRowCells(option, rowKind, selected) {
@@ -220,11 +207,6 @@ function renderResourceIndicator(option) {
   `;
 }
 
-function renderTypeBadge(type) {
-  const key = String(type || "basic").toLowerCase();
-  return `<span class="type-badge type-${escapeHtml(key)}">${escapeHtml(key)}</span>`;
-}
-
 function renderLog(label, combatState) {
   const log = combatState.log ?? [];
   return `
@@ -244,44 +226,6 @@ function renderLog(label, combatState) {
       ` : `<p class="inline-message">No combat log yet.</p>`}
     </section>
   `;
-}
-
-function chip(label, value) {
-  return `
-    <span class="planned-chip ${value ? "has-value" : ""}">
-      <small>${escapeHtml(label)}</small>
-      <strong>${escapeHtml(value || "-")}</strong>
-    </span>
-  `;
-}
-
-function plannedActionChips(plan) {
-  const attacks = plan.actionAttacks ?? [];
-  if (!attacks.length) return chip("Action", plan.action?.name);
-  const capacity = attackCapacity(plan.action);
-  const planned = attacks.map((option, index) => chip(`Atk ${index + 1}`, option.name)).join("");
-  const empty = Array.from({ length: Math.max(0, capacity - attacks.length) }, (_, index) => {
-    return chip(`Atk ${attacks.length + index + 1}`, "-");
-  }).join("");
-  return `${planned}${empty}`;
-}
-
-function isSequencedAttackOption(option) {
-  const plan = getPlannedTurn();
-  return isAttackAction(option) && (plan.actionAttacks?.length || isAttackAction(plan.action));
-}
-
-function attackSequenceButtonLabel(option, selected) {
-  const plan = getPlannedTurn();
-  const capacity = attackCapacity(plan.action ?? option);
-  const count = Number(plan.actionAttacks?.length ?? 0);
-  if (count < capacity) return selected ? `Add again (${count + 1}/${capacity})` : `Add attack ${count + 1}/${capacity}`;
-  if (selected) return "Planned";
-  return `Start new Attack`;
-}
-
-function isAttackAction(option) {
-  return isAttackActionOption(option);
 }
 
 function detailFact(label, value) {
@@ -324,16 +268,6 @@ function hitDcLabel(option) {
   const dc = option.spell?.saveDc;
   const ability = option.spell?.saveAbility;
   return [ability ? ability.toUpperCase() : null, dc ? `DC ${dc}` : null].filter(Boolean).join(" ");
-}
-
-function spellLevelLabel(option) {
-  const level = Number(option.spell?.level ?? 0);
-  return level > 0 ? String(level) : "Cantrip";
-}
-
-function attackModeLabel(option) {
-  const type = option.range?.type ?? (option.tags?.includes("ranged") ? "ranged" : "melee");
-  return titleCase(type);
 }
 
 function damageLabel(option) {
@@ -415,4 +349,34 @@ function resourceLabel(option) {
 
 function titleCase(value) {
   return String(value ?? "").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function actionRowCacheKey(option, group) {
+  return [
+    group,
+    option.id,
+    option.name,
+    option.available === false ? "unavailable" : "available",
+    isOptionPlanned(option) ? "planned" : "open",
+    option.recommendation?.source,
+    option.recommendation?.score,
+    option.recommendation?.reasons?.join("~"),
+    option.recommendation?.warnings?.join("~"),
+    option.cost?.action ? "action" : "",
+    option.cost?.bonus ? "bonus" : "",
+    option.cost?.reaction ? "reaction" : "",
+    option.cost?.movement ? "movement" : "",
+    option.cost?.object ? "object" : "",
+    option.cost?.resource?.id,
+    option.cost?.resource?.amount,
+    option.spell?.level,
+    option.spell?.concentration ? "concentration" : "",
+    option.range?.label,
+    option.spell?.range,
+    option.rolls?.map((roll) => `${roll.id}:${roll.type}:${roll.formula}:${roll.damageType}`).join(","),
+    option.meta?.join("~"),
+    option.warnings?.join("~"),
+    option.unavailableReasons?.join("~"),
+    descriptionText(option)
+  ].filter((value) => value !== undefined && value !== null).join("|");
 }

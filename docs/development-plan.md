@@ -1347,7 +1347,9 @@
 - `index.html`
 - `js/player-combat/recommendations/recommendationScoring.js`
 - `js/player-combat/app.js`
+- `js/player-combat/ui/actionFollowups.js`
 - `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionTabsView.js`
 - `js/player-combat/ui/mobileActionList.js`
 - `js/player-combat/ui/recommendationWizardPanel.js`
 - `tests/recommendationScoring.test.mjs`
@@ -3864,3 +3866,53 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 ### AI Context Size Verification
 
 - `node --test tests\aiRecommendationService.test.mjs`
+
+### UI Performance Cleanup
+
+- Split the large `player-combat.css` file into ordered component files imported by the original entrypoint: tokens, base, buttons, modal/toast, combat status, turn economy, and action list.
+- Removed the unused table action renderer and its obsolete table/row CSS. Tests now cover the active compact action list renderer instead.
+- Reworked `actionTabs.js` to keep a stable shell, use delegated click/change handlers, update semantic tab state with `role="tablist"` / `role="tab"`, and skip action list or wizard DOM replacement when render inputs have not changed.
+- Added compact action row HTML caching in `mobileActionList.js` keyed by option state, availability, rolls, resources, and recommendation details.
+- Avoided full action-tab refreshes for movement-only state changes unless the current action tab view can show movement options.
+- Removed the stale planned-turn bar renderer and planned-turn visual CSS while keeping planned-turn state helpers used by recommendation prerequisite tests.
+- Replaced the menu button glyph text with an ASCII `Menu` label and strengthened modal labeling/focus filtering.
+- Replaced hard-coded action list viewport subtraction with a fixed-height app grid where the action list fills remaining space via `min-height: 0` and internal scrolling.
+
+### Files Changed
+
+- `index.html`
+- `css/player-combat.css`
+- `css/tokens.css`
+- `css/base.css`
+- `css/buttons.css`
+- `css/modal-toast.css`
+- `css/combat-status.css`
+- `css/turn-economy.css`
+- `css/action-list.css`
+- `js/player-combat/app.js`
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `js/player-combat/ui/modal.js`
+- `js/player-combat/ui/recommendationWizardPanel.js`
+- `tests/playerCombatImport.test.mjs`
+
+### Known Limitations
+
+- Planned-turn state helpers remain because recommendation prerequisite logic and tests still exercise them; only the unused visual planned-turn bar was removed.
+- The CSS split preserves the existing cascade order to reduce risk. Some selectors can still be moved into more precise component files in a later cleanup.
+
+### Manual Test Steps
+
+1. Load a high-level character and switch between Recommendations, Attacks, Spells, and Actions; confirm tabs, wizard filters, row expansion, and action use still work.
+2. Repeatedly tap movement controls; confirm the status/turn bars update immediately and the action list only refreshes when movement rows are visible.
+3. Toggle `Available only`, use recommendation filters, and expand several action details; confirm controls do not duplicate listeners or lose state unexpectedly.
+4. Resize to phone width and confirm the action list fills remaining screen height without clipped rows or large empty gaps.
+5. Open the menu and several modals; confirm labels, focus behavior, and Escape close behavior still work.
+
+### UI Performance Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\recommendationWizardPanel.js`
+- `node --check js\player-combat\app.js`
+- `node --test tests\*.test.mjs`

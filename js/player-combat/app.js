@@ -8,7 +8,7 @@ import { renderCharacterImportPanel } from "./ui/characterImportPanel.js";
 import { renderCombatStatusBar } from "./ui/combatStatusBar.js";
 import { createModal } from "./ui/modal.js";
 import { renderSpellcastingBar } from "./ui/spellcastingBar.js";
-import { renderActionTabs } from "./ui/actionTabs.js";
+import { renderActionTabs, shouldRefreshActionTabsForMovement } from "./ui/actionTabs.js";
 import { createToast } from "./ui/toast.js";
 import { longRestNotice, shortRestNotice, showTransitionNotice } from "./ui/transitionNotice.js";
 import { renderTurnEconomyPanel } from "./ui/turnEconomyPanel.js";
@@ -47,7 +47,7 @@ export async function createPlayerCombatApp() {
     renderCombatStatusBar(roots.statusBar, snapshot, { stateManager, modalApi });
 
     if (movementOnly) {
-      scheduleActionTabsRender();
+      if (shouldRefreshActionTabsForMovement()) scheduleActionTabsRender();
       updateStickyHeaderOffset(roots);
       return;
     }

@@ -1,5 +1,4 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import { hasActiveAiSettings } from "../ai/aiSettings.js";
 import {
   getRankedRecommendations,
   getRankedRecommendationSets
@@ -11,18 +10,27 @@ import { hasActionRollModal, resolveActionRoll } from "./actionRollModal.js";
 import { confirmActionUse, shouldConfirmActionUse } from "./actionUseConfirmModal.js";
 import { recommendationTableOptions } from "./aiRecommendationTableAdapter.js";
 import { renderFollowupButton, toggleFollowupDescription } from "./followupOptionRenderer.js";
-import { renderMobileActionList, toggleActionDetail } from "./mobileActionList.js";
+import { toggleActionDetail } from "./mobileActionList.js";
 import { getPlannedTurn, validatePlannedOption } from "./plannedTurnState.js";
 import {
-  bindRecommendationWizardEvents,
   getRecommendationAnswers,
-  renderRecommendationWizardPanel,
+  resetRecommendationAnswers,
   setRecommendationAnswers,
-  syncRecommendationAnswers
+  syncRecommendationAnswers,
+  updateRecommendationAnswer
 } from "./recommendationWizardPanel.js";
+import {
+  renderActionTabsShell,
+  updateActionList,
+  updateActionNav,
+  updateRecommendationWizard
+} from "./actionTabsView.js";
 import { openAiRecommendationModal } from "./aiRecommendationModal.js";
 import { openRecommendationOptionsModal } from "./recommendationOptionsModal.js";
+import { followupOptions } from "./actionFollowups.js";
 import { escapeHtml } from "./renderUtils.js";
+
+export { followupOptions } from "./actionFollowups.js";
 
 const NAV_GROUPS = [
   ["recommended", "Recommendations"],
@@ -47,11 +55,13 @@ let cachedGroups = null;
 let cachedPlanKey = "";
 let aiRecommendationSets = [];
 let aiRecommendationCharacterId = null;
+const rootContexts = new WeakMap();
 
 export function renderActionTabs(root, snapshot, { stateManager, modalApi, showToast, storage, openAiSettings }) {
   const services = { stateManager, modalApi, showToast, storage, openAiSettings };
   lastRender = () => renderActionTabs(root, snapshot, services);
   bindGroupSelection();
+  bindDelegatedActionTabEvents(root);
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
 
@@ -59,6 +69,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
     aiRecommendationSets = [];
     aiRecommendationCharacterId = null;
     root.innerHTML = `<p class="inline-message">Combat options appear after character import.</p>`;
+    rootContexts.delete(root);
     return;
   }
   if (aiRecommendationCharacterId && aiRecommendationCharacterId !== character.id) {
@@ -78,63 +89,58 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
       ? combinedActionOptions(groups)
     : groups[visibleGroup] ?? [];
   const visibleOptions = filterOptions(visibleGroup, baseOptions, hideUnavailable);
-  root.innerHTML = `
-    <nav class="option-nav" aria-label="Action categories">
-      ${NAV_GROUPS.map(([key, label]) => `<button class="btn ${key === visibleGroup ? "btn-primary" : "btn-secondary"}" type="button" data-tab-group="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}
-    </nav>
-    <div class="option-tabs">
-      ${visibleGroup === "recommended" ? renderRecommendationWizardPanel(groups, rankedRecommendations, { aiEnabled: hasActiveAiSettings(storage), character, combatState }) : ""}
-      ${visibleGroup === "recommended"
-    ? renderMobileActionList(visibleGroup, "Recommended This Turn", visibleOptions, combatState, { hideUnavailable })
-    : renderMobileActionList(visibleGroup, groupLabel(visibleGroup), visibleOptions, combatState, { hideUnavailable })}
-    </div>
-  `;
-
-  bindActionTabEvents(root, snapshot, services, groups, combatState);
+  const label = visibleGroup === "recommended" ? "Recommended This Turn" : groupLabel(visibleGroup);
+  renderActionTabsShell(root, NAV_GROUPS);
+  updateActionNav(root, visibleGroup);
+  updateRecommendationWizard(root, visibleGroup, groups, rankedRecommendations, { storage, character, combatState });
+  updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable });
+  rootContexts.set(root, { snapshot, services, groups, combatState });
 }
 
-function bindActionTabEvents(root, snapshot, services, groups, combatState) {
-  root.querySelectorAll("[data-tab-group]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.dataset.tabGroup === selectedGroup && selectedSpellLevel === null && selectedSpellCost === null) return;
-      selectedGroup = button.dataset.tabGroup;
-      selectedSpellLevel = null;
-      selectedSpellCost = null;
-      selectedActionCost = null;
-      renderActionTabs(root, snapshot, services);
-    });
-  });
+export function shouldRefreshActionTabsForMovement() {
+  return selectedGroup === "actions" && (!selectedActionCost || selectedActionCost === "movement");
+}
 
-  root.querySelectorAll("[data-select-group]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const nextGroup = button.dataset.selectGroup;
-      const nextSpellLevel = button.dataset.spellLevel ? Number(button.dataset.spellLevel) : null;
-      const nextSpellCost = button.dataset.spellCost ?? null;
-      if (nextGroup === selectedGroup && nextSpellLevel === selectedSpellLevel && nextSpellCost === selectedSpellCost) return;
-      selectedGroup = nextGroup;
-      selectedSpellLevel = nextSpellLevel;
-      selectedSpellCost = nextSpellCost;
-      selectedActionCost = null;
-      renderActionTabs(root, snapshot, services);
-    });
-  });
+function bindDelegatedActionTabEvents(root) {
+  if (root.dataset.delegatedActionTabs === "true") return;
+  root.dataset.delegatedActionTabs = "true";
+  root.addEventListener("click", (event) => handleActionTabsClick(root, event));
+  root.addEventListener("change", (event) => handleActionTabsChange(root, event));
+}
 
-  root.querySelectorAll("[data-toggle-unavailable]").forEach((checkbox) => {
-    checkbox.addEventListener("click", (event) => event.stopPropagation());
-    checkbox.addEventListener("change", () => {
-      hideUnavailable = checkbox.checked;
-      renderActionTabs(root, snapshot, services);
-    });
-  });
-
-  bindRecommendationWizardEvents(root, () => {
-    aiRecommendationSets = [];
+function handleActionTabsClick(root, event) {
+  const context = rootContexts.get(root);
+  if (!context) return;
+  const { snapshot, services, groups, combatState } = context;
+  const tab = event.target.closest("[data-tab-group]");
+  if (tab && root.contains(tab)) {
+    if (tab.dataset.tabGroup === selectedGroup && selectedSpellLevel === null && selectedSpellCost === null) return;
+    selectedGroup = tab.dataset.tabGroup;
+    selectedSpellLevel = null;
+    selectedSpellCost = null;
+    selectedActionCost = null;
     renderActionTabs(root, snapshot, services);
-  }, {
-    character: snapshot.activeCharacter,
-    combatState,
-    onHelpClick: () => openRecommendationOptionsModal({
+    return;
+  }
+
+  const groupSelector = event.target.closest("[data-select-group]");
+  if (groupSelector && root.contains(groupSelector)) {
+    event.stopPropagation();
+    const nextGroup = groupSelector.dataset.selectGroup;
+    const nextSpellLevel = groupSelector.dataset.spellLevel ? Number(groupSelector.dataset.spellLevel) : null;
+    const nextSpellCost = groupSelector.dataset.spellCost ?? null;
+    if (nextGroup === selectedGroup && nextSpellLevel === selectedSpellLevel && nextSpellCost === selectedSpellCost) return;
+    selectedGroup = nextGroup;
+    selectedSpellLevel = nextSpellLevel;
+    selectedSpellCost = nextSpellCost;
+    selectedActionCost = null;
+    renderActionTabs(root, snapshot, services);
+    return;
+  }
+
+  const help = event.target.closest("[data-recommendation-help]");
+  if (help && root.contains(help)) {
+    openRecommendationOptionsModal({
       modalApi: services.modalApi,
       groups,
       character: snapshot.activeCharacter,
@@ -145,8 +151,21 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
         aiRecommendationSets = [];
         renderActionTabs(root, snapshot, services);
       }
-    }),
-    onAiClick: () => openAiRecommendationModal({
+    });
+    return;
+  }
+
+  const reset = event.target.closest("[data-recommendation-reset]");
+  if (reset && root.contains(reset)) {
+    resetRecommendationAnswers({ character: snapshot.activeCharacter, combatState });
+    aiRecommendationSets = [];
+    renderActionTabs(root, snapshot, services);
+    return;
+  }
+
+  const ai = event.target.closest("[data-recommendation-ai]");
+  if (ai && root.contains(ai)) {
+    openAiRecommendationModal({
       modalApi: services.modalApi,
       storage: services.storage,
       snapshot,
@@ -177,17 +196,38 @@ function bindActionTabEvents(root, snapshot, services, groups, combatState) {
         selectedGroup = "recommended";
         renderActionTabs(root, snapshot, services);
       }
-    })
-  });
+    });
+    return;
+  }
 
-  root.querySelectorAll("[data-use-option], [data-plan-option]").forEach((button) => {
-    button.addEventListener("click", () => useOptionById(button.dataset.useOption ?? button.dataset.planOption, groups, combatState, services));
-  });
+  const useButton = event.target.closest("[data-use-option], [data-plan-option]");
+  if (useButton && root.contains(useButton)) {
+    useOptionById(useButton.dataset.useOption ?? useButton.dataset.planOption, groups, combatState, services);
+    return;
+  }
 
-  root.querySelectorAll("[data-toggle-action-detail]").forEach((button) => {
-    button.addEventListener("click", () => toggleActionDetail(root, button.dataset.toggleActionDetail));
-  });
+  const detailToggle = event.target.closest("[data-toggle-action-detail]");
+  if (detailToggle && root.contains(detailToggle)) {
+    toggleActionDetail(root, detailToggle.dataset.toggleActionDetail);
+  }
+}
 
+function handleActionTabsChange(root, event) {
+  const context = rootContexts.get(root);
+  if (!context) return;
+  const { snapshot, services } = context;
+  const checkbox = event.target.closest("[data-toggle-unavailable]");
+  if (checkbox && root.contains(checkbox)) {
+    hideUnavailable = checkbox.checked;
+    renderActionTabs(root, snapshot, services);
+    return;
+  }
+  const answer = event.target.closest("[data-recommendation-answer]");
+  if (answer && root.contains(answer)) {
+    updateRecommendationAnswer(answer.dataset.recommendationAnswer, answer.value);
+    aiRecommendationSets = [];
+    renderActionTabs(root, snapshot, services);
+  }
 }
 
 async function useOptionById(optionId, groups, combatState, services) {
@@ -256,23 +296,6 @@ function showAfterUseModal(option, services) {
   body.querySelectorAll("[data-followup-toggle]").forEach((button) => {
     button.addEventListener("click", () => toggleFollowupDescription(body, button.dataset.followupToggle));
   });
-}
-
-export function followupOptions(groups, usedOption) {
-  const options = [
-    ...(groups.resources ?? []),
-    ...(groups.free ?? []),
-    ...(groups.movement ?? []),
-    ...(groups.attacks ?? []),
-    ...(groups.actions ?? []),
-    ...(groups.bonus ?? []),
-    ...(groups.reaction ?? [])
-  ];
-  return options
-    .filter((option) => option.id !== usedOption.id && option.available !== false)
-    .filter((option) => !isDependentOption(option) || canPairAfterPrimary(option, usedOption))
-    .filter((option) => isDependentOption(option) || option.cost?.action || option.cost?.bonus || option.cost?.reaction || option.cost?.movement || option.cost?.object)
-    .slice(0, 6);
 }
 
 function endTurnFromModal(services) {

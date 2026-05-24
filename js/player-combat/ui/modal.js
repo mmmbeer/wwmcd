@@ -1,6 +1,7 @@
 export function createModal(root) {
   let lastFocused = null;
   let onClose = null;
+  let modalId = 0;
 
   function close() {
     root.replaceChildren();
@@ -16,11 +17,12 @@ export function createModal(root) {
     backdrop.className = "modal-backdrop";
 
     const modal = document.createElement("section");
+    const titleId = `modal-title-${++modalId}`;
     modal.className = "modal";
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("aria-label", title);
-    modal.innerHTML = `<h2>${escapeHtml(title)}</h2>`;
+    modal.setAttribute("aria-labelledby", titleId);
+    modal.innerHTML = `<h2 id="${titleId}">${escapeHtml(title)}</h2>`;
 
     const bodyNode = document.createElement("div");
     if (typeof body === "string") {
@@ -47,7 +49,7 @@ export function createModal(root) {
     backdrop.append(modal);
     root.replaceChildren(backdrop);
 
-    const focusable = modal.querySelector("button, input, textarea, select, [tabindex]");
+    const focusable = getFocusable(modal)[0];
     focusable?.focus?.();
 
     backdrop.addEventListener("keydown", (event) => {
@@ -71,7 +73,7 @@ export function showConfirmModal(modalApi, options) {
 }
 
 function trapFocus(event, container) {
-  const focusable = [...container.querySelectorAll("button, input, textarea, select, [tabindex]:not([tabindex='-1'])")];
+  const focusable = getFocusable(container);
   if (!focusable.length) return;
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
@@ -82,6 +84,11 @@ function trapFocus(event, container) {
     event.preventDefault();
     first.focus();
   }
+}
+
+function getFocusable(container) {
+  return [...container.querySelectorAll("button, input, textarea, select, a[href], [tabindex]:not([tabindex='-1'])")]
+    .filter((element) => !element.disabled && !element.hidden && element.getAttribute("aria-hidden") !== "true" && element.offsetParent !== null);
 }
 
 function escapeHtml(value) {

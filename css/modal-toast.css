@@ -1,0 +1,160 @@
+﻿:root {
+  --bg-page: #05080a;
+  --bg-panel: #0d1418;
+  --bg-panel-2: #111b20;
+  --bg-row: #101820;
+  --bg-row-active: #17212a;
+  --border-muted: rgba(190, 143, 72, 0.35);
+  --border-strong: rgba(225, 174, 86, 0.9);
+  --text-primary: #f3ead7;
+  --text-secondary: #c8bda8;
+  --text-muted: #7f7669;
+  --accent-gold: #d9a441;
+  --accent-gold-soft: #f0c46a;
+  --accent-green: #55c878;
+  --accent-blue: #4aa8e8;
+  --accent-purple: #b26be8;
+  --accent-red: #d85a4f;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: Georgia, serif;
+  --bg: var(--bg-page);
+  --surface: var(--bg-panel);
+  --surface-muted: var(--bg-panel-2);
+  --text: var(--text-primary);
+  --muted: var(--text-muted);
+  --line: var(--border-muted);
+  --primary: var(--accent-gold);
+  --primary-strong: var(--accent-gold-soft);
+  --ok: var(--accent-green);
+  --danger: var(--accent-red);
+  --warning: var(--accent-gold);
+  --radius: var(--radius-md);
+  --shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(217, 164, 65, 0.08), transparent 34rem),
+    linear-gradient(180deg, #071015, var(--bg-page) 34rem);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+body.has-turn-progress .app-shell {
+  padding-top: 0;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-width: 760px;
+  margin: 0 auto;
+  background: rgba(5, 8, 10, 0.86);
+  overflow: hidden;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 7px var(--space-3);
+  background: rgba(5, 8, 10, 0.96);
+  border-bottom: 1px solid var(--border-muted);
+  color: var(--text-primary);
+}
+
+.utility-icon,
+.bottom-nav-item {
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.utility-icon {
+  width: 34px;
+  height: 34px;
+  font-weight: 900;
+}
+
+.utility-menu {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: var(--space-3);
+  z-index: 12;
+  min-width: 190px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-2);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  padding: 5px;
+}
+
+.utility-menu[hidden] {
+  display: none;
+}
+
+.utility-menu-item {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 7px 9px;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.utility-menu-item:hover,
+.utility-menu-item:focus-visible {
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+  background: var(--bg-row-active);
+}
+
+.utility-title {
+  min-width: 0;
+}
+
+.app-header h1 {
+  font-size: 0.92rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header-character {
+  margin-top: 1px;
+  gap: var(--space-1);
+}
+
+.header-character strong,
+.header-character span {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.header-actions {
+  flex-wrap: nowrap;
+}
+
+.header-actions .btn {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+}
+

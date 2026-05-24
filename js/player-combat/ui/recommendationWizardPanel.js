@@ -56,23 +56,6 @@ export function renderRecommendationWizardPanel(groups, rankedEntries, { aiEnabl
   `;
 }
 
-export function bindRecommendationWizardEvents(root, onChange, { onHelpClick, onAiClick, character, combatState } = {}) {
-  root.querySelectorAll("[data-recommendation-answer]").forEach((select) => {
-    select.addEventListener("change", () => {
-      updateRecommendationAnswer(select.dataset.recommendationAnswer, select.value);
-      onChange();
-    });
-  });
-
-  root.querySelector("[data-recommendation-help]")?.addEventListener("click", () => onHelpClick?.());
-  root.querySelector("[data-recommendation-reset]")?.addEventListener("click", () => {
-    resetRecommendationAnswers({ character, combatState });
-    onChange();
-  });
-
-  root.querySelector("[data-recommendation-ai]")?.addEventListener("click", () => onAiClick?.());
-}
-
 function renderSummaryItem(question) {
   return `
     <span class="recommendation-summary-filter">

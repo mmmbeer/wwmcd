@@ -13,7 +13,7 @@ import { getResourceActions } from "../js/player-combat/rules/resourceActions.js
 import { resetsOnShortRest } from "../js/player-combat/rules/restRules.js";
 import { getSpellActions } from "../js/player-combat/rules/spellActions.js";
 import { getWeaponActions } from "../js/player-combat/rules/weaponActions.js";
-import { renderGroup } from "../js/player-combat/ui/actionOptionRenderers.js";
+import { renderMobileActionList } from "../js/player-combat/ui/mobileActionList.js";
 import { renderSpellDetailCard } from "../js/player-combat/ui/spellDetailCard.js";
 
 test("normalizes D&D Beyond-style weapons, spells, slots, and casting ability", () => {
@@ -444,7 +444,7 @@ test("feature spell casts still count as leveled spellcasting", () => {
 });
 
 test("compact action rows omit long descriptions and long attack notes", () => {
-  const html = renderGroup("attacks", "Attacks", [{
+  const html = renderMobileActionList("attacks", "Attacks", [{
     id: "attack_long_notes",
     name: "Quarterstaff",
     source: "weapon",
@@ -461,7 +461,7 @@ test("compact action rows omit long descriptions and long attack notes", () => {
     ]
   }], baseCombatState());
 
-  const compactRow = html.split("option-detail-row")[0];
+  const compactRow = html.split("action-detail-panel")[0];
   assert.ok(!compactRow.includes("Damage / Notes"));
   assert.ok(!compactRow.includes(">Roll Attack<"));
   assert.ok(!compactRow.includes(">Roll Damage<"));
