@@ -3916,3 +3916,31 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\recommendationWizardPanel.js`
 - `node --check js\player-combat\app.js`
 - `node --test tests\*.test.mjs`
+
+### Modal Layout Audit
+
+- Audited custom modal usage and confirmed app dialogs route through the shared `createModal` helper.
+- Updated the shared modal structure to render a persistent header, body, and footer for every modal.
+- Added a header close button with an accessible label to every modal.
+- Kept Escape close behavior and added backdrop click close behavior.
+- Changed modal layout so the modal stays inside the viewport, the header and footer remain visible, and only `.modal-body` scrolls when content overflows.
+- Kept modal action buttons in a right-aligned footer.
+
+### Files Changed
+
+- `js/player-combat/ui/modal.js`
+- `css/buttons.css`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Open each modal: import character, roll log, rests/end-turn, HP/condition controls, action roll, action confirmation, recommendation options, AI options, and AI recommendations.
+2. Confirm each modal has a visible title bar with an upper-right close button.
+3. Confirm each modal footer stays visible with action buttons aligned right.
+4. Confirm Escape and backdrop click close the modal.
+5. On phone width, open a long modal such as import, AI options, or AI recommendations and confirm only the body scrolls.
+
+### Modal Audit Verification
+
+- `node --check js\player-combat\ui\modal.js`
+- `node --test tests\*.test.mjs`

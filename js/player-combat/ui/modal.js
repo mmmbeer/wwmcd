@@ -22,9 +22,18 @@ export function createModal(root) {
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-labelledby", titleId);
-    modal.innerHTML = `<h2 id="${titleId}">${escapeHtml(title)}</h2>`;
+
+    const header = document.createElement("div");
+    header.className = "modal-header";
+    header.innerHTML = `
+      <h2 id="${titleId}">${escapeHtml(title)}</h2>
+      <button class="modal-close" type="button" aria-label="Close modal">x</button>
+    `;
+    header.querySelector(".modal-close")?.addEventListener("click", close);
+    modal.append(header);
 
     const bodyNode = document.createElement("div");
+    bodyNode.className = "modal-body";
     if (typeof body === "string") {
       bodyNode.innerHTML = body;
     } else if (body) {
@@ -55,6 +64,9 @@ export function createModal(root) {
     backdrop.addEventListener("keydown", (event) => {
       if (event.key === "Escape") close();
       if (event.key === "Tab") trapFocus(event, modal);
+    });
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close();
     });
   }
 
