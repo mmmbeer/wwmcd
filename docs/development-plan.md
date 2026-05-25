@@ -3944,3 +3944,61 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 
 - `node --check js\player-combat\ui\modal.js`
 - `node --test tests\*.test.mjs`
+
+### Action Table Turn-Cost Filter
+
+- Added a dropdown filter to the Actions table header.
+- The default filter is `All`; the dropdown supports Action, Bonus Action, Reaction, Object, and Movement so it stays synchronized with turn-progress filters.
+- Wired the dropdown to the existing `selectedActionCost` state used by turn progress and other action-table selection events.
+- Added renderer coverage for the synchronized action-cost filter state.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionTabsView.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `css/turn-economy.css`
+- `tests/mobileActionList.test.mjs`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Open the Actions tab and confirm the filter defaults to `All`.
+2. Change the filter to Action, Bonus Action, and Reaction; confirm the rows update to matching turn costs.
+3. Click the turn progress Action, Bonus, Reaction, and Object segments; confirm the Actions table opens and the dropdown reflects the selected filter.
+4. Toggle `Available only` while a turn-cost filter is active; confirm both filters remain applied.
+
+### Action Table Filter Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionTabsView.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\mobileActionList.test.mjs tests\playerCombatActions.test.mjs`
+
+### Recommended Table Turn-Cost Filter
+
+- Added the same turn-cost dropdown to the Recommended table header.
+- Recommended and Actions tables now share the same filter state so switching between those views preserves the selected turn cost.
+- The dropdown continues to support All, Action, Bonus Action, Reaction, Object, and Movement.
+- Added renderer coverage for the Recommended table dropdown state.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `tests/mobileActionList.test.mjs`
+- `docs/development-plan.md`
+
+### Manual Test Steps
+
+1. Open Recommended and confirm the filter defaults to `All`.
+2. Select Action, Bonus Action, and Reaction in Recommended; confirm only matching recommendations remain.
+3. Switch between Recommended and Actions; confirm the selected filter remains synchronized.
+4. Reset to `All` and confirm all available recommendation rows return.
+
+### Recommended Table Filter Verification
+
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --test tests\mobileActionList.test.mjs tests\recommendationScoring.test.mjs tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs`

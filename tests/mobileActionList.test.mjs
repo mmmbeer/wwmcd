@@ -30,3 +30,43 @@ test("compact attack and recommendation rows include damage dice and type", () =
   assert.match(recommendations, /1d8\+4/);
   assert.match(recommendations, /piercing/);
 });
+
+test("actions list header includes synchronized turn cost filter", () => {
+  const option = {
+    id: "basic_dodge",
+    name: "Dodge",
+    source: "basic",
+    cost: { action: true },
+    available: true,
+    rolls: []
+  };
+
+  const html = renderMobileActionList("actions", "Actions", [option], {}, {
+    hideUnavailable: true,
+    actionCostFilter: "bonus"
+  });
+
+  assert.match(html, /data-action-cost-filter/);
+  assert.match(html, /<option value="">All<\/option>/);
+  assert.match(html, /<option value="action"[^>]*>Action<\/option>/);
+  assert.match(html, /<option value="bonus" selected>Bonus Action<\/option>/);
+  assert.match(html, /<option value="reaction"[^>]*>Reaction<\/option>/);
+});
+
+test("recommended list header includes synchronized turn cost filter", () => {
+  const html = renderMobileActionList("recommended", "Recommended This Turn", [{
+    id: "healing_word",
+    name: "Healing Word",
+    source: "spell",
+    cost: { bonus: true },
+    available: true,
+    rolls: [],
+    recommendation: { reasons: ["Revive ally"] }
+  }], {}, {
+    actionCostFilter: "reaction"
+  });
+
+  assert.match(html, /data-action-cost-filter/);
+  assert.match(html, /<option value="">All<\/option>/);
+  assert.match(html, /<option value="reaction" selected>Reaction<\/option>/);
+});

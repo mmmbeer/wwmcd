@@ -1,8 +1,5 @@
 import { getCombatOptions } from "../rules/combatOptionsService.js";
-import {
-  getRankedRecommendations,
-  getRankedRecommendationSets
-} from "../recommendations/recommendationScoring.js";
+import { getRankedRecommendations, getRankedRecommendationSets } from "../recommendations/recommendationScoring.js";
 import { canPairAfterPrimary, isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { isAttackActionOption } from "../rules/attackActionRules.js";
 import { findOption } from "./actionOptionHandlers.js";
@@ -12,19 +9,8 @@ import { recommendationTableOptions } from "./aiRecommendationTableAdapter.js";
 import { renderFollowupButton, toggleFollowupDescription } from "./followupOptionRenderer.js";
 import { toggleActionDetail } from "./mobileActionList.js";
 import { getPlannedTurn, validatePlannedOption } from "./plannedTurnState.js";
-import {
-  getRecommendationAnswers,
-  resetRecommendationAnswers,
-  setRecommendationAnswers,
-  syncRecommendationAnswers,
-  updateRecommendationAnswer
-} from "./recommendationWizardPanel.js";
-import {
-  renderActionTabsShell,
-  updateActionList,
-  updateActionNav,
-  updateRecommendationWizard
-} from "./actionTabsView.js";
+import { getRecommendationAnswers, resetRecommendationAnswers, setRecommendationAnswers, syncRecommendationAnswers, updateRecommendationAnswer } from "./recommendationWizardPanel.js";
+import { renderActionTabsShell, updateActionList, updateActionNav, updateRecommendationWizard } from "./actionTabsView.js";
 import { openAiRecommendationModal } from "./aiRecommendationModal.js";
 import { openRecommendationOptionsModal } from "./recommendationOptionsModal.js";
 import { followupOptions } from "./actionFollowups.js";
@@ -93,7 +79,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   renderActionTabsShell(root, NAV_GROUPS);
   updateActionNav(root, visibleGroup);
   updateRecommendationWizard(root, visibleGroup, groups, rankedRecommendations, { storage, character, combatState });
-  updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable });
+  updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter: selectedActionCost });
   rootContexts.set(root, { snapshot, services, groups, combatState });
 }
 
@@ -219,6 +205,14 @@ function handleActionTabsChange(root, event) {
   const checkbox = event.target.closest("[data-toggle-unavailable]");
   if (checkbox && root.contains(checkbox)) {
     hideUnavailable = checkbox.checked;
+    renderActionTabs(root, snapshot, services);
+    return;
+  }
+  const actionCostFilter = event.target.closest("[data-action-cost-filter]");
+  if (actionCostFilter && root.contains(actionCostFilter)) {
+    selectedSpellLevel = null;
+    selectedSpellCost = null;
+    selectedActionCost = actionCostFilter.value || null;
     renderActionTabs(root, snapshot, services);
     return;
   }
@@ -465,7 +459,7 @@ function filterOptions(group, options, hideUnavailableOptions) {
     const levelMatches = selectedSpellLevel === null || option.spell?.level === selectedSpellLevel;
     const costMatches = !selectedSpellCost || option.cost?.[selectedSpellCost];
     return levelMatches && costMatches;
-  }) : group === "actions" && selectedActionCost ? options.filter((option) => actionCostMatches(option, selectedActionCost)) : options;
+  }) : ["actions", "recommended"].includes(group) && selectedActionCost ? options.filter((option) => actionCostMatches(option, selectedActionCost)) : options;
   return filtered
     .filter((option) => !hideUnavailableOptions || option.available !== false)
     .slice()

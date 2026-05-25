@@ -56,19 +56,20 @@ export function updateRecommendationWizard(root, visibleGroup, groups, rankedRec
     : "";
 }
 
-export function updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable }) {
+export function updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter = null }) {
   const slot = root.querySelector("[data-action-list-slot]");
   if (!slot) return;
   const key = stableString({
     group: visibleGroup,
     label,
     hideUnavailable,
+    actionCostFilter,
     turn: combatState?.turn,
     options: visibleOptions.map(optionRenderKey)
   });
   if (root.dataset.listKey === key) return;
   root.dataset.listKey = key;
-  slot.innerHTML = renderMobileActionList(visibleGroup, label, visibleOptions, combatState, { hideUnavailable });
+  slot.innerHTML = renderMobileActionList(visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter });
 }
 
 function optionRenderKey(option) {

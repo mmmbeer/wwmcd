@@ -6,7 +6,7 @@ import { renderResourceIcon } from "./resourceIcon.js";
 const rowHtmlCache = new Map();
 const ROW_CACHE_LIMIT = 600;
 
-export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false } = {}) {
+export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false, actionCostFilter = null } = {}) {
   if (group === "log") return renderLog(label, combatState);
   const visibleOptions = options.length
     ? options.map((option) => renderCachedActionRow(option, group)).join("")
@@ -16,15 +16,38 @@ export function renderMobileActionList(group, label, options, combatState, { hid
     <section class="action-list-shell" aria-label="${escapeHtml(label)}">
       <div class="action-list-toolbar">
         <span class="section-label">${escapeHtml(label)}</span>
-        <label class="availability-toggle">
-          <input type="checkbox" data-toggle-unavailable ${hideUnavailable ? "checked" : ""}>
-          <span>Available only</span>
-        </label>
+        <div class="action-list-filters">
+          ${["actions", "recommended"].includes(group) ? renderActionCostFilter(actionCostFilter) : ""}
+          <label class="availability-toggle">
+            <input type="checkbox" data-toggle-unavailable ${hideUnavailable ? "checked" : ""}>
+            <span>Available only</span>
+          </label>
+        </div>
       </div>
       <div class="action-list" role="list">
         ${visibleOptions}
       </div>
     </section>
+  `;
+}
+
+function renderActionCostFilter(value) {
+  const selected = value ?? "";
+  const options = [
+    ["", "All"],
+    ["action", "Action"],
+    ["bonus", "Bonus Action"],
+    ["reaction", "Reaction"],
+    ["free", "Object"],
+    ["movement", "Movement"]
+  ];
+  return `
+    <label class="action-cost-filter">
+      <span>Filter</span>
+      <select data-action-cost-filter aria-label="Filter actions by turn cost">
+        ${options.map(([key, label]) => `<option value="${escapeHtml(key)}"${key === selected ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+      </select>
+    </label>
   `;
 }
 
