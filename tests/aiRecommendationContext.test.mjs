@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildAiRecommendationContext } from "../js/player-combat/ai/aiRecommendationContext.js";
+import { validateSeedPlans } from "../js/player-combat/ai/aiSeedPlanBuilder.js";
 
 test("AI recommendation context includes versioned tactical context", () => {
   const option = {
@@ -549,3 +550,168 @@ test("Yeti context only includes hooks for indexed options and downgrades risky 
   assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /Move movement.*safe path/i.test(warning)));
   assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /concrete distance/i.test(warning)));
 });
+
+test("deterministic seed plan validation rejects empty, missing, mismatched, and incompatible pieces", () => {
+  const optionIndex = [
+    { id: "spell_guiding_bolt", name: "Guiding Bolt", cost: { action: true, resource: { type: "spellSlot", level: 1 } }, resource: "Level 1 spell slot" },
+    { id: "spell_shield", name: "Shield", cost: { reaction: true, resource: { type: "spellSlot", level: 1 } }, resource: "Level 1 spell slot" },
+    { id: "spell_hex", name: "Hex", cost: { bonus: true, resource: { type: "spellSlot", level: 1 } }, resource: "Level 1 spell slot", concentration: true },
+    { id: "basic_object_interaction", name: "Object Interaction", cost: { object: true } },
+    { id: "movement_walk", name: "Move", cost: { movement: true } }
+  ];
+  const valid = {
+    id: "valid",
+    title: "Guiding Bolt",
+    planPieces: [{ slot: "Action", optionId: "spell_guiding_bolt", name: "Guiding Bolt" }],
+    resourcesUsed: ["Level 1 spell slot"]
+  };
+  const result = validateSeedPlans([
+    {},
+    { id: "missing", title: "Missing", planPieces: [{ slot: "Action", optionId: "spell_missing", name: "Missing" }] },
+    { id: "available-only", title: "Available only", planPieces: [{ slot: "Action", optionId: "spell_fire_bolt", name: "Fire Bolt" }] },
+    { id: "wrong-name", title: "Wrong name", planPieces: [{ slot: "Action", optionId: "spell_guiding_bolt", name: "Fire Bolt" }], resourcesUsed: ["Level 1 spell slot"] },
+    { id: "object-bonus", title: "Object bonus", planPieces: [{ slot: "Bonus Action", optionId: "basic_object_interaction", name: "Object Interaction" }] },
+    { id: "move-action", title: "Move action", planPieces: [{ slot: "Action", optionId: "movement_walk", name: "Move" }] },
+    { id: "shield-action", title: "Shield action", planPieces: [{ slot: "Action", optionId: "spell_shield", name: "Shield" }], resourcesUsed: ["Level 1 spell slot"] },
+    { id: "hex-action", title: "Hex action", planPieces: [{ slot: "Action", optionId: "spell_hex", name: "Hex" }], resourcesUsed: ["Level 1 spell slot"] },
+    valid
+  ], optionIndex);
+
+  assert.deepEqual(result.plans.map((plan) => plan.id), ["valid"]);
+  assert.ok(result.warnings.some((warning) => /empty or malformed/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /spell_missing is missing from optionIndex/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /spell_fire_bolt is missing from optionIndex/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /named "Fire Bolt"/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /basic_object_interaction is incompatible with Bonus Action/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /movement_walk is incompatible with Action/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /spell_shield is incompatible with Action/i.test(warning)));
+  assert.ok(result.warnings.some((warning) => /spell_hex is incompatible with Action/i.test(warning)));
+});
+
+test("Archmage scenario builds valid complete deterministic seed plans from optionIndex", () => {
+  const context = buildAiRecommendationContext(archmageScenario());
+  const plans = context.candidatePackage.deterministicSeedPlans;
+  const serializedPlans = JSON.stringify(plans);
+
+  assert.equal(plans.some((plan) => !plan || Object.keys(plan).length === 0), false);
+  assert.equal(context.tacticalFacts.targetDistanceFt, 15);
+  assert.equal(context.tacticalFacts.hasLineOfSight, true);
+  assert.equal(context.tacticalFacts.coverAvailable, true);
+  assert.equal(context.tacticalFacts.coverDistanceFt, 25);
+  assert.equal(context.tacticalFacts.coverDirection, "right");
+  assert.equal(context.tacticalFacts.darknessDistanceFt, 45);
+  assert.equal(context.tacticalFacts.darknessDirection, "left");
+  assert.equal(context.tacticalFacts.exitBlocked, true);
+  assert.equal(context.tacticalFacts.currentConcentration, "Hex");
+
+  assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_guiding_bolt"));
+  assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_inflict_wounds"));
+  assert.ok(context.candidatePackage.piecesBySlot.reaction.some((piece) => piece.optionId === "spell_shield"));
+  assert.ok(context.candidatePackage.piecesBySlot.bonusAction.some((piece) => piece.optionId === "spell_hex"));
+  assert.equal(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "basic_object_interaction"), false);
+
+  assert.ok(plans.some((plan) => plan.id === "plan_guiding_bolt_cover"));
+  assert.ok(plans.some((plan) => plan.id === "plan_defensive_cover"));
+  assert.ok(plans.some((plan) => plan.id === "plan_inflict_wounds_risky"));
+  assert.equal(serializedPlans.includes("spell_fire_bolt"), false);
+  assert.equal(serializedPlans.includes("spell_eldritch_blast"), false);
+  assert.equal(plans.some((plan) => plan.planPieces.some((piece) => piece.optionId === "spell_hex")), false);
+  assert.equal(plans.some((plan) => plan.planPieces.some((piece) => piece.slot === "Bonus Action" && piece.optionId === "basic_object_interaction")), false);
+  assert.equal(/No resource cost/i.test(serializedPlans), false);
+
+  const guiding = plans.find((plan) => plan.id === "plan_guiding_bolt_cover");
+  const inflict = plans.find((plan) => plan.id === "plan_inflict_wounds_risky");
+  const control = plans.find((plan) => plan.id === "plan_control_bane");
+  assert.deepEqual(guiding.resourcesUsed, ["Level 1 spell slot"]);
+  assert.match(guiding.concentrationImpact, /Keeps current Hex concentration/);
+  assert.deepEqual(inflict.resourcesUsed, ["Level 1 spell slot"]);
+  assert.equal(inflict.riskLevel, "high");
+  assert.equal(inflict.legality, "conditional");
+  assert.match(inflict.warnings.join(" "), /touch range/i);
+  assert.match(control.concentrationImpact, /replace current Hex/i);
+  assert.match(control.warnings.join(" "), /ends current Hex concentration/i);
+
+  assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /Hex is already active/i.test(warning)));
+  assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /Inflict Wounds requires touch range/i.test(warning)));
+  assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /Movement toward cover/i.test(warning)));
+  assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /15 ft distance/i.test(warning)));
+  assert.equal((context.optionAudit.modelRelevantWarnings ?? []).some((warning) => /tactical metadata category/i.test(warning)), false);
+});
+
+test("deterministicSeedPlans is empty instead of empty objects when no valid seed exists", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: { name: "Mara", classes: [], race: {}, combat: {}, resources: {}, features: {}, inventory: {}, spells: {} },
+      combatState: { current: {}, turn: {}, resourcesUsed: {} }
+    },
+    groups: {},
+    recommendationSets: [{ title: "Empty stale set", pieces: [] }],
+    answers: { goal: "damage" },
+    userNotes: ""
+  });
+
+  assert.deepEqual(context.candidatePackage.deterministicSeedPlans, []);
+});
+
+function archmageScenario() {
+  return {
+    snapshot: {
+      activeCharacter: {
+        name: "Eustace Farthington",
+        level: 5,
+        race: { name: "Variant Human" },
+        classes: [{ name: "Cleric", level: 2 }, { name: "Sorcerer", level: 1 }, { name: "Warlock", level: 2 }],
+        stats: { str: 10, dex: 12, con: 14, int: 10, wis: 14, cha: 18 },
+        combat: { maxHp: 47, currentHp: 47, ac: 17, speed: { walk: 30 } },
+        resources: { spellSlots: { 1: 4 } },
+        features: {},
+        inventory: {},
+        spells: { attackBonus: 7, saveDc: 15 }
+      },
+      combatState: {
+        current: { hp: 47, tempHp: 0, ac: 17, conditions: [], concentration: "Hex", activeEffects: [] },
+        turn: { actionUsed: false, bonusActionUsed: false, reactionUsed: false, movementUsed: 0 },
+        resourcesUsed: { spellSlots: { 1: 2 }, classResources: {}, itemCharges: {} }
+      }
+    },
+    groups: {
+      actions: [
+        { id: "action_dodge", name: "Dodge", source: "basic", available: true, cost: { action: true }, description: "Focus on avoiding attacks." },
+        { id: "basic_object_interaction", name: "Object Interaction", source: "basic", available: true, cost: { object: true }, description: "Interact with one object." }
+      ],
+      bonus: [
+        spell("spell_hex", "Hex", { bonus: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, castingCost: "bonus", range: "90 ft." }),
+        spell("spell_sanctuary", "Sanctuary", { bonus: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, castingCost: "bonus", range: "30 ft." }),
+        spell("spell_shield_of_faith", "Shield of Faith", { bonus: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, castingCost: "bonus", range: "60 ft." })
+      ],
+      resources: [
+        spell("spell_guiding_bolt", "Guiding Bolt", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, range: "120 ft." }, { range: { type: "ranged", label: "120 ft", normal: 120 }, rolls: [{ id: "damage", type: "damage", formula: "4d6", damageType: "radiant" }] }),
+        spell("spell_inflict_wounds", "Inflict Wounds", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, range: "Touch" }, { range: { type: "melee", label: "Touch", normal: 5 }, rolls: [{ id: "damage", type: "damage", formula: "3d10", damageType: "necrotic" }] }),
+        spell("spell_bane", "Bane", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, range: "30 ft.", saveAbility: "cha", requiresSave: true }),
+        spell("spell_bless", "Bless", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, range: "30 ft." })
+      ],
+      reaction: [
+        spell("spell_shield", "Shield", { reaction: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, castingCost: "reaction" }),
+        spell("spell_absorb_elements", "Absorb Elements", { reaction: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, castingCost: "reaction" })
+      ],
+      movement: [{ id: "movement_walk", name: "Move", source: "basic", group: "movement", available: true, cost: { movement: true }, description: "Move up to your speed." }]
+    },
+    recommendationSets: [],
+    answers: { goal: "damage", distance: "unknown" },
+    userNotes: "Archmage is 15 ft away. Line of sight exists. Cover is 25 ft to the right. Darkness is 45 ft to the left. The exit behind me is blocked. Hex is active on Archmage.",
+    selectedCreatures: [{ name: "Archmage", action: [{ name: "Dagger", entries: ["Melee weapon attack."] }] }]
+  };
+}
+
+function spell(id, name, cost, spellData, extra = {}) {
+  return {
+    id,
+    name,
+    source: "spell",
+    available: true,
+    cost,
+    resource: cost.resource ? `Level ${cost.resource.level} spell slot` : null,
+    spell: { level: cost.resource?.level ?? 0, ...spellData },
+    ...extra
+  };
+}

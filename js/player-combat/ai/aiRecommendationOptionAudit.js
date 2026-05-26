@@ -7,7 +7,7 @@ const TACTICAL_CATEGORIES = [
   "reaction", "resourceSpend", "concentration", "area", "singleTarget", "saveOrAttack"
 ];
 
-export function auditRecommendationContext({ availableOptions, optionIndex, deterministicRecommendations, character, combatState, playerIntent, selectedCreatures }) {
+export function auditRecommendationContext({ availableOptions, optionIndex, deterministicRecommendations, character, combatState, playerIntent, selectedCreatures, tacticalFacts = {} }) {
   const options = Object.values(availableOptions ?? {}).flat();
   const indexed = new Map((optionIndex ?? []).map((option) => [option.id, option]));
   const indexedOptions = [...indexed.values()];
@@ -17,17 +17,21 @@ export function auditRecommendationContext({ availableOptions, optionIndex, dete
 
   const dataWarnings = [
     ...options.flatMap((option) => auditOption(option, spellAttackBonus)),
-    ...auditDeterministicIds(deterministicRecommendations, indexed),
-    ...auditTacticalMetadataCoverage(options)
+    ...auditDeterministicIds(deterministicRecommendations, indexed)
   ];
+  const developerWarnings = auditTacticalMetadataCoverage(options);
   const ignoredDeterministicRecommendations = deterministicRecommendations
     .flatMap((set) => auditDeterministicSet(set, indexed, { dangerousMelee, hazards }));
   const candidateDowngrades = options.flatMap((option) => tacticalDowngrades(option, { dangerousMelee, hazards, playerIntent }));
   const highValueTacticalHooks = tacticalHooks({ options: indexedOptions, selectedCreatures, playerIntent, dangerousMelee, hazards });
+  const modelRelevantWarnings = tacticalWarnings({ indexedOptions, tacticalFacts });
 
   return {
     dataWarnings: unique(dataWarnings).slice(0, 12),
+    modelRelevantWarnings: unique(modelRelevantWarnings).slice(0, 12),
+    developerWarnings: unique(developerWarnings).slice(0, 12),
     ignoredDeterministicRecommendations: unique(ignoredDeterministicRecommendations).slice(0, 10),
+    seedPlanWarnings: [],
     candidateDowngrades: unique(candidateDowngrades).slice(0, 10),
     highValueTacticalHooks: unique(highValueTacticalHooks).slice(0, 10)
   };
@@ -163,6 +167,17 @@ function tacticalHooks({ options, selectedCreatures, playerIntent, dangerousMele
   }
   if (/\b\d+\s*ft\b/i.test(playerIntent?.userNotes ?? "")) hooks.push("User notes include a concrete distance; use it for range legality.");
   return hooks;
+}
+
+function tacticalWarnings({ indexedOptions, tacticalFacts }) {
+  return [
+    tacticalFacts.currentConcentration === "Hex" ? "Hex is already active; do not recommend recasting Hex unless the target changed and moving/recasting is legal." : null,
+    indexedOptions.some((option) => /inflict wounds/i.test(option.name)) && tacticalFacts.targetDistanceFt
+      ? `Inflict Wounds requires touch range from a current distance of ${tacticalFacts.targetDistanceFt} ft.`
+      : null,
+    tacticalFacts.coverAvailable ? "Movement toward cover is useful but conditional on a safe path." : null,
+    tacticalFacts.targetDistanceFt ? `Use the concrete ${tacticalFacts.targetDistanceFt} ft distance from user notes.` : null
+  ].filter(Boolean);
 }
 
 function meaningfulCombatOption(option) {

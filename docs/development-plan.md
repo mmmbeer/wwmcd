@@ -15,6 +15,12 @@
 - Revalidated deterministic recommendations after request-context compaction so compact payloads cannot include candidates whose option IDs are missing from the compacted `optionIndex`.
 - Filtered high-value tactical hooks during compaction when they mention unavailable option names such as Eldritch Blast or Fire Bolt.
 - Added AI-context filtering for spell attacks that arrive as weapon options, so stale `weapon_fire_bolt` / `weapon_eldritch_blast` entries are removed from `availableOptions`, `optionIndex`, deterministic candidates, and summarized equipment before the model call.
+- Added normalized `tacticalFacts` for target distance, line of sight, cover direction/distance, darkness, blocked exits, current concentration, Hex target, and player goal.
+- Replaced raw deterministic recommendation passthrough in `candidatePackage.deterministicSeedPlans` with validated complete turn seed plans built from `optionIndex`.
+- Added deterministic seed plans for ranged damage, defensive cover, control/concentration replacement, and risky touch-range burst scenarios.
+- Rebuilt `candidatePackage.piecesBySlot` from `optionIndex` so resource-costing action spells such as Guiding Bolt and Inflict Wounds appear in the Action bucket as well as resource metadata.
+- Split option audit warnings into model-relevant warnings, developer warnings, seed-plan warnings, ignored deterministic recommendations, candidate downgrades, and tactical hooks.
+- Updated prompt and request language so `optionIndex` is the only authoritative source for actionable option IDs; `availableOptions` is only a grouping aid.
 
 ### Files Changed
 
@@ -27,6 +33,8 @@
 - `js/player-combat/ai/aiRecommendationPostValidation.js`
 - `js/player-combat/ai/aiRecommendationResponseContract.js`
 - `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ai/aiSeedPlanBuilder.js`
+- `js/player-combat/ai/aiTacticalFacts.js`
 - `js/player-combat/recommendations/recommendationSets.js`
 - `tests/playerCombatImport.test.mjs`
 - `tests/aiRecommendationContext.test.mjs`
@@ -40,6 +48,8 @@
 - Creature danger-zone reasoning uses selected creature summaries and player notes, not full hidden encounter geometry.
 - Movement near hazards is marked conditional unless notes provide a safe path; the app does not pathfind on a battle map.
 - Explanation mismatch detection is name-based; it catches obvious option swaps such as "Unarmed Strike" option IDs described as "Eldritch Blast."
+- Seed-plan generation is intentionally conservative and pattern-based; it covers the common damage, defense, control, and risky melee burst plans but does not attempt exhaustive tactical search.
+- Tactical fact extraction uses simple text patterns for current notes and clarification answers; ambiguous terrain geometry still becomes a conditional warning instead of a hard legality decision.
 
 ### Manual Test Checklist
 
@@ -52,11 +62,19 @@
 7. Confirm cold immunity and dangerous short-range pressure affect the recommendation explanation and ranking.
 8. Confirm AI output that references missing or mismatched option IDs is marked invalid and not attached to a real option.
 9. Confirm spell attack cantrips are not present as weapon options in AI recommendation context, even if stale grouped options contain them.
+10. Load the Archmage recommendation scenario and confirm `tacticalFacts.targetDistanceFt` is `15`, cover is `25 ft` to the right, line of sight is true, and the blocked exit is captured.
+11. Confirm `candidatePackage.deterministicSeedPlans` contains complete plans and never `[{}, {}, {}]`.
+12. Confirm Guiding Bolt and Inflict Wounds appear in `candidatePackage.piecesBySlot.action` when present in `optionIndex`, even if they also cost spell slots.
+13. Confirm Guiding Bolt and Inflict Wounds seed plans list `Level 1 spell slot` and do not contain "No resource cost."
+14. Confirm Hex is not recommended as a bonus action when current concentration is Hex on the target.
+15. Confirm developer metadata warnings, such as missing tactical metadata categories, do not appear in model-relevant warnings.
 
 ### Verification Completed
 
 - `node --test tests\playerCombatImport.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs tests\recommendationScoring.test.mjs`
 - `node --test tests\*.test.mjs tests\*.test.js`
+- `node --test tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
+- `node --test tests\*.test.mjs`
 
 ## Previous Session: PDF Cantrip Attack Import
 

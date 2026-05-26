@@ -1,4 +1,5 @@
 import { validateDeterministicRecommendations } from "./aiRecommendationOptionAudit.js";
+import { validateSeedPlans } from "./aiSeedPlanBuilder.js";
 
 const CONTEXT_JSON_BUDGET = 18000;
 
@@ -37,12 +38,14 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     (context?.deterministicRecommendations ?? []).slice(0, 3).map(compactRecommendationSet),
     optionIndex
   );
+  const seedValidation = validateSeedPlans(context?.candidatePackage?.deterministicSeedPlans ?? [], optionIndex);
   return pruneEmpty({
     schemaVersion: context?.schemaVersion,
     character: compactCharacter(context?.character, listLimit),
     combatState: context?.combatState,
     turnRules: context?.turnRules,
     playerIntent: context?.playerIntent,
+    tacticalFacts: context?.tacticalFacts,
     selectedCreatures: compactSelectedCreatures(context?.selectedCreatures),
     clarification: compactClarification(context?.clarification),
     battlefieldKnowledge: compactBattlefieldKnowledge(context?.battlefieldKnowledge),
@@ -51,8 +54,8 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     availableOptions,
     unavailableOptions: compactUnavailableOptionGroups(context?.unavailableOptions, unavailableLimit),
     optionIndex,
-    optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored),
-    candidatePackage: compactCandidatePackage(context?.candidatePackage, optionIndex, listLimit),
+    optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored, seedValidation.warnings),
+    candidatePackage: compactCandidatePackage({ ...context?.candidatePackage, deterministicSeedPlans: seedValidation.plans }, optionIndex, listLimit),
     referenceSummaries: compactReferenceSummaries(context?.referenceSummaries, listLimit),
     deterministicRecommendations: deterministicValidation.recommendations,
     requestNotes: {
@@ -78,7 +81,8 @@ function compactClarification(clarification = {}) {
 
 function compactCandidatePackage(candidatePackage = {}, optionIndex = [], limit) {
   const validIds = new Set((optionIndex ?? []).map((option) => option.id));
-  return pruneEmpty({
+  const seedValidation = validateSeedPlans(candidatePackage.deterministicSeedPlans ?? [], optionIndex);
+  const compactPackage = pruneEmpty({
     goal: candidatePackage.goal,
     completeTurnSlots: candidatePackage.completeTurnSlots,
     piecesBySlot: pruneEmpty(Object.fromEntries(Object.entries(candidatePackage.piecesBySlot ?? {}).map(([slot, pieces]) => [
@@ -86,9 +90,9 @@ function compactCandidatePackage(candidatePackage = {}, optionIndex = [], limit)
       compactCandidatePieces(pieces, validIds, limit)
     ]))),
     allGoalRelevantSpells: compactCandidatePieces(candidatePackage.allGoalRelevantSpells, validIds, Math.max(limit, 12)),
-    deterministicSeedPlans: compactList(candidatePackage.deterministicSeedPlans, 3),
     instruction: candidatePackage.instruction
   });
+  return { ...compactPackage, deterministicSeedPlans: compactSeedPlans(seedValidation.plans, validIds, 3) };
 }
 
 function compactCandidatePieces(pieces = [], validIds, limit) {
@@ -120,23 +124,66 @@ function sanitizeContextForModel(context = {}) {
   const optionIndex = Array.isArray(context?.optionIndex) ? context.optionIndex : [];
   if (!optionIndex.length) return context;
   const deterministicValidation = validateDeterministicRecommendations(context?.deterministicRecommendations ?? [], optionIndex);
+  const seedValidation = validateSeedPlans(context?.candidatePackage?.deterministicSeedPlans ?? [], optionIndex);
   return {
     ...context,
-    optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored),
-    deterministicRecommendations: deterministicValidation.recommendations
+    optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored, seedValidation.warnings),
+    deterministicRecommendations: deterministicValidation.recommendations,
+    candidatePackage: context?.candidatePackage ? {
+      ...context.candidatePackage,
+      deterministicSeedPlans: seedValidation.plans
+    } : context?.candidatePackage
   };
 }
 
-function compactOptionAudit(audit = {}, optionIndex = [], ignored = []) {
+function compactOptionAudit(audit = {}, optionIndex = [], ignored = [], seedWarnings = []) {
   return pruneEmpty({
     dataWarnings: compactStrings(audit.dataWarnings, 8),
+    modelRelevantWarnings: compactStrings(audit.modelRelevantWarnings, 8),
     ignoredDeterministicRecommendations: [
       ...compactStrings(audit.ignoredDeterministicRecommendations, 8),
       ...compactStrings(ignored, 8)
     ].slice(0, 12),
+    seedPlanWarnings: [
+      ...compactStrings(audit.seedPlanWarnings, 8),
+      ...compactStrings(seedWarnings, 8)
+    ].slice(0, 12),
     candidateDowngrades: compactStrings(audit.candidateDowngrades, 8),
     highValueTacticalHooks: compactHooks(audit.highValueTacticalHooks, optionIndex, 8)
   });
+}
+
+function compactSeedPlans(plans = [], validIds, limit) {
+  return (plans ?? []).slice(0, limit).map((plan) => pruneEmpty({
+    id: plan.id,
+    title: plan.title,
+    category: plan.category,
+    goalFit: plan.goalFit,
+    baseScore: plan.baseScore,
+    legality: plan.legality,
+    riskLevel: plan.riskLevel,
+    confidence: plan.confidence,
+    planPieces: compactPlanPieces(plan.planPieces, validIds),
+    resourcesUsed: plan.resourcesUsed,
+    concentrationImpact: plan.concentrationImpact,
+    expectedOutcome: plan.expectedOutcome,
+    assumptions: plan.assumptions,
+    warnings: plan.warnings,
+    rejectedAlternatives: plan.rejectedAlternatives,
+    followUpQuestions: plan.followUpQuestions
+  }));
+}
+
+function compactPlanPieces(pieces = [], validIds) {
+  return (pieces ?? [])
+    .filter((piece) => !piece.optionId || validIds.has(piece.optionId))
+    .map((piece) => pruneEmpty({
+      slot: piece.slot,
+      optionId: piece.optionId,
+      name: piece.name,
+      instruction: piece.instruction,
+      conditional: piece.conditional
+    }));
 }
 
 function compactHooks(hooks = [], optionIndex = [], limit) {

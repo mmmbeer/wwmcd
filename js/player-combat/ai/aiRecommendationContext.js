@@ -4,6 +4,8 @@ import { summarizeCharacter, summarizeCombatState } from "./aiCharacterContext.j
 import { buildTacticalCandidatePackage } from "./aiCandidateContext.js";
 import { buildClarificationContext } from "./aiClarificationContext.js";
 import { buildReferenceSummaries } from "./aiReferenceContext.js";
+import { buildDeterministicSeedPlans } from "./aiSeedPlanBuilder.js";
+import { buildTacticalFacts } from "./aiTacticalFacts.js";
 import {
   auditRecommendationContext,
   validateDeterministicRecommendations
@@ -31,6 +33,12 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   const selectedCreatureContext = summarizeSelectedCreatures(selectedCreatures);
   const characterContext = summarizeCharacter(character, combatState);
   const combatStateContext = summarizeCombatState(combatState, character);
+  const tacticalFacts = buildTacticalFacts({
+    playerIntent,
+    combatState: combatStateContext,
+    selectedCreatures: selectedCreatureContext
+  });
+  const seedPlanResult = buildDeterministicSeedPlans({ optionIndex, tacticalFacts, playerIntent });
   const optionAudit = auditRecommendationContext({
     availableOptions,
     optionIndex,
@@ -38,7 +46,8 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     character: characterContext,
     combatState: combatStateContext,
     playerIntent,
-    selectedCreatures: selectedCreatureContext
+    selectedCreatures: selectedCreatureContext,
+    tacticalFacts
   });
   return pruneEmpty({
     schemaVersion: "combat-option-recommendation/v3",
@@ -46,6 +55,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     combatState: combatStateContext,
     turnRules: buildTurnRules(character, combatState),
     playerIntent,
+    tacticalFacts,
     selectedCreatures: selectedCreatureContext,
     clarification: buildClarificationContext({ answers, userNotes, combatState, selectedCreatures: selectedCreatureContext }),
     battlefieldKnowledge,
@@ -54,8 +64,13 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups, spellNames),
     optionIndex,
-    optionAudit: mergeAudit(optionAudit, deterministicValidation.ignored),
-    candidatePackage: buildTacticalCandidatePackage({ availableOptions, deterministicRecommendations, playerIntent }),
+    optionAudit: mergeAudit(optionAudit, deterministicValidation.ignored, seedPlanResult),
+    candidatePackage: buildTacticalCandidatePackage({
+      availableOptions,
+      optionIndex,
+      deterministicSeedPlans: seedPlanResult.plans,
+      playerIntent
+    }),
     referenceSummaries: buildReferenceSummaries({
       referenceData: snapshot.referenceData,
       character,
@@ -74,12 +89,20 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   });
 }
 
-function mergeAudit(audit, ignoredDeterministicRecommendations) {
+function mergeAudit(audit, ignoredDeterministicRecommendations, seedPlanResult = {}) {
   return {
     ...audit,
+    modelRelevantWarnings: [
+      ...(audit?.modelRelevantWarnings ?? []),
+      ...(seedPlanResult.modelRelevantWarnings ?? [])
+    ].filter(Boolean).slice(0, 12),
     ignoredDeterministicRecommendations: [
       ...(audit?.ignoredDeterministicRecommendations ?? []),
       ...(ignoredDeterministicRecommendations ?? [])
+    ].filter(Boolean).slice(0, 12),
+    seedPlanWarnings: [
+      ...(audit?.seedPlanWarnings ?? []),
+      ...(seedPlanResult.warnings ?? [])
     ].filter(Boolean).slice(0, 12)
   };
 }
@@ -157,6 +180,8 @@ export function buildOptionIndex(availableOptions) {
       isSpell: Boolean(option.spell),
       spellLevel: option.spell?.level ?? null,
       concentration: option.spell?.concentration ?? false,
+      saveAbility: option.spell?.saveAbility ?? null,
+      requiresSave: option.spell?.requiresSave ?? false,
       attack: option.attack ?? null,
       range: option.range ?? null,
       rolls: option.rolls ?? [],

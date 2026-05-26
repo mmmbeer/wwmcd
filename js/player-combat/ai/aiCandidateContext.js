@@ -1,36 +1,36 @@
-const CANDIDATE_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
+import { validateSeedPlans } from "./aiSeedPlanBuilder.js";
 
-export function buildTacticalCandidatePackage({ availableOptions = {}, deterministicRecommendations = [], playerIntent = {} } = {}) {
+export function buildTacticalCandidatePackage({ availableOptions = {}, optionIndex = [], deterministicSeedPlans = [], playerIntent = {} } = {}) {
   const piecesBySlot = {
-    action: candidatePieces(availableOptions, (option) => option.cost?.action || ["attacks", "actions", "spells"].includes(option.group)),
-    bonusAction: candidatePieces(availableOptions, (option) => option.cost?.bonus || option.spell?.castingCost === "bonus"),
-    rider: candidatePieces(availableOptions, (option) => isRider(option)),
-    movement: candidatePieces(availableOptions, (option) => option.cost?.movement || option.group === "movement"),
-    freeObjectInteraction: candidatePieces(availableOptions, (option) => option.cost?.object || option.group === "free"),
-    reaction: candidatePieces(availableOptions, (option) => option.cost?.reaction || option.group === "reaction"),
-    resourceSpend: candidatePieces(availableOptions, (option) => option.cost?.resource || option.resource || option.group === "resources")
+    action: candidatePieces(optionIndex, (option) => option.cost?.action),
+    bonusAction: candidatePieces(optionIndex, (option) => option.cost?.bonus),
+    rider: candidatePieces(optionIndex, (option) => isRider(option)),
+    movement: candidatePieces(optionIndex, (option) => option.cost?.movement),
+    freeObjectInteraction: candidatePieces(optionIndex, (option) => option.cost?.object),
+    reaction: candidatePieces(optionIndex, (option) => option.cost?.reaction),
+    resourceSpend: candidatePieces(optionIndex, (option) => option.cost?.resource || option.resource)
   };
-  return pruneEmpty({
+  const validatedSeedPlans = validateSeedPlans(deterministicSeedPlans, optionIndex).plans;
+  const candidatePackage = pruneEmpty({
     goal: playerIntent.goal,
     completeTurnSlots: ["action", "bonusAction", "rider", "movement", "freeObjectInteraction", "reaction", "resourceSpend"],
     piecesBySlot,
-    allGoalRelevantSpells: goalRelevantSpells(availableOptions, playerIntent),
-    deterministicSeedPlans: deterministicRecommendations,
-    instruction: "Use this as candidate material only; every actionable plan piece must still match optionIndex exactly."
+    allGoalRelevantSpells: goalRelevantSpells(optionIndex, playerIntent),
+    instruction: "Use these as candidate material only; every actionable plan piece must match optionIndex exactly. availableOptions is only a grouping aid."
   });
+  return { ...candidatePackage, deterministicSeedPlans: validatedSeedPlans };
 }
 
-function candidatePieces(groups, predicate) {
-  return Object.entries(groups ?? {})
-    .flatMap(([group, options]) => (options ?? []).map((option) => ({ ...option, group: option.group || group })))
+function candidatePieces(options, predicate) {
+  return (options ?? [])
     .filter((option) => option.available !== false && predicate(option))
     .map((option) => summarizeCandidate(option))
     .slice(0, 40);
 }
 
-function goalRelevantSpells(groups, playerIntent) {
-  return Object.values(groups ?? {}).flat()
-    .filter((option) => option?.spell && option.available !== false)
+function goalRelevantSpells(options, playerIntent) {
+  return (options ?? [])
+    .filter((option) => option?.isSpell && option.available !== false)
     .map((option) => summarizeCandidate(option))
     .slice(0, 80);
 }
@@ -47,12 +47,11 @@ function summarizeCandidate(option) {
     tags: option.tags,
     range: option.range,
     damageTypes: option.damageTypes,
-    spell: option.spell ? {
-      level: option.spell.level,
-      castingCost: option.spell.castingCost,
-      concentration: option.spell.concentration,
-      saveAbility: option.spell.saveAbility,
-      requiresSave: option.spell.requiresSave
+    spell: option.isSpell ? {
+      level: option.spellLevel,
+      concentration: option.concentration,
+      saveAbility: option.saveAbility,
+      requiresSave: option.requiresSave
     } : null
   });
 }
@@ -61,10 +60,10 @@ function tacticalCategories(option) {
   const categories = new Set([
     ...(option.tactics?.roles ?? []),
     ...(option.tags ?? []),
-    ...(option.spell?.concentration ? ["concentration"] : []),
+    ...(option.concentration ? ["concentration"] : []),
     ...(option.cost?.resource || option.resource ? ["resourceSpend"] : []),
     ...(option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack") ? ["saveOrAttack"] : []),
-    ...(option.spell?.requiresSave || option.spell?.saveAbility ? ["saveOrAttack"] : []),
+    ...(option.requiresSave || option.saveAbility ? ["saveOrAttack"] : []),
     ...(option.rolls?.some((roll) => roll.type === "damage" || roll.id === "damage") ? ["damage"] : [])
   ]);
   const text = `${option.name ?? ""} ${option.summary ?? ""} ${option.description ?? ""}`.toLowerCase();
@@ -88,8 +87,8 @@ function slotForOption(option) {
   if (option.cost?.action) return "Action";
   if (option.cost?.bonus) return "Bonus Action";
   if (option.cost?.reaction) return "Reaction";
-  if (option.cost?.movement || option.group === "movement") return "Move";
-  if (option.cost?.object || option.group === "free") return "Free/Object Interaction";
+  if (option.cost?.movement) return "Movement";
+  if (option.cost?.object) return "Free/Object Interaction";
   if (isRider(option)) return "Rider";
   return "Special";
 }
