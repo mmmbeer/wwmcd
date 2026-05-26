@@ -218,7 +218,9 @@ function normalizeOptionAudit(value) {
   const audit = value && typeof value === "object" ? value : {};
   return {
     dataWarnings: arrayOfStrings(audit.dataWarnings).slice(0, 12),
+    modelRelevantWarnings: arrayOfStrings(audit.modelRelevantWarnings).slice(0, 12),
     ignoredDeterministicRecommendations: arrayOfStrings(audit.ignoredDeterministicRecommendations).slice(0, 12),
+    candidateDowngrades: arrayOfStrings(audit.candidateDowngrades).slice(0, 12),
     highValueTacticalHooks: arrayOfStrings(audit.highValueTacticalHooks).slice(0, 12)
   };
 }
@@ -262,12 +264,13 @@ export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
     };
   }
 
-  const optionId = stringOr(piece.optionId, "");
+  const optionId = piece.optionId === null ? null : stringOr(piece.optionId, "");
   const name = stringOr(piece.name, "");
-  const strictResult = validateStrictPlanPiece({ optionId, name, explanation: stringOr(piece.explanation, ""), optionMap });
+  const slot = stringOr(piece.slot, fallbackSlot);
+  const strictResult = validateStrictPlanPiece({ slot, optionId, name, explanation: stringOr(piece.explanation, ""), optionMap });
   if (strictResult) {
     return {
-      slot: stringOr(piece.slot, fallbackSlot),
+      slot,
       optionId: strictResult.optionId,
       name: strictResult.name,
       explanation: stringOr(piece.explanation, ""),
@@ -288,7 +291,7 @@ export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
   }
 
   return {
-    slot: stringOr(piece.slot, fallbackSlot),
+    slot,
     optionId: matched?.id ?? optionId,
     name: matched?.name ?? name,
     explanation: stringOr(piece.explanation, ""),
@@ -363,7 +366,8 @@ function buildOptionMap(contextOrOptions) {
     battlefieldKnowledge: contextOrOptions?.battlefieldKnowledge,
     strictIds: Boolean(optionIndex),
     options: [...byId.values()],
-    currentConcentration: contextOrOptions?.combatState?.concentration ?? contextOrOptions?.combatState?.current?.concentration ?? ""
+    currentConcentration: contextOrOptions?.combatState?.concentration ?? contextOrOptions?.combatState?.current?.concentration ?? "",
+    tacticalFacts: contextOrOptions?.tacticalFacts ?? {}
   };
 }
 

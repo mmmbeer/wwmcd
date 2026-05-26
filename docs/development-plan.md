@@ -21,6 +21,12 @@
 - Rebuilt `candidatePackage.piecesBySlot` from `optionIndex` so resource-costing action spells such as Guiding Bolt and Inflict Wounds appear in the Action bucket as well as resource metadata.
 - Split option audit warnings into model-relevant warnings, developer warnings, seed-plan warnings, ignored deterministic recommendations, candidate downgrades, and tactical hooks.
 - Updated prompt and request language so `optionIndex` is the only authoritative source for actionable option IDs; `availableOptions` is only a grouping aid.
+- Aligned deterministic seed plan pieces with the AI response schema by using `explanation`, explicit `optionId: null` for `None`, and controlled slot labels.
+- Regenerated model-facing `deterministicRecommendations` from validated seed plans when seed plans exist, removing stale procedural reasons such as false no-resource or positioning claims.
+- Added response-schema slot enum validation and aligned `optionAudit` response fields with model context fields.
+- Shared stricter seed-plan validation with AI response normalization for slot compatibility, resources, concentration, and malformed plan-piece checks.
+- Fixed Sanctuary concentration handling so defensive Sanctuary plans preserve Hex when Sanctuary metadata is not concentration.
+- Increased compacted action candidate retention so action-cost spells remain visible in `candidatePackage.piecesBySlot.action` during request compaction.
 
 ### Files Changed
 
@@ -68,6 +74,10 @@
 13. Confirm Guiding Bolt and Inflict Wounds seed plans list `Level 1 spell slot` and do not contain "No resource cost."
 14. Confirm Hex is not recommended as a bonus action when current concentration is Hex on the target.
 15. Confirm developer metadata warnings, such as missing tactical metadata categories, do not appear in model-relevant warnings.
+16. Confirm every seed plan piece has `slot`, `optionId`, `name`, and `explanation`, and no model payload seed piece uses `instruction`.
+17. Confirm Sanctuary defensive plans say they keep Hex concentration and warn that Sanctuary fits non-attacking defensive turns.
+18. Confirm the response schema rejects non-enum slot labels such as `Move` or `Bonus`.
+19. Confirm `optionAudit` fields in model context match the response schema fields.
 
 ### Verification Completed
 

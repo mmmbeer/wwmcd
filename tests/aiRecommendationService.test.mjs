@@ -10,6 +10,7 @@ import {
   shouldUseJsonSchema,
   shouldAskClarifyingQuestion
 } from "../js/player-combat/ai/aiRecommendationService.js";
+import { recommendationResponseFormat } from "../js/player-combat/ai/aiRecommendationResponseContract.js";
 
 const availableRapier = {
   id: "attack_rapier",
@@ -362,6 +363,46 @@ test("clarification helper detects all-conditional results with several missing 
 test("structured output unsupported detector matches Groq response format errors", () => {
   assert.equal(isStructuredOutputUnsupportedError(new Error("This model does not support response format `json_schema`.")), true);
   assert.equal(isStructuredOutputUnsupportedError(new Error("Network failed.")), false);
+});
+
+test("response schema uses strict slot enum and aligned optionAudit fields", () => {
+  const schema = recommendationResponseFormat().json_schema.schema;
+  const pieceSlot = schema.properties.recommendations.items.properties.planPieces.items.properties.slot;
+  const audit = schema.properties.optionAudit;
+
+  assert.deepEqual(pieceSlot.enum, [
+    "Action",
+    "Attack 1",
+    "Attack 2",
+    "Bonus Action",
+    "Rider",
+    "Special",
+    "Movement",
+    "Free/Object Interaction",
+    "Reaction",
+    "None"
+  ]);
+  assert.deepEqual(audit.required, [
+    "dataWarnings",
+    "modelRelevantWarnings",
+    "ignoredDeterministicRecommendations",
+    "candidateDowngrades",
+    "highValueTacticalHooks"
+  ]);
+  assert.ok(audit.properties.modelRelevantWarnings);
+  assert.ok(audit.properties.candidateDowngrades);
+});
+
+test("strict response validation rejects arbitrary plan piece slot strings", () => {
+  const payload = responseWithAction("spell_guiding_bolt", "Guiding Bolt");
+  payload.recommendations[0].planPieces = [
+    { slot: "Move", optionId: "spell_guiding_bolt", name: "Guiding Bolt", explanation: "Cast Guiding Bolt." }
+  ];
+  payload.recommendations[0].resourcesUsed = ["Level 1 spell slot"];
+
+  const result = normalizeAiResponse(JSON.stringify(payload), yetiContext());
+
+  assert.equal(result.recommendations.length, 0);
 });
 
 test("schema request selection avoids providers and models likely to reject json_schema", () => {

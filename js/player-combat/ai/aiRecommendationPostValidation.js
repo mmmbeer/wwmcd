@@ -1,10 +1,14 @@
-export function validateStrictPlanPiece({ optionId, name, explanation, optionMap }) {
+import { PLAN_PIECE_SLOTS, validateSeedPlans } from "./aiSeedPlanBuilder.js";
+
+export function validateStrictPlanPiece({ slot, optionId, name, explanation, optionMap }) {
   if (!optionMap?.strictIds) return null;
+  const slotValidation = [];
+  if (!PLAN_PIECE_SLOTS.includes(slot)) slotValidation.push(`Plan piece slot "${slot}" is not an allowed slot.`);
   if (isNonePiece(optionId, name)) {
-    return { option: null, optionId: "", name: "None", validation: [], rejected: false };
+    return { option: null, optionId: null, name: "None", validation: slotValidation, rejected: false };
   }
 
-  const validation = [];
+  const validation = [...slotValidation];
   if (!optionId) validation.push("Plan piece is missing an optionId from optionIndex.");
   const matched = optionId ? optionMap.byId?.get(optionId) : null;
   if (optionId && !matched) validation.push(`No optionIndex entry found for optionId "${optionId}".`);
@@ -46,6 +50,22 @@ export function recommendationContractWarnings({ set, pieces, resourcesUsed, opt
       warnings.push("Recommendation casts Hex while already concentrating on Hex without explaining a legal retarget or recast reason.");
     }
   }
+  const seedValidation = validateSeedPlans([{
+    id: set?.id || "ai-response-plan",
+    title: set?.title || "AI response plan",
+    category: set?.category || "other",
+    planPieces: pieces.map((piece) => ({
+      slot: piece.slot,
+      optionId: piece.optionId || null,
+      name: piece.name,
+      explanation: piece.explanation
+    })),
+    resourcesUsed,
+    concentrationImpact: set?.concentrationImpact || "none",
+    warnings: Array.isArray(set?.warnings) ? set.warnings : [],
+    assumptions: Array.isArray(set?.assumptions) ? set.assumptions : []
+  }], optionMap?.options ?? [], optionMap?.tacticalFacts ?? {});
+  warnings.push(...seedValidation.warnings.map((warning) => warning.replace(/^Removed seed plan "[^"]+":\s*/, "")));
   return warnings;
 }
 

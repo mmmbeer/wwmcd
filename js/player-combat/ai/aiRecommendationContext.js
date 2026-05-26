@@ -39,6 +39,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     selectedCreatures: selectedCreatureContext
   });
   const seedPlanResult = buildDeterministicSeedPlans({ optionIndex, tacticalFacts, playerIntent });
+  const deterministicSeedRecommendations = deterministicRecommendationsFromSeedPlans(seedPlanResult.plans);
   const optionAudit = auditRecommendationContext({
     availableOptions,
     optionIndex,
@@ -77,7 +78,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
       selectedCreatures,
       availableOptions
     }),
-    deterministicRecommendations,
+    deterministicRecommendations: seedPlanResult.plans.length ? deterministicSeedRecommendations : deterministicRecommendations,
     instructionHints: {
       useOnlyOptionIds: true,
       preferCompleteTurnPlans: true,
@@ -95,7 +96,7 @@ function mergeAudit(audit, ignoredDeterministicRecommendations, seedPlanResult =
     modelRelevantWarnings: [
       ...(audit?.modelRelevantWarnings ?? []),
       ...(seedPlanResult.modelRelevantWarnings ?? [])
-    ].filter(Boolean).slice(0, 12),
+    ].filter(Boolean).filter(uniqueOnly).slice(0, 12),
     ignoredDeterministicRecommendations: [
       ...(audit?.ignoredDeterministicRecommendations ?? []),
       ...(ignoredDeterministicRecommendations ?? [])
@@ -105,6 +106,33 @@ function mergeAudit(audit, ignoredDeterministicRecommendations, seedPlanResult =
       ...(seedPlanResult.warnings ?? [])
     ].filter(Boolean).slice(0, 12)
   };
+}
+
+function deterministicRecommendationsFromSeedPlans(plans = []) {
+  return plans.map((plan, index) => ({
+    rank: index + 1,
+    seedPlanId: plan.id,
+    title: plan.title,
+    score: Math.max(0, 340 - index * 25),
+    optionIds: (plan.planPieces ?? []).map((piece) => piece.optionId).filter(Boolean),
+    reasons: seedPlanReasons(plan),
+    warnings: (plan.warnings ?? []).slice(0, 4)
+  }));
+}
+
+function seedPlanReasons(plan) {
+  return [
+    plan.goalFit,
+    ...(plan.resourcesUsed ?? []).map((resource) => `Uses a ${resource}.`),
+    plan.concentrationImpact,
+    ...(plan.planPieces ?? [])
+      .filter((piece) => piece.optionId && piece.explanation)
+      .map((piece) => piece.explanation)
+  ].filter(Boolean).filter((reason) => !/\bno resource cost\b|\bimproves position\b/i.test(reason)).slice(0, 6);
+}
+
+function uniqueOnly(value, index, values) {
+  return values.indexOf(value) === index;
 }
 
 export function summarizeClassTactics(character) {

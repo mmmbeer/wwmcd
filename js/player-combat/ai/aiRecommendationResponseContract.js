@@ -1,3 +1,5 @@
+import { PLAN_PIECE_SLOTS } from "./aiSeedPlanBuilder.js";
+
 const PLAN_PIECE_DESCRIPTION = {
   type: "object",
   additionalProperties: false,
@@ -5,7 +7,8 @@ const PLAN_PIECE_DESCRIPTION = {
   properties: {
     slot: {
       type: "string",
-      description: "Action, Attack 1, Attack 2, Bonus Action, Rider, Special, Free, Move, or Reaction."
+      enum: PLAN_PIECE_SLOTS,
+      description: "Controlled turn slot label."
     },
     optionId: { type: ["string", "null"] },
     name: { type: "string" },
@@ -16,10 +19,12 @@ const PLAN_PIECE_DESCRIPTION = {
 const OPTION_AUDIT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["dataWarnings", "ignoredDeterministicRecommendations", "highValueTacticalHooks"],
+  required: ["dataWarnings", "modelRelevantWarnings", "ignoredDeterministicRecommendations", "candidateDowngrades", "highValueTacticalHooks"],
   properties: {
     dataWarnings: { type: "array", items: { type: "string" } },
+    modelRelevantWarnings: { type: "array", items: { type: "string" } },
     ignoredDeterministicRecommendations: { type: "array", items: { type: "string" } },
+    candidateDowngrades: { type: "array", items: { type: "string" } },
     highValueTacticalHooks: { type: "array", items: { type: "string" } }
   }
 };
@@ -31,7 +36,9 @@ The response must be a single JSON object with this exact shape:
   "missingInfo": ["important missing fact"],
   "optionAudit": {
     "dataWarnings": ["data issue noticed or none"],
+    "modelRelevantWarnings": ["tactical warning used or none"],
     "ignoredDeterministicRecommendations": ["candidate ignored or downgraded"],
+    "candidateDowngrades": ["candidate downgrade applied or none"],
     "highValueTacticalHooks": ["important tactical hook used"]
   },
   "recommendations": [

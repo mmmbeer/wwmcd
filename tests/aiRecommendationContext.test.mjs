@@ -543,7 +543,7 @@ test("Yeti context only includes hooks for indexed options and downgrades risky 
   });
 
   assert.equal(context.optionIndex.some((option) => option.id === "spell_eldritch_blast"), false);
-  assert.equal((context.deterministicRecommendations ?? []).length, 0);
+  assert.equal(context.deterministicRecommendations.some((set) => JSON.stringify(set).includes("spell_eldritch_blast")), false);
   assert.equal(context.optionAudit.highValueTacticalHooks.some((hook) => /Eldritch Blast/i.test(hook)), false);
   assert.ok(context.optionAudit.ignoredDeterministicRecommendations.some((warning) => /spell_eldritch_blast/i.test(warning)));
   assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /Inflict Wounds.*touch\/melee range/i.test(warning)));
@@ -562,7 +562,8 @@ test("deterministic seed plan validation rejects empty, missing, mismatched, and
   const valid = {
     id: "valid",
     title: "Guiding Bolt",
-    planPieces: [{ slot: "Action", optionId: "spell_guiding_bolt", name: "Guiding Bolt" }],
+    category: "damage",
+    planPieces: [{ slot: "Action", optionId: "spell_guiding_bolt", name: "Guiding Bolt", explanation: "Cast Guiding Bolt." }],
     resourcesUsed: ["Level 1 spell slot"]
   };
   const result = validateSeedPlans([
@@ -606,6 +607,11 @@ test("Archmage scenario builds valid complete deterministic seed plans from opti
 
   assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_guiding_bolt"));
   assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_inflict_wounds"));
+  assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_guidance"));
+  assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_bless"));
+  assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_bane"));
+  assert.ok(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "spell_detect_evil_and_good"));
+  assert.ok(context.candidatePackage.piecesBySlot.resourceSpend.some((piece) => piece.optionId === "spell_guiding_bolt"));
   assert.ok(context.candidatePackage.piecesBySlot.reaction.some((piece) => piece.optionId === "spell_shield"));
   assert.ok(context.candidatePackage.piecesBySlot.bonusAction.some((piece) => piece.optionId === "spell_hex"));
   assert.equal(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "basic_object_interaction"), false);
@@ -618,10 +624,19 @@ test("Archmage scenario builds valid complete deterministic seed plans from opti
   assert.equal(plans.some((plan) => plan.planPieces.some((piece) => piece.optionId === "spell_hex")), false);
   assert.equal(plans.some((plan) => plan.planPieces.some((piece) => piece.slot === "Bonus Action" && piece.optionId === "basic_object_interaction")), false);
   assert.equal(/No resource cost/i.test(serializedPlans), false);
+  assert.equal(/"instruction"/i.test(serializedPlans), false);
+  plans.flatMap((plan) => plan.planPieces).forEach((piece) => {
+    assert.equal(Object.hasOwn(piece, "slot"), true);
+    assert.equal(Object.hasOwn(piece, "optionId"), true);
+    assert.equal(Object.hasOwn(piece, "name"), true);
+    assert.equal(Object.hasOwn(piece, "explanation"), true);
+    if (piece.name === "None") assert.equal(piece.optionId, null);
+  });
 
   const guiding = plans.find((plan) => plan.id === "plan_guiding_bolt_cover");
   const inflict = plans.find((plan) => plan.id === "plan_inflict_wounds_risky");
   const control = plans.find((plan) => plan.id === "plan_control_bane");
+  const defensive = plans.find((plan) => plan.id === "plan_defensive_cover");
   assert.deepEqual(guiding.resourcesUsed, ["Level 1 spell slot"]);
   assert.match(guiding.concentrationImpact, /Keeps current Hex concentration/);
   assert.deepEqual(inflict.resourcesUsed, ["Level 1 spell slot"]);
@@ -630,12 +645,20 @@ test("Archmage scenario builds valid complete deterministic seed plans from opti
   assert.match(inflict.warnings.join(" "), /touch range/i);
   assert.match(control.concentrationImpact, /replace current Hex/i);
   assert.match(control.warnings.join(" "), /ends current Hex concentration/i);
+  assert.match(defensive.concentrationImpact, /Keeps current Hex concentration/i);
+  assert.match(defensive.warnings.join(" "), /Sanctuary fits this plan/i);
 
   assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /Hex is already active/i.test(warning)));
   assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /Inflict Wounds requires touch range/i.test(warning)));
   assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /Movement toward cover/i.test(warning)));
   assert.ok(context.optionAudit.modelRelevantWarnings.some((warning) => /15 ft distance/i.test(warning)));
+  assert.equal(new Set(context.optionAudit.modelRelevantWarnings).size, context.optionAudit.modelRelevantWarnings.length);
   assert.equal((context.optionAudit.modelRelevantWarnings ?? []).some((warning) => /tactical metadata category/i.test(warning)), false);
+
+  const deterministicText = JSON.stringify(context.deterministicRecommendations);
+  assert.equal(/No resource cost/i.test(deterministicText), false);
+  assert.equal(/Improves position/i.test(deterministicText), false);
+  assert.equal(/Inflict Wounds/.test(deterministicText) && /Level 1 spell slot/.test(deterministicText), true);
 });
 
 test("deterministicSeedPlans is empty instead of empty objects when no valid seed exists", () => {
@@ -688,7 +711,9 @@ function archmageScenario() {
         spell("spell_guiding_bolt", "Guiding Bolt", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, range: "120 ft." }, { range: { type: "ranged", label: "120 ft", normal: 120 }, rolls: [{ id: "damage", type: "damage", formula: "4d6", damageType: "radiant" }] }),
         spell("spell_inflict_wounds", "Inflict Wounds", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, range: "Touch" }, { range: { type: "melee", label: "Touch", normal: 5 }, rolls: [{ id: "damage", type: "damage", formula: "3d10", damageType: "necrotic" }] }),
         spell("spell_bane", "Bane", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, range: "30 ft.", saveAbility: "cha", requiresSave: true }),
-        spell("spell_bless", "Bless", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, range: "30 ft." })
+        spell("spell_bless", "Bless", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, range: "30 ft." }),
+        spell("spell_guidance", "Guidance", { action: true }, { concentration: true, range: "Touch" }),
+        spell("spell_detect_evil_and_good", "Detect Evil and Good", { action: true, resource: { type: "spellSlot", level: 1 } }, { concentration: true, range: "Self" })
       ],
       reaction: [
         spell("spell_shield", "Shield", { reaction: true, resource: { type: "spellSlot", level: 1 } }, { concentration: false, castingCost: "reaction" }),

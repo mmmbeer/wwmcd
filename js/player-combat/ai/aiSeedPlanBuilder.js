@@ -1,5 +1,20 @@
+export const PLAN_PIECE_SLOTS = [
+  "Action",
+  "Attack 1",
+  "Attack 2",
+  "Bonus Action",
+  "Rider",
+  "Special",
+  "Movement",
+  "Free/Object Interaction",
+  "Reaction",
+  "None"
+];
+
 const SLOT_RULES = {
   "Action": "action",
+  "Attack 1": "action",
+  "Attack 2": "action",
   "Bonus Action": "bonus",
   "Movement": "movement",
   "Free/Object Interaction": "object",
@@ -8,7 +23,7 @@ const SLOT_RULES = {
   "Special": null
 };
 
-const CONCENTRATION_SPELLS = /\b(bane|bless|shield of faith|sanctuary|hex)\b/i;
+const CONCENTRATION_SPELLS = /\b(bane|bless|shield of faith|hex)\b/i;
 
 export function buildDeterministicSeedPlans({ optionIndex = [], tacticalFacts = {}, playerIntent = {} } = {}) {
   const byId = indexById(optionIndex);
@@ -94,7 +109,10 @@ function defensivePlan(byId, facts) {
     concentrationImpact: concentrationImpact(sanctuary, facts),
     expectedOutcome: "Improves survivability while setting up a safer next turn.",
     assumptions: facts.coverAvailable ? ["Cover is reachable without provoking unacceptable danger."] : [],
-    warnings: movementWarnings(facts),
+    warnings: [
+      sanctuary ? "Sanctuary fits this plan because you are not attacking this turn." : null,
+      ...movementWarnings(facts)
+    ],
     followUpQuestions: followUpQuestions(facts)
   });
 }
@@ -163,11 +181,20 @@ function seedPlanProblems(plan, byId, facts) {
   if (!plan || typeof plan !== "object" || !Object.keys(plan).length) return ["plan is empty or malformed."];
   if (!plan.id) problems.push("missing id.");
   if (!plan.title) problems.push("missing title.");
+  if (!validCategory(plan.category)) problems.push("missing or invalid category.");
   const pieces = Array.isArray(plan.planPieces) ? plan.planPieces : [];
   if (!pieces.some((piece) => piece.optionId)) problems.push("has no actionable optionId.");
   const counts = { action: 0, bonus: 0, reaction: 0 };
   pieces.forEach((piece) => {
+    if (!piece || typeof piece !== "object" || !Object.keys(piece).length) {
+      problems.push("contains an empty or malformed plan piece.");
+      return;
+    }
     if (!Object.hasOwn(SLOT_RULES, piece?.slot)) problems.push(`${piece?.slot ?? "Unknown slot"} is not an allowed slot.`);
+    if (!Object.hasOwn(piece, "optionId")) problems.push(`${piece?.slot ?? "Plan piece"} is missing explicit optionId.`);
+    if (!piece?.name) problems.push(`${piece?.slot ?? "Plan piece"} is missing name.`);
+    if (!piece?.explanation) problems.push(`${piece?.slot ?? "Plan piece"} is missing explanation.`);
+    if (piece?.optionId === null && piece.name !== "None") problems.push(`${piece.slot} null optionId must use name "None".`);
     if (!piece?.optionId) return;
     const indexed = byId.get(piece.optionId);
     if (!indexed) {
@@ -176,7 +203,7 @@ function seedPlanProblems(plan, byId, facts) {
     }
     if (piece.name !== indexed.name) problems.push(`${piece.optionId} is named "${piece.name}" but optionIndex names it "${indexed.name}".`);
     const expected = SLOT_RULES[piece.slot];
-    if (expected && !indexed.cost?.[expected]) problems.push(`${piece.optionId} is incompatible with ${piece.slot}.`);
+    if (expected && !indexed.cost?.[expected] && piece.slot !== "Special") problems.push(`${piece.optionId} is incompatible with ${piece.slot}.`);
     if (piece.slot === "Action") counts.action += 1;
     if (piece.slot === "Bonus Action") counts.bonus += 1;
     if (piece.slot === "Reaction") counts.reaction += 1;
@@ -186,6 +213,7 @@ function seedPlanProblems(plan, byId, facts) {
   if (counts.reaction > 1) problems.push("has more than one Reaction reminder.");
   problems.push(...resourceProblems(plan, byId));
   problems.push(...conditionalProblems(plan, byId, facts));
+  problems.push(...concentrationProblems(plan, byId, facts));
   return problems;
 }
 
@@ -208,12 +236,26 @@ function conditionalProblems(plan, byId, facts) {
   return problems;
 }
 
-function optionPiece(slot, option, instruction) {
-  return { slot, optionId: option.id, name: option.name, instruction };
+function concentrationProblems(plan, byId, facts) {
+  const options = plan.planPieces.map((piece) => byId.get(piece.optionId)).filter(Boolean);
+  const concentrationOptions = options.filter(isConcentration);
+  const impact = String(plan.concentrationImpact ?? "");
+  const problems = [];
+  if (facts.currentConcentration && concentrationOptions.length && !/replace|end/i.test(impact)) {
+    problems.push("concentration spell does not state it replaces current concentration.");
+  }
+  if (facts.currentConcentration && options.some((option) => /sanctuary/i.test(option.name)) && /replace|end/i.test(impact)) {
+    problems.push("Sanctuary is not marked concentration but plan says it replaces current concentration.");
+  }
+  return problems;
 }
 
-function nonePiece(slot, instruction) {
-  return { slot, optionId: null, name: "None", instruction };
+function optionPiece(slot, option, explanation) {
+  return { slot, optionId: option.id, name: option.name, explanation };
+}
+
+function nonePiece(slot, explanation) {
+  return { slot, optionId: null, name: "None", explanation };
 }
 
 function movementPiece(byId, facts, instruction) {
@@ -252,12 +294,12 @@ function plan(value) {
 
 function modelWarnings({ optionIndex, tacticalFacts }) {
   const byId = indexById(optionIndex);
-  return [
+  return unique([
     tacticalFacts.currentConcentration === "Hex" ? "Hex is already active; do not recommend recasting Hex unless the target changed and moving/recasting is legal." : null,
     byId.has("spell_inflict_wounds") && tacticalFacts.targetDistanceFt ? `Inflict Wounds requires touch range from a current distance of ${tacticalFacts.targetDistanceFt} ft.` : null,
     tacticalFacts.coverAvailable ? "Movement toward cover is useful but conditional on a safe path." : null,
     tacticalFacts.targetDistanceFt ? `Use the concrete ${tacticalFacts.targetDistanceFt} ft distance from user notes.` : null
-  ].filter(Boolean);
+  ].filter(Boolean));
 }
 
 function concentrationImpact(option, facts) {
@@ -326,6 +368,10 @@ function isConcentration(option) {
   return Boolean(option?.concentration) || CONCENTRATION_SPELLS.test(option?.name ?? "");
 }
 
+function validCategory(value) {
+  return ["best_overall", "balanced", "damage", "defense", "support", "control", "mobility", "resource_conserving", "escape_or_reposition", "other"].includes(value);
+}
+
 function findOption(byId, ids, pattern) {
   return ids.map((id) => byId.get(id)).find(Boolean)
     ?? [...byId.values()].find((option) => pattern.test(option.name));
@@ -337,4 +383,8 @@ function indexById(optionIndex) {
 
 function slug(value) {
   return String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function unique(items) {
+  return [...new Set(items.filter(Boolean))];
 }

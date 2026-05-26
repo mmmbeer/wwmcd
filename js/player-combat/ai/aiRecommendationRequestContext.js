@@ -87,7 +87,7 @@ function compactCandidatePackage(candidatePackage = {}, optionIndex = [], limit)
     completeTurnSlots: candidatePackage.completeTurnSlots,
     piecesBySlot: pruneEmpty(Object.fromEntries(Object.entries(candidatePackage.piecesBySlot ?? {}).map(([slot, pieces]) => [
       slot,
-      compactCandidatePieces(pieces, validIds, limit)
+      compactCandidatePieces(pieces, validIds, slot === "action" ? Math.max(limit, 30) : limit)
     ]))),
     allGoalRelevantSpells: compactCandidatePieces(candidatePackage.allGoalRelevantSpells, validIds, Math.max(limit, 12)),
     instruction: candidatePackage.instruction
@@ -144,10 +144,6 @@ function compactOptionAudit(audit = {}, optionIndex = [], ignored = [], seedWarn
       ...compactStrings(audit.ignoredDeterministicRecommendations, 8),
       ...compactStrings(ignored, 8)
     ].slice(0, 12),
-    seedPlanWarnings: [
-      ...compactStrings(audit.seedPlanWarnings, 8),
-      ...compactStrings(seedWarnings, 8)
-    ].slice(0, 12),
     candidateDowngrades: compactStrings(audit.candidateDowngrades, 8),
     highValueTacticalHooks: compactHooks(audit.highValueTacticalHooks, optionIndex, 8)
   });
@@ -181,7 +177,7 @@ function compactPlanPieces(pieces = [], validIds) {
       slot: piece.slot,
       optionId: piece.optionId,
       name: piece.name,
-      instruction: piece.instruction,
+      explanation: piece.explanation,
       conditional: piece.conditional
     }));
 }
