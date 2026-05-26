@@ -42,6 +42,12 @@ export function rollDice(formula, options = {}) {
   };
 }
 
+export function parseDiceFormula(formula) {
+  const normalized = normalizeFormula(formula);
+  if (!normalized) return [];
+  return parseTerms(normalized).map((term) => ({ ...term }));
+}
+
 export function rollAttack({ bonus = 0, label = "Attack", mode = "normal" } = {}) {
   const first = rollDice(`1d20${signed(bonus)}`, { label, type: "attack" });
   if (mode !== "advantage" && mode !== "disadvantage") return first;

@@ -1,5 +1,6 @@
 import { rollDice } from "../core/diceRoller.js";
 import { isAttackActionOption } from "../rules/attackActionRules.js";
+import { buildPreviewGroups, playAnimatedDiceRoll, renderDicePreview } from "./animatedDiceRoller.js";
 import { formatRollSummary } from "./diceResult.js";
 import { escapeHtml } from "./renderUtils.js";
 
@@ -45,6 +46,7 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
         <span>Core rolls</span>
         ${rolls.map((roll) => `<strong>${escapeHtml(roll.label)}: ${escapeHtml(roll.formula)}</strong>`).join("")}
       </div>
+      <div data-roll-preview></div>
       ${rolls.some((roll) => supportsD20Mode(roll.formula)) ? `
         <label class="field">
           <span>D20 mode</span>
@@ -61,6 +63,9 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
       </label>
       <div data-roll-feedback></div>
     `;
+    updateDicePreview(body, rolls);
+    body.querySelector("[data-extra-dice]")?.addEventListener("input", () => updateDicePreview(body, rolls));
+    body.querySelector("[data-roll-mode]")?.addEventListener("change", () => updateDicePreview(body, rolls));
 
     let rolled = false;
     const resolveOnce = (value) => {
@@ -79,15 +84,25 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
           label: "Roll",
           variant: "primary",
           close: false,
-          onClick: ({ button } = {}) => {
+          onClick: async ({ button } = {}) => {
+            if (button?.disabled) return;
+            if (button) button.disabled = true;
             const result = rollForForm(body, option, rolls, { rollIndex, rollTotal });
             const summary = formatBundleSummary(result);
             if (result.ok) {
               stateManager.logRoll(result, summary);
               rolled = true;
-              removeRollButtonAfterSuccess(result, button);
             }
             body.querySelector("[data-roll-feedback]").innerHTML = renderResult(result, summary);
+            if (result.ok) {
+              await playAnimatedDiceRoll({
+                result,
+                container: body.querySelector("[data-roll-animation]")
+              });
+              removeRollButtonAfterSuccess(result, button);
+            } else if (button) {
+              button.disabled = false;
+            }
           }
         },
         {
@@ -106,6 +121,13 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
       ]
     });
   });
+}
+
+function updateDicePreview(body, rolls) {
+  const extra = normalizeExtraDice(body.querySelector("[data-extra-dice]")?.value);
+  const mode = body.querySelector("[data-roll-mode]")?.value ?? "normal";
+  const previewGroups = buildPreviewGroups(expandRollsForMode(rolls, mode), extra);
+  renderDicePreview(body.querySelector("[data-roll-preview]"), previewGroups);
 }
 
 function rollForForm(body, option, rolls, { rollIndex = null, rollTotal = null } = {}) {
@@ -170,6 +192,7 @@ function renderResult(result, summary) {
   return `
     <div class="roll-result is-ok">
       <span>Results</span>
+      <div class="roll-animation-results" data-roll-animation></div>
       ${result.results.map((entry) => `
         <div class="roll-result-line">
           <strong>${escapeHtml(entry.label)}: ${escapeHtml(entry.total)}</strong>
@@ -205,6 +228,11 @@ function rollBundle(option) {
 
 function supportsD20Mode(formula) {
   return /\b1d20\b/i.test(String(formula ?? ""));
+}
+
+function expandRollsForMode(rolls, mode) {
+  if (mode !== "advantage" && mode !== "disadvantage") return rolls;
+  return rolls.flatMap((roll) => supportsD20Mode(roll.formula) ? [roll, roll] : [roll]);
 }
 
 function normalizeExtraDice(value) {

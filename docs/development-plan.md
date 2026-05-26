@@ -1,6 +1,47 @@
 # Development Plan
 
-## Current Session: Movement Click Performance
+## Current Session: Animated Dice Roll Modal
+
+### Implemented
+
+- Added an animated dice roll experience to action roll modals using the SVG polyhedral dice assets in `assets/dice`.
+- The modal now previews every die that will be rolled with the die maximum displayed before rolling.
+- Successful rolls create full-viewport dice actors that move horizontally and vertically, spin, bounce off viewport edges, re-randomize displayed values on boundary collisions, then settle back into grouped modal result rows.
+- Final grouped dice results show attack/damage-style roll groups, rolled values, totals, and a modifier pop-in.
+- Kept dice math in `diceRoller.js`; the animation is a visual layer driven by the existing structured roll result.
+- Added reduced-motion handling that skips the viewport animation and reveals settled results directly.
+
+### Files Changed
+
+- `assets/dice/*.svg` are consumed by the roll UI.
+- `css/action-list.css`
+- `js/player-combat/core/diceRoller.js`
+- `js/player-combat/ui/actionRollModal.js`
+- `js/player-combat/ui/animatedDiceRoller.js`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The animation supports the provided d4, d6, d8, d10, d12, and d20 SVGs.
+- Advantage/disadvantage still uses the existing selected-result summary; the animated grouped dice focus on the final kept roll result.
+
+### Manual Test Checklist
+
+1. Open a weapon attack roll modal and confirm attack and damage dice preview before rolling.
+2. Click `Roll` and confirm dice move around the viewport, spin, bounce, and settle into grouped modal results.
+3. Roll a formula with a modifier and confirm the modifier pops in after the dice settle.
+4. Try extra dice such as `1d4` and confirm the preview and final grouped result include the extra die.
+5. Enable reduced motion in the OS/browser and confirm results appear without the full-viewport animation.
+
+### Verification Completed
+
+- `node --check js\player-combat\core\diceRoller.js`
+- `node --check js\player-combat\ui\animatedDiceRoller.js`
+- `node --check js\player-combat\ui\actionRollModal.js`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: Movement Click Performance
 
 ### Implemented
 

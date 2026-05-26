@@ -301,6 +301,175 @@
   border-top: 1px solid rgba(190, 143, 72, 0.18);
 }
 
+.dice-preview-grid,
+.dice-final-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dice-preview-grid {
+  padding: var(--space-3);
+  border: 1px solid rgba(190, 143, 72, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.animated-die {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  color: #171009;
+  filter: drop-shadow(0 8px 13px rgba(0, 0, 0, 0.34));
+  transform: rotate(var(--die-rotation, 0deg));
+}
+
+.animated-die img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.animated-die strong {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.55em;
+  min-height: 1.55em;
+  border-radius: 999px;
+  background: rgba(243, 234, 215, 0.82);
+  color: #171009;
+  font-family: var(--font-display);
+  font-size: 1.04rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.animated-die.is-pending {
+  opacity: 0.9;
+}
+
+.dice-animation-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 32;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.animated-die.is-flying {
+  position: fixed;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.dice-final-groups {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dice-final-group {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid rgba(190, 143, 72, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.dice-final-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.dice-final-heading span {
+  color: var(--text-secondary);
+}
+
+.dice-final-heading strong {
+  color: var(--accent-gold-soft);
+  font-size: 1.35rem;
+}
+
+.dice-final-groups.is-settling [data-dice-target] {
+  opacity: 0;
+}
+
+.dice-final-groups.is-settled [data-dice-target] {
+  animation: dice-land-pop 180ms ease-out both;
+}
+
+.dice-modifier-pop {
+  display: inline-grid;
+  place-items: center;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--accent-gold-soft);
+  border-radius: 999px;
+  background: rgba(217, 164, 65, 0.16);
+  color: var(--accent-gold-soft);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+.dice-modifier-pop.is-visible {
+  animation: dice-modifier-pop 260ms ease-out 110ms both;
+}
+
+@keyframes dice-land-pop {
+  0% {
+    transform: scale(0.82) rotate(var(--die-rotation, 0deg));
+  }
+
+  70% {
+    transform: scale(1.08) rotate(var(--die-rotation, 0deg));
+  }
+
+  100% {
+    transform: scale(1) rotate(var(--die-rotation, 0deg));
+  }
+}
+
+@keyframes dice-modifier-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  72% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-final-groups.is-settled [data-dice-target],
+  .dice-modifier-pop.is-visible {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .roll-check {
   display: inline-flex;
   gap: var(--space-2);
