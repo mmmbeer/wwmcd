@@ -4,13 +4,19 @@ import {
   auditRecommendationContext,
   validateDeterministicRecommendations
 } from "./aiRecommendationOptionAudit.js";
+import {
+  characterSpellNames,
+  isSpellLikeWeaponItem,
+  isSpellLikeWeaponOption
+} from "./aiRecommendationOptionSanitizer.js";
 
 const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
 
 export function buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes, selectedCreatures = [] }) {
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
-  const availableOptions = summarizeGroups(groups);
+  const spellNames = characterSpellNames(character);
+  const availableOptions = summarizeGroups(groups, spellNames);
   const playerIntent = summarizePlayerIntent(answers, userNotes);
   const battlefieldKnowledge = summarizeBattlefieldKnowledge(playerIntent, availableOptions);
   const optionIndex = buildOptionIndex(availableOptions);
@@ -40,7 +46,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     rankingGuidance: summarizeRankingGuidance({ availableOptions, battlefieldKnowledge, combatState, playerIntent }),
     classTactics: summarizeClassTactics(character),
     availableOptions,
-    unavailableOptions: summarizeUnavailableGroups(groups),
+    unavailableOptions: summarizeUnavailableGroups(groups, spellNames),
     optionIndex,
     optionAudit: mergeAudit(optionAudit, deterministicValidation.ignored),
     deterministicRecommendations,
@@ -148,6 +154,7 @@ export function buildOptionIndex(availableOptions) {
 
 function summarizeCharacter(character, combatState) {
   if (!character) return null;
+  const spellNames = characterSpellNames(character);
   return pruneEmpty({
     name: character.name,
     level: character.level,
@@ -162,7 +169,7 @@ function summarizeCharacter(character, combatState) {
     resources: summarizeCharacterResources(character),
     features: summarizeFeatureBuckets(character.features),
     traits: summarizeList(character.race?.features, 24),
-    equipment: summarizeInventory(character.inventory),
+    equipment: summarizeInventory(character.inventory, spellNames),
     spells: summarizeSpells(character.spells, character, combatState)
   });
 }
@@ -199,9 +206,9 @@ function summarizeFeatureBuckets(features = {}) {
   return Object.fromEntries(Object.entries(features).map(([key, value]) => [key, summarizeList(value, 35)]));
 }
 
-function summarizeInventory(inventory = {}) {
+function summarizeInventory(inventory = {}, spellNames = new Set()) {
   return {
-    weapons: summarizeList(inventory.weapons, 30),
+    weapons: summarizeList((inventory.weapons ?? []).filter((item) => !isSpellLikeWeaponItem(item, spellNames)), 30),
     armor: summarizeList(inventory.armor, 20),
     consumables: summarizeList(inventory.consumables, 25),
     magicItems: summarizeList(inventory.magicItems, 25),
@@ -220,20 +227,23 @@ function summarizeSpells(spells = {}, character, combatState) {
   });
 }
 
-function summarizeGroups(groups = {}) {
+function summarizeGroups(groups = {}, spellNames = new Set()) {
   return pruneEmpty(Object.fromEntries(OPTION_GROUPS.map((group) => [
     group,
-    prioritizeOptionsForContext((groups[group] ?? []).filter((option) => option.available !== false))
+    prioritizeOptionsForContext((groups[group] ?? [])
+      .filter((option) => option.available !== false)
+      .filter((option) => !isSpellLikeWeaponOption(option, spellNames)))
       .slice(0, 40)
       .map(summarizeOption)
   ])));
 }
 
-export function summarizeUnavailableGroups(groups = {}) {
+export function summarizeUnavailableGroups(groups = {}, spellNames = new Set()) {
   return pruneEmpty(Object.fromEntries(OPTION_GROUPS.map((group) => [
     group,
     (groups[group] ?? [])
       .filter((option) => option.available === false)
+      .filter((option) => !isSpellLikeWeaponOption(option, spellNames))
       .slice(0, 20)
       .map(summarizeOption)
   ])));

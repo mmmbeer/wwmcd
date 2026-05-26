@@ -14,6 +14,7 @@
 - Added post-model checks for option/name swaps, explanations describing another option, misleading no-resource claims, and recasting Hex while already concentrating on Hex without a legal retarget/recast explanation.
 - Revalidated deterministic recommendations after request-context compaction so compact payloads cannot include candidates whose option IDs are missing from the compacted `optionIndex`.
 - Filtered high-value tactical hooks during compaction when they mention unavailable option names such as Eldritch Blast or Fire Bolt.
+- Added AI-context filtering for spell attacks that arrive as weapon options, so stale `weapon_fire_bolt` / `weapon_eldritch_blast` entries are removed from `availableOptions`, `optionIndex`, deterministic candidates, and summarized equipment before the model call.
 
 ### Files Changed
 
@@ -50,6 +51,7 @@
 6. Confirm ravine or similar terrain notes make movement conditional unless a safe path is specified.
 7. Confirm cold immunity and dangerous short-range pressure affect the recommendation explanation and ranking.
 8. Confirm AI output that references missing or mismatched option IDs is marked invalid and not attached to a real option.
+9. Confirm spell attack cantrips are not present as weapon options in AI recommendation context, even if stale grouped options contain them.
 
 ### Verification Completed
 

@@ -400,12 +400,61 @@ test("AI recommendation context includes option audit diagnostics for malformed 
     }]
   });
 
-  assert.ok(context.optionAudit.dataWarnings.some((warning) => /spell attack represented as a weapon/i.test(warning)));
+  assert.equal(context.optionIndex.some((option) => option.id === "weapon_fire_bolt"), false);
   assert.ok(context.optionAudit.dataWarnings.some((warning) => /missing optionId/i.test(warning)));
   assert.ok(context.optionAudit.ignoredDeterministicRecommendations.some((warning) => /Harness Divine Power/i.test(warning)));
   assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /safe path/i.test(warning)));
   assert.ok(context.optionAudit.highValueTacticalHooks.some((hook) => /dangerous short-range pressure/i.test(hook)));
   assert.ok(context.optionAudit.highValueTacticalHooks.some((hook) => /cold damage/i.test(hook)));
+});
+
+test("AI recommendation context filters spell attacks that arrive as weapon options", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Eustace",
+        level: 5,
+        classes: [{ name: "Warlock", level: 2 }],
+        race: {},
+        combat: { maxHp: 47, ac: 17 },
+        resources: {},
+        features: {},
+        inventory: {
+          weapons: [
+            { name: "Fire Bolt", damage: "2d10", damageType: "Fire" },
+            { name: "Eldritch Blast", damage: "1d10", damageType: "Force" },
+            { name: "Dagger", damage: "1d4", damageType: "piercing" }
+          ]
+        },
+        spells: {
+          cantrips: [{ name: "Fire Bolt", level: 0 }, { name: "Eldritch Blast", level: 0 }],
+          known: [],
+          prepared: []
+        }
+      },
+      combatState: { current: {}, turn: {}, resourcesUsed: {} }
+    },
+    groups: {
+      attacks: [
+        { id: "weapon_fire_bolt", name: "Fire Bolt", source: "weapon", available: true, cost: { action: true }, rolls: [{ id: "damage", type: "damage", formula: "2d10", damageType: "fire" }] },
+        { id: "weapon_eldritch_blast", name: "Eldritch Blast", source: "weapon", available: true, cost: { action: true }, rolls: [{ id: "damage", type: "damage", formula: "1d10", damageType: "force" }] },
+        { id: "weapon_dagger", name: "Dagger", source: "weapon", available: true, cost: { action: true }, rolls: [{ id: "damage", type: "damage", formula: "1d4", damageType: "piercing" }] }
+      ]
+    },
+    recommendationSets: [{
+      title: "Damage turn: Fire Bolt",
+      pieces: [{ slot: "Action", entry: { option: { id: "weapon_fire_bolt", name: "Fire Bolt" }, reasons: [], warnings: [] } }]
+    }],
+    answers: {},
+    userNotes: ""
+  });
+
+  assert.equal(context.availableOptions.attacks.some((option) => option.id === "weapon_fire_bolt"), false);
+  assert.equal(context.availableOptions.attacks.some((option) => option.id === "weapon_eldritch_blast"), false);
+  assert.equal(context.availableOptions.attacks.some((option) => option.id === "weapon_dagger"), true);
+  assert.equal(context.optionIndex.some((option) => option.id === "weapon_fire_bolt" || option.id === "weapon_eldritch_blast"), false);
+  assert.equal(context.character.equipment.weapons.some((weapon) => weapon.name === "Fire Bolt" || weapon.name === "Eldritch Blast"), false);
+  assert.ok(context.optionAudit.ignoredDeterministicRecommendations.some((warning) => /weapon_fire_bolt is missing from optionIndex/i.test(warning)));
 });
 
 test("Yeti context only includes hooks for indexed options and downgrades risky touch and movement plans", () => {
