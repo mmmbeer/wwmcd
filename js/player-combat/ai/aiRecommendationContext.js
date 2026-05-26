@@ -1,6 +1,9 @@
 import { CLASS_TACTICS } from "./classTactics.js";
 import { summarizeSelectedCreatures } from "./creatureContext.js";
-import { auditRecommendationContext } from "./aiRecommendationOptionAudit.js";
+import {
+  auditRecommendationContext,
+  validateDeterministicRecommendations
+} from "./aiRecommendationOptionAudit.js";
 
 const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
 
@@ -11,14 +14,16 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   const playerIntent = summarizePlayerIntent(answers, userNotes);
   const battlefieldKnowledge = summarizeBattlefieldKnowledge(playerIntent, availableOptions);
   const optionIndex = buildOptionIndex(availableOptions);
-  const deterministicRecommendations = (Array.isArray(recommendationSets) ? recommendationSets : [])
+  const rawDeterministicRecommendations = (Array.isArray(recommendationSets) ? recommendationSets : [])
     .slice(0, 5)
     .map(summarizeRecommendationSet);
+  const deterministicValidation = validateDeterministicRecommendations(rawDeterministicRecommendations, optionIndex);
+  const deterministicRecommendations = deterministicValidation.recommendations;
   const selectedCreatureContext = summarizeSelectedCreatures(selectedCreatures);
   const optionAudit = auditRecommendationContext({
     availableOptions,
     optionIndex,
-    deterministicRecommendations,
+    deterministicRecommendations: rawDeterministicRecommendations,
     character: summarizeCharacter(character, combatState),
     combatState: summarizeCombatState(combatState, character),
     playerIntent,
@@ -37,7 +42,7 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups),
     optionIndex,
-    optionAudit,
+    optionAudit: mergeAudit(optionAudit, deterministicValidation.ignored),
     deterministicRecommendations,
     instructionHints: {
       useOnlyOptionIds: true,
@@ -48,6 +53,16 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
       unavailableOptionsAreForAwarenessOnly: true
     }
   });
+}
+
+function mergeAudit(audit, ignoredDeterministicRecommendations) {
+  return {
+    ...audit,
+    ignoredDeterministicRecommendations: [
+      ...(audit?.ignoredDeterministicRecommendations ?? []),
+      ...(ignoredDeterministicRecommendations ?? [])
+    ].filter(Boolean).slice(0, 12)
+  };
 }
 
 export function summarizeClassTactics(character) {

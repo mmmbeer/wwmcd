@@ -141,6 +141,65 @@ test("normalization flags invented option IDs without dropping the recommendatio
   assert.equal(result.recommendations[0].pieces[0].option, null);
 });
 
+test("strict optionIndex validation rejects missing and mismatched plan pieces", () => {
+  const payload = responseWithAction("spell_eldritch_blast", "Eldritch Blast");
+  payload.recommendations[0].planPieces = [
+    { slot: "Action", optionId: "spell_eldritch_blast", name: "Eldritch Blast", explanation: "Cast Eldritch Blast." },
+    { slot: "Action", optionId: "attack_unarmed_strike", name: "Eldritch Blast", explanation: "Use Eldritch Blast beams." },
+    { slot: "Bonus Action", name: "None", explanation: "No useful bonus action." }
+  ];
+
+  const result = normalizeAiResponse(JSON.stringify(payload), yetiContext());
+  const pieces = result.recommendations[0].pieces;
+
+  assert.equal(pieces.some((piece) => piece.optionId === "spell_eldritch_blast"), false);
+  assert.equal(pieces.some((piece) => piece.optionId === "attack_unarmed_strike" && piece.name === "Eldritch Blast"), false);
+  assert.equal(pieces[2].name, "None");
+  assert.equal(result.recommendations[0].legality, "invalid");
+  assert.match(result.recommendations[0].warnings.join(" "), /No optionIndex entry found.*spell_eldritch_blast/);
+  assert.match(result.recommendations[0].warnings.join(" "), /does not match optionIndex name "Unarmed Strike"/);
+});
+
+test("strict validation rejects explanations that describe a different indexed option", () => {
+  const payload = responseWithAction("attack_unarmed_strike", "Unarmed Strike");
+  payload.recommendations[0].planPieces[0].explanation = "Cast Eldritch Blast from range.";
+  const result = normalizeAiResponse(JSON.stringify(payload), {
+    ...yetiContext(),
+    optionIndex: [
+      ...yetiContext().optionIndex,
+      { id: "spell_eldritch_blast", name: "Eldritch Blast" }
+    ]
+  });
+
+  assert.equal(result.recommendations[0].pieces[0].optionId, "");
+  assert.equal(result.recommendations[0].legality, "invalid");
+  assert.match(result.recommendations[0].warnings.join(" "), /explanation appears to describe "Eldritch Blast"/);
+});
+
+test("strict validation flags misleading resource and Hex concentration claims", () => {
+  const payload = responseWithAction("spell_guiding_bolt", "Guiding Bolt");
+  payload.recommendations[0].resourcesUsed = ["Level 1 spell slot"];
+  payload.recommendations[0].reasons = ["No resource cost"];
+  payload.recommendations[0].planPieces = [
+    { slot: "Action", optionId: "spell_guiding_bolt", name: "Guiding Bolt", explanation: "Spend a spell slot for radiant damage." },
+    { slot: "Bonus Action", optionId: "spell_hex", name: "Hex", explanation: "Cast Hex first." }
+  ];
+  const result = normalizeAiResponse(JSON.stringify(payload), yetiContext());
+
+  assert.equal(result.recommendations[0].legality, "conditional");
+  assert.match(result.recommendations[0].warnings.join(" "), /claims no resource cost/);
+  assert.match(result.recommendations[0].warnings.join(" "), /already concentrating on Hex/);
+});
+
+test("Yeti prompt preserves concrete distance and terrain hazard constraints", () => {
+  const message = buildRecommendationUserMessage(yetiContext());
+
+  assert.match(message, /15 ft away/);
+  assert.match(message, /rock cover nearby across a ravine/);
+  assert.match(message, /safe path/);
+  assert.match(message, /Every optionId and name must match/);
+});
+
 test("normalization tolerates malformed recommendation objects", () => {
   const result = normalizeAiResponse(JSON.stringify({
     turnAssessment: "Malformed item.",
@@ -427,6 +486,59 @@ function largeContext() {
     optionIndex: options.map((option) => ({ id: option.id, name: option.name, group: "spells" })),
     deterministicRecommendations: [],
     instructionHints: {}
+  };
+}
+
+function yetiContext() {
+  const guidingBolt = {
+    id: "spell_guiding_bolt",
+    name: "Guiding Bolt",
+    available: true,
+    cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+    resource: "Level 1 spell slot",
+    range: { type: "ranged", label: "120 ft", normal: 120 },
+    rolls: [{ id: "damage", type: "damage", formula: "4d6", damageType: "radiant" }],
+    spell: { level: 1, range: "120 ft" }
+  };
+  const hex = {
+    id: "spell_hex",
+    name: "Hex",
+    available: true,
+    cost: { bonus: true, resource: { type: "spellSlot", level: 1 } },
+    resource: "Level 1 spell slot",
+    spell: { level: 1, concentration: true, castingCost: "bonus", range: "90 ft" }
+  };
+  const unarmed = {
+    id: "attack_unarmed_strike",
+    name: "Unarmed Strike",
+    available: true,
+    cost: { action: true },
+    rolls: [],
+    range: { type: "melee", label: "5 ft", normal: 5 }
+  };
+  return {
+    combatState: { concentration: "Hex", current: { concentration: "Hex" } },
+    playerIntent: {
+      range: "unknown",
+      userNotes: "Abominable Yeti is 15 ft away. There is rock cover nearby across a ravine."
+    },
+    optionAudit: {
+      dataWarnings: [],
+      ignoredDeterministicRecommendations: ["Removed missing Eldritch Blast candidate."],
+      highValueTacticalHooks: ["Movement to rock cover is conditional on a safe path."]
+    },
+    availableOptions: {
+      attacks: [unarmed],
+      spells: [guidingBolt, hex],
+      movement: [{ id: "movement_walk", name: "Move", available: true, cost: { movement: true } }]
+    },
+    unavailableOptions: {},
+    optionIndex: [
+      { id: "attack_unarmed_strike", name: "Unarmed Strike" },
+      { id: "spell_guiding_bolt", name: "Guiding Bolt" },
+      { id: "spell_hex", name: "Hex" },
+      { id: "movement_walk", name: "Move" }
+    ]
   };
 }
 

@@ -27,6 +27,23 @@ export function auditRecommendationContext({ availableOptions, optionIndex, dete
   };
 }
 
+export function validateDeterministicRecommendations(recommendations = [], optionIndex = []) {
+  const indexed = new Map((optionIndex ?? []).map((option) => [option.id, option]));
+  const ignored = [];
+  const valid = [];
+
+  (recommendations ?? []).forEach((set) => {
+    const problems = deterministicSetProblems(set, indexed);
+    if (problems.length) {
+      ignored.push(`Removed deterministic recommendation "${set?.title ?? "Untitled recommendation"}": ${problems.join(" ")}`);
+      return;
+    }
+    valid.push(set);
+  });
+
+  return { recommendations: valid, ignored };
+}
+
 function auditOption(option, spellAttackBonus) {
   const warnings = [];
   const name = String(option?.name ?? "");
@@ -57,6 +74,7 @@ function auditDeterministicIds(recommendations, indexed) {
 
 function auditDeterministicSet(set, indexed, context) {
   const warnings = [];
+  warnings.push(...deterministicSetProblems(set, indexed).map((problem) => `Ignore "${set.title}": ${problem}`));
   const pieces = set?.pieces ?? [];
   const options = pieces.map((piece) => piece?.option).filter(Boolean);
   const missing = options.filter((option) => option.id && !indexed.has(option.id));
@@ -70,6 +88,22 @@ function auditDeterministicSet(set, indexed, context) {
     warnings.push(`Treat "${set.title}" movement as conditional until a safe path around terrain hazards is known.`);
   }
   return warnings;
+}
+
+function deterministicSetProblems(set, indexed) {
+  const pieces = Array.isArray(set?.pieces) ? set.pieces : [];
+  if (!pieces.length) return ["no concrete plan pieces."];
+  return pieces.flatMap((piece) => {
+    const option = piece?.option;
+    const id = option?.id;
+    if (!id) return [`${piece?.slot ?? "Plan piece"} has no optionId.`];
+    const indexedOption = indexed.get(id);
+    if (!indexedOption) return [`${id} is missing from optionIndex.`];
+    if (option?.name && indexedOption.name && !sameName(option.name, indexedOption.name)) {
+      return [`${id} is named "${option.name}" but optionIndex names it "${indexedOption.name}".`];
+    }
+    return [];
+  });
 }
 
 function tacticalDowngrades(option, { dangerousMelee, hazards, playerIntent }) {
@@ -99,6 +133,10 @@ function tacticalHooks({ options, selectedCreatures, playerIntent, dangerousMele
   }
   if (/\b\d+\s*ft\b/i.test(playerIntent?.userNotes ?? "")) hooks.push("User notes include a concrete distance; use it for range legality.");
   return hooks;
+}
+
+function sameName(left, right) {
+  return String(left ?? "").trim().toLowerCase() === String(right ?? "").trim().toLowerCase();
 }
 
 function optionHasAttackRoll(option) {

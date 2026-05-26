@@ -6,6 +6,10 @@ import {
   JSON_ONLY_PROMPT,
   recommendationResponseFormat
 } from "./aiRecommendationResponseContract.js";
+import {
+  recommendationContractWarnings,
+  validateStrictPlanPiece
+} from "./aiRecommendationPostValidation.js";
 
 export async function getAiRecommendations({ provider = "groq", apiKey, model, context, chatClient = requestAiChat }) {
   const request = shouldUseJsonSchema({ provider, model })
@@ -56,12 +60,14 @@ export function buildRecommendationUserMessage(context) {
     "- Return a ranked list of complete turn plans using planPieces.",
     "- Every recommendation should consider the whole turn: main action, bonus action, movement, free/object interaction, and a relevant reaction reminder.",
     "- Use optionId values from optionIndex. availableOptions may be grouped ID lists for orientation.",
+    "- Every optionId and name must match the same optionIndex entry exactly; never attach one option's name or explanation to another optionId.",
     "- Read optionAudit before ranking. Treat deterministicRecommendations as candidate ideas, not as truth; ignore or downgrade entries listed in optionAudit.",
     "- Use selectedCreatures for hidden target AC, defenses, saves, traits, and likely tactics, but do not print unrevealed stat-block details back to the player.",
     "- Use battlefieldKnowledge to avoid obviously poor damage types or tactics against named creatures from the notes.",
     "- Do not rank avoided damage types as good attacks when the optionIndex contains viable alternatives.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
     "- Each planPiece must reference one concrete option from optionIndex or availableOptions.",
+    "- If a turn slot has no useful option, represent it as name \"None\" with no optionId.",
     "- Combine compatible pieces when useful: attacks, Extra Attack pieces, bonus actions, riders, resource spends, free/object interactions, movement, and reaction reminders.",
     "- Strong bonus-action setup spells such as Hex or Hunter's Mark should be included with a compatible attack when available, legal, in range, and the character is not already concentrating.",
     "- Do not fill a bonus action merely because one exists. Include a bonus action only when it improves damage, survival, positioning, resource needs, or the player's goal.",
@@ -153,10 +159,19 @@ export function normalizeRecommendationSet(set, index, optionMap) {
   const validationWarnings = [
     ...pieces.flatMap(validateMatchedPiece),
     ...validateActionEconomy(pieces),
-    ...validateBattlefieldKnowledge(pieces, optionMap?.battlefieldKnowledge)
+    ...validateBattlefieldKnowledge(pieces, optionMap?.battlefieldKnowledge),
+    ...recommendationContractWarnings({
+      set: safeSet,
+      pieces,
+      resourcesUsed: arrayOfStrings(safeSet.resourcesUsed),
+      optionMap
+    })
   ];
   const warnings = [...arrayOfStrings(safeSet.warnings), ...validationWarnings].slice(0, 8);
-  const legality = validationWarnings.length
+  const hasRejectedPiece = pieces.some((piece) => piece.rejected);
+  const legality = hasRejectedPiece
+    ? "invalid"
+    : validationWarnings.length
     ? downgradeLegality(stringOr(safeSet.legality, "conditional"))
     : legalEnum(safeSet.legality, "conditional");
   const primaryPiece = action.optionId || action.name !== "None" ? action : pieces[0] ?? action;
@@ -224,8 +239,7 @@ function normalizePlanPieces(pieces, optionMap) {
   if (!Array.isArray(pieces)) return [];
   return pieces
     .slice(0, 10)
-    .map((piece) => normalizeActionPiece(piece, optionMap, stringOr(piece?.slot, "Action")))
-    .filter((piece) => piece.name.toLowerCase() !== "none" || piece.optionId);
+    .map((piece) => normalizeActionPiece(piece, optionMap, stringOr(piece?.slot, "Action")));
 }
 
 export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
@@ -242,6 +256,19 @@ export function normalizeActionPiece(piece, optionMap, fallbackSlot) {
 
   const optionId = stringOr(piece.optionId, "");
   const name = stringOr(piece.name, "");
+  const strictResult = validateStrictPlanPiece({ optionId, name, explanation: stringOr(piece.explanation, ""), optionMap });
+  if (strictResult) {
+    return {
+      slot: stringOr(piece.slot, fallbackSlot),
+      optionId: strictResult.optionId,
+      name: strictResult.name,
+      explanation: stringOr(piece.explanation, ""),
+      option: strictResult.option,
+      validation: strictResult.validation,
+      rejected: strictResult.rejected
+    };
+  }
+
   const { option: matched, matchedByNameOnly, ambiguousName } = findMatchingOption({ optionId, name, optionMap });
   const validation = [];
   if (matchedByNameOnly) {
@@ -291,6 +318,7 @@ function findPlanPiece(pieces, predicate) {
 function buildOptionMap(contextOrOptions) {
   const byId = new Map();
   const nameBuckets = new Map();
+  const optionIndex = Array.isArray(contextOrOptions?.optionIndex) ? contextOrOptions.optionIndex : null;
   const groups = contextOrOptions?.availableOptions
     ? [contextOrOptions.availableOptions, contextOrOptions.unavailableOptions]
     : [contextOrOptions];
@@ -305,6 +333,14 @@ function buildOptionMap(contextOrOptions) {
       nameBuckets.set(nameKey, bucket);
     });
   });
+  const availableById = new Map(byId);
+  if (optionIndex) {
+    byId.clear();
+    optionIndex.forEach((option) => {
+      if (!option?.id) return;
+      byId.set(option.id, availableById.get(option.id) ?? option);
+    });
+  }
   const byName = new Map();
   const ambiguousNames = new Set();
   nameBuckets.forEach((options, name) => {
@@ -312,7 +348,15 @@ function buildOptionMap(contextOrOptions) {
     if (uniqueIds.size === 1) byName.set(name, options[0]);
     else ambiguousNames.add(name);
   });
-  return { byId, byName, ambiguousNames, battlefieldKnowledge: contextOrOptions?.battlefieldKnowledge };
+  return {
+    byId,
+    byName,
+    ambiguousNames,
+    battlefieldKnowledge: contextOrOptions?.battlefieldKnowledge,
+    strictIds: Boolean(optionIndex),
+    options: [...byId.values()],
+    currentConcentration: contextOrOptions?.combatState?.concentration ?? contextOrOptions?.combatState?.current?.concentration ?? ""
+  };
 }
 
 function findMatchingOption({ optionId, name, optionMap }) {

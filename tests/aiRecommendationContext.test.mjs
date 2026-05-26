@@ -336,10 +336,8 @@ test("AI recommendation context tolerates malformed deterministic recommendation
 
   assert.equal(context.availableOptions.actions[0].id, "action_dodge");
   assert.equal(context.availableOptions.actions[0].rolls.length, 0);
-  assert.equal(context.deterministicRecommendations[0].title, "Untitled recommendation");
-  assert.equal(context.deterministicRecommendations[0].pieces.length, 2);
-  assert.equal(context.deterministicRecommendations[0].pieces[0].option.name, "Unknown option");
-  assert.deepEqual(context.deterministicRecommendations[0].warnings, []);
+  assert.deepEqual(context.deterministicRecommendations ?? [], []);
+  assert.ok(context.optionAudit.ignoredDeterministicRecommendations.some((warning) => /Removed deterministic recommendation/i.test(warning)));
 });
 
 test("AI recommendation context includes option audit diagnostics for malformed spell attacks and deterministic candidates", () => {
@@ -408,4 +406,51 @@ test("AI recommendation context includes option audit diagnostics for malformed 
   assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /safe path/i.test(warning)));
   assert.ok(context.optionAudit.highValueTacticalHooks.some((hook) => /dangerous short-range pressure/i.test(hook)));
   assert.ok(context.optionAudit.highValueTacticalHooks.some((hook) => /cold damage/i.test(hook)));
+});
+
+test("Yeti context only includes hooks for indexed options and downgrades risky touch and movement plans", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Eustace",
+        level: 5,
+        classes: [{ name: "Cleric", level: 5 }],
+        race: {},
+        combat: { maxHp: 38, ac: 13 },
+        resources: { spellSlots: { 1: 4 } },
+        features: {},
+        inventory: {},
+        spells: { attackBonus: 7, saveDc: 15 }
+      },
+      combatState: { current: { hp: 12, concentration: "Hex" }, turn: {}, resourcesUsed: { spellSlots: {} } }
+    },
+    groups: {
+      attacks: [{ id: "attack_unarmed_strike", name: "Unarmed Strike", source: "weapon", available: true, cost: { action: true }, rolls: [] }],
+      spells: [
+        { id: "spell_guiding_bolt", name: "Guiding Bolt", source: "spell", available: true, cost: { action: true, resource: { type: "spellSlot", level: 1 } }, resource: "Level 1 spell slot", range: { type: "ranged", label: "120 ft", normal: 120 }, rolls: [{ id: "damage", type: "damage", formula: "4d6", damageType: "radiant" }], spell: { level: 1, range: "120 ft" } },
+        { id: "spell_inflict_wounds", name: "Inflict Wounds", source: "spell", available: true, cost: { action: true, resource: { type: "spellSlot", level: 1 } }, resource: "Level 1 spell slot", range: { type: "melee", label: "Touch", normal: 5 }, rolls: [{ id: "damage", type: "damage", formula: "3d10", damageType: "necrotic" }], spell: { level: 1, range: "Touch" } },
+        { id: "spell_hex", name: "Hex", source: "spell", available: true, cost: { bonus: true, resource: { type: "spellSlot", level: 1 } }, resource: "Level 1 spell slot", range: { type: "ranged", label: "90 ft", normal: 90 }, rolls: [], spell: { level: 1, concentration: true, castingCost: "bonus", range: "90 ft" } }
+      ],
+      movement: [{ id: "movement_walk", name: "Move", source: "basic", group: "movement", available: true, cost: { movement: true }, rolls: [] }]
+    },
+    recommendationSets: [{
+      title: "Bad deterministic blast",
+      pieces: [{ slot: "Action", entry: { option: { id: "spell_eldritch_blast", name: "Eldritch Blast" }, reasons: [], warnings: [] } }]
+    }],
+    answers: { goal: "damage", distance: "unknown" },
+    userNotes: "Abominable Yeti is 15 ft away. There is rock cover nearby across a ravine.",
+    selectedCreatures: [{
+      name: "Abominable Yeti",
+      immune: ["cold"],
+      action: [{ name: "Multiattack", entries: ["The yeti makes claw attacks and uses Chilling Gaze."] }]
+    }]
+  });
+
+  assert.equal(context.optionIndex.some((option) => option.id === "spell_eldritch_blast"), false);
+  assert.equal((context.deterministicRecommendations ?? []).length, 0);
+  assert.equal(context.optionAudit.highValueTacticalHooks.some((hook) => /Eldritch Blast/i.test(hook)), false);
+  assert.ok(context.optionAudit.ignoredDeterministicRecommendations.some((warning) => /spell_eldritch_blast/i.test(warning)));
+  assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /Inflict Wounds.*touch\/melee range/i.test(warning)));
+  assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /Move movement.*safe path/i.test(warning)));
+  assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /concrete distance/i.test(warning)));
 });

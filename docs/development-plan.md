@@ -10,6 +10,8 @@
 - Added an AI option audit context with data warnings, ignored deterministic recommendations, tactical downgrades, and high-value tactical hooks.
 - Updated deterministic turn-set assembly so low-synergy bonus actions such as Harness Divine Power are not attached to damage plans just to fill the bonus action.
 - Expanded the AI prompt and response schema to require `optionAudit` diagnostics and support rejected alternatives / why-not-higher explanations.
+- Added strict optionIndex validation before and after the AI call: invalid deterministic recommendations are removed from prompt candidates, AI plan pieces with missing or mismatched option IDs are rejected, and "None" turn slots no longer need fake option IDs.
+- Added post-model checks for option/name swaps, explanations describing another option, misleading no-resource claims, and recasting Hex while already concentrating on Hex without a legal retarget/recast explanation.
 
 ### Files Changed
 
@@ -19,6 +21,7 @@
 - `js/player-combat/ai/aiRecommendationContext.js`
 - `js/player-combat/ai/aiRecommendationRequestContext.js`
 - `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationPostValidation.js`
 - `js/player-combat/ai/aiRecommendationResponseContract.js`
 - `js/player-combat/ai/aiRecommendationService.js`
 - `js/player-combat/recommendations/recommendationSets.js`
@@ -33,6 +36,7 @@
 - The audit is deterministic and conservative; it flags likely hazards and low-synergy plans but still leaves final tactical tradeoffs to the AI.
 - Creature danger-zone reasoning uses selected creature summaries and player notes, not full hidden encounter geometry.
 - Movement near hazards is marked conditional unless notes provide a safe path; the app does not pathfind on a battle map.
+- Explanation mismatch detection is name-based; it catches obvious option swaps such as "Unarmed Strike" option IDs described as "Eldritch Blast."
 
 ### Manual Test Checklist
 
@@ -43,10 +47,12 @@
 5. Confirm deterministic damage plans do not automatically add Harness Divine Power.
 6. Confirm ravine or similar terrain notes make movement conditional unless a safe path is specified.
 7. Confirm cold immunity and dangerous short-range pressure affect the recommendation explanation and ranking.
+8. Confirm AI output that references missing or mismatched option IDs is marked invalid and not attached to a real option.
 
 ### Verification Completed
 
 - `node --test tests\playerCombatImport.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs tests\recommendationScoring.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
 
 ## Previous Session: PDF Cantrip Attack Import
 

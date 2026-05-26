@@ -1,7 +1,7 @@
 const PLAN_PIECE_DESCRIPTION = {
   type: "object",
   additionalProperties: false,
-  required: ["slot", "optionId", "name", "explanation"],
+  required: ["slot", "name", "explanation"],
   properties: {
     slot: {
       type: "string",
@@ -51,6 +51,11 @@ The response must be a single JSON object with this exact shape:
           "optionId": "copy the exact id from an available option",
           "name": "copy the exact option name",
           "explanation": "what this piece contributes"
+        },
+        {
+          "slot": "Bonus Action",
+          "name": "None",
+          "explanation": "No useful bonus action this turn."
         }
       ],
       "resourcesUsed": ["resource name"],
