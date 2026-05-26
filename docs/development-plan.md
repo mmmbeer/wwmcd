@@ -1,6 +1,42 @@
 # Development Plan
 
-## Current Session: AI Turn Recommendation Audit
+## Current Session: Spell Tactical Metadata Audit
+
+### Implemented
+
+- Added deterministic tactical metadata to every `data/spells.json` spell entry using the recommendation enum values: `combatUsefulness`, `roles`, situations, difficulties, and range bands.
+- Reviewed and corrected representative false positives so damage filtering does not classify healing, defense, or low-combat utility spells as high-damage options.
+- Updated spell option generation so imported character-sheet spells inherit matched reference spell tactics from `spells.json`.
+- Added regression coverage for full spell metadata enum validity and imported spell metadata inheritance.
+
+### Files Changed
+
+- `data/spells.json`
+- `js/player-combat/rules/spellActions.js`
+- `tests/spellMetadata.test.mjs`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Spell tactics are deterministic metadata for recommendation filtering, not a full rules parser for every niche spell use.
+- Some flexible spells, such as transformation and summoning spells, retain broad tactical roles because their best use depends on the selected form, creature, or table context.
+- Legacy overrides in `data/recommendations/spellTactics.json` still take precedence for hand-tuned spells.
+
+### Manual Test Checklist
+
+1. Import a character with `Fireball`, `Cure Wounds`, `Shield`, and `Mending`.
+2. Set the recommendation goal to Damage and confirm `Fireball` is treated as damage/minion-clear while `Cure Wounds` and `Shield` are not presented as high-damage options.
+3. Set the goal to Support and confirm healing spells rank as support options.
+4. Set the goal to Defense and confirm defensive reactions such as `Shield` rank through defense/reaction metadata.
+5. Confirm imported spells still use reference descriptions, range, casting time, damage rolls, and concentration data.
+
+### Verification Completed
+
+- `node --test tests\spellMetadata.test.mjs tests\recommendationScoring.test.mjs tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: AI Turn Recommendation Audit
 
 ### Implemented
 

@@ -36,6 +36,7 @@ function createSpellOption(character, combatState, referenceData, spell, referen
   const save = saveText(spell, description, saveDc);
   const isAttackSpell = rolls.some((roll) => roll.type === "attack");
   const damageTypes = damageTypesFromRolls(rolls, description);
+  const tactics = reference.tactics ?? spell.tactics ?? null;
 
   const option = {
     id: `spell_${normalizeName(spell.name).replace(/[^a-z0-9]+/g, "_") || index}`,
@@ -52,6 +53,7 @@ function createSpellOption(character, combatState, referenceData, spell, referen
     resource: level > 0 ? `Level ${level} spell slot` : null,
     attack: isAttackSpell ? { count: rollCount, consumesAttackAction: false } : null,
     range: rangeInfo,
+    tactics,
     recommended: index < 2,
     rolls,
     damageTypes,
@@ -82,7 +84,8 @@ function createSpellOption(character, combatState, referenceData, spell, referen
         components: reference.components,
         duration,
         description,
-        higher_levels: reference.higher_levels ?? spell.higher_levels
+        higher_levels: reference.higher_levels ?? spell.higher_levels,
+        tactics
       }
     }
   };

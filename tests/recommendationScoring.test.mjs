@@ -871,6 +871,50 @@ test("missing tactical metadata does not break recommendations", () => {
   assert.equal(ranked.length, 2);
 });
 
+test("option-level spell tactics work without external metadata", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_fireball",
+        name: "Fireball",
+        source: "spell",
+        description: "A bright streak flashes to a point you choose and explodes in a 20-foot-radius sphere.",
+        spell: { level: 3, range: "150 feet" },
+        cost: { action: true, resource: { type: "spellSlot", level: 3 } },
+        rolls: [{ id: "damage", type: "damage", formula: "8d6" }],
+        tactics: {
+          combatUsefulness: "signature",
+          roles: ["damage", "minionClear", "nova"],
+          goodSituations: ["multiple", "bigBadMinions"]
+        },
+        available: true
+      },
+      {
+        id: "spell_cure_wounds",
+        name: "Cure Wounds",
+        source: "spell",
+        description: "A creature you touch regains hit points.",
+        spell: { level: 1, range: "Touch" },
+        cost: { action: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [{ id: "healing", type: "healing", formula: "1d8+3" }],
+        tactics: {
+          combatUsefulness: "strong",
+          roles: ["support"],
+          goodSituations: ["ally"]
+        },
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", situation: "bigBadMinions", resources: "spend" },
+    tacticalMetadata: {}
+  });
+
+  assert.equal(ranked[0].option.name, "Fireball");
+  assert.ok(ranked[0].reasons.includes("Handles minions"));
+  assert.equal(ranked.find((entry) => entry.option.name === "Cure Wounds").option.tactics.roles.includes("damage"), false);
+});
+
 function groupsWith(options) {
   return {
     recommended: options,
