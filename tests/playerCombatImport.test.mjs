@@ -216,9 +216,51 @@ test("PDF cantrip attack rows enrich spell actions instead of weapon attacks", a
   assert.equal(eldritchBlast.source, "spell");
   assert.equal(eldritchBlast.spell.level, 0);
   assert.equal(eldritchBlast.rollCount, 2);
+  assert.equal(eldritchBlast.attack.count, 2);
+  assert.equal(eldritchBlast.attack.consumesAttackAction, false);
+  assert.equal(eldritchBlast.range.type, "ranged");
+  assert.equal(eldritchBlast.range.normal, 120);
   assert.deepEqual(eldritchBlast.rolls.map((roll) => roll.type), ["attack", "damage"]);
   assert.equal(eldritchBlast.rolls.find((roll) => roll.type === "attack").formula, "1d20+7");
   assert.equal(eldritchBlast.rolls.find((roll) => roll.type === "damage").formula, "1d10");
+});
+
+test("spell attack cantrips normalize as ranged spell options with spell attack bonus and cantrip scaling", () => {
+  const character = {
+    level: 5,
+    classes: [{ name: "Warlock", level: 5 }],
+    stats: { str: 8, dex: 12, con: 14, int: 10, wis: 12, cha: 18 },
+    combat: { proficiencyBonus: 3, speed: { walk: 30 } },
+    resources: { spellSlots: {}, classResources: [], limitedUses: [] },
+    inventory: { weapons: [{ name: "Fire Bolt", damage: { diceString: "1d10" }, damageType: "fire" }] },
+    features: { class: [], race: [], feats: [], other: [] },
+    spells: {
+      spellcastingAbility: "cha",
+      attackBonus: 7,
+      saveDc: 15,
+      cantrips: [
+        { name: "Fire Bolt", level: 0 },
+        { name: "Eldritch Blast", level: 0 }
+      ],
+      prepared: [],
+      known: []
+    }
+  };
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: spellAttackReferenceData() });
+  const fireBolt = groups.spells.find((option) => option.name === "Fire Bolt");
+  const eldritchBlast = groups.spells.find((option) => option.name === "Eldritch Blast");
+
+  assert.equal(groups.attacks.some((option) => option.name === "Fire Bolt" || option.name === "Eldritch Blast"), false);
+  assert.equal(fireBolt.source, "spell");
+  assert.equal(fireBolt.range.type, "ranged");
+  assert.equal(fireBolt.range.normal, 120);
+  assert.equal(fireBolt.rolls.find((roll) => roll.id === "spellAttack").formula, "1d20+7");
+  assert.equal(fireBolt.rolls.find((roll) => roll.id === "damage").formula, "2d10");
+  assert.deepEqual(fireBolt.damageTypes, ["fire"]);
+  assert.equal(eldritchBlast.source, "spell");
+  assert.equal(eldritchBlast.range.type, "ranged");
+  assert.equal(eldritchBlast.attack.count, 2);
+  assert.equal(eldritchBlast.rolls.find((roll) => roll.id === "spellAttack").formula, "1d20+7");
 });
 
 test("rejects PDFs without fillable form fields", () => {
@@ -883,7 +925,7 @@ function spellAttackReferenceData() {
           casting_time: "1 action",
           range: "120 feet",
           duration: "Instantaneous",
-          description: "Make a ranged spell attack. On a hit, the target takes 1d10 force damage."
+          description: "Make a ranged spell attack. On a hit, the target takes 1d10 force damage. The spell creates more than one beam when you reach higher levels: two beams at 5th level, three beams at 11th level, and four beams at 17th level. Make a separate attack roll for each beam."
         }]
       ])
     }

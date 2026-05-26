@@ -56,6 +56,7 @@ export function buildRecommendationUserMessage(context) {
     "- Return a ranked list of complete turn plans using planPieces.",
     "- Every recommendation should consider the whole turn: main action, bonus action, movement, free/object interaction, and a relevant reaction reminder.",
     "- Use optionId values from optionIndex. availableOptions may be grouped ID lists for orientation.",
+    "- Read optionAudit before ranking. Treat deterministicRecommendations as candidate ideas, not as truth; ignore or downgrade entries listed in optionAudit.",
     "- Use selectedCreatures for hidden target AC, defenses, saves, traits, and likely tactics, but do not print unrevealed stat-block details back to the player.",
     "- Use battlefieldKnowledge to avoid obviously poor damage types or tactics against named creatures from the notes.",
     "- Do not rank avoided damage types as good attacks when the optionIndex contains viable alternatives.",
@@ -63,12 +64,14 @@ export function buildRecommendationUserMessage(context) {
     "- Each planPiece must reference one concrete option from optionIndex or availableOptions.",
     "- Combine compatible pieces when useful: attacks, Extra Attack pieces, bonus actions, riders, resource spends, free/object interactions, movement, and reaction reminders.",
     "- Strong bonus-action setup spells such as Hex or Hunter's Mark should be included with a compatible attack when available, legal, in range, and the character is not already concentrating.",
+    "- Do not fill a bonus action merely because one exists. Include a bonus action only when it improves damage, survival, positioning, resource needs, or the player's goal.",
     "- Examples of useful combinations include Steady Aim plus Longbow plus Sneak Attack, weapon attack plus Divine Smite, and monk weapon plus Flurry of Blows when those option IDs are present.",
     "- Include class-feature riders such as Sneak Attack, Divine Smite, Stunning Strike, or Flurry of Blows only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
     "- Do not include more than one explicit Action or one Bonus Action unless the app-provided option is an Extra Attack/attack-count piece.",
     "- Include different tactical categories when useful.",
     "- Mark plans conditional if range, line of sight, target validity, concentration, or resources are uncertain.",
     "- Prefer strong ranged options over closing to melee for fragile or wounded characters unless the provided context supports closing.",
+    "- Account for terrain hazards and end-of-turn danger before ranking a high-damage plan above a defensive or repositioning plan.",
     "- Include missingInfo for facts that would materially change the recommendation.",
     "- Prefer useful, table-ready guidance over long rules explanation.",
     "",
@@ -120,6 +123,7 @@ export function normalizeAiResponse(text, contextOrOptions) {
     turnAssessment: stringOr(parsed?.turnAssessment, ""),
     recommendedOptionId: stringOr(parsed?.recommendedOptionId, ""),
     missingInfo: arrayOfStrings(parsed?.missingInfo).slice(0, 8),
+    optionAudit: normalizeOptionAudit(parsed?.optionAudit),
     recommendations,
     sets: recommendations
   };
@@ -181,8 +185,28 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     assumptions: arrayOfStrings(safeSet.assumptions).slice(0, 8),
     reasons: arrayOfStrings(safeSet.reasons).slice(0, 6),
     warnings,
+    rejectedAlternatives: normalizeRejectedAlternatives(safeSet.rejectedAlternatives),
+    whyNotHigher: stringOr(safeSet.whyNotHigher, ""),
     pieces
   };
+}
+
+function normalizeOptionAudit(value) {
+  const audit = value && typeof value === "object" ? value : {};
+  return {
+    dataWarnings: arrayOfStrings(audit.dataWarnings).slice(0, 12),
+    ignoredDeterministicRecommendations: arrayOfStrings(audit.ignoredDeterministicRecommendations).slice(0, 12),
+    highValueTacticalHooks: arrayOfStrings(audit.highValueTacticalHooks).slice(0, 12)
+  };
+}
+
+function normalizeRejectedAlternatives(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).map((entry) => ({
+    optionId: stringOr(entry?.optionId, ""),
+    name: stringOr(entry?.name, ""),
+    reason: stringOr(entry?.reason, "")
+  })).filter((entry) => entry.optionId || entry.name || entry.reason);
 }
 
 function legacySingleOptionPiece(set, optionMap, existingAction) {

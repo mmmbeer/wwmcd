@@ -13,11 +13,27 @@ const PLAN_PIECE_DESCRIPTION = {
   }
 };
 
+const OPTION_AUDIT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["dataWarnings", "ignoredDeterministicRecommendations", "highValueTacticalHooks"],
+  properties: {
+    dataWarnings: { type: "array", items: { type: "string" } },
+    ignoredDeterministicRecommendations: { type: "array", items: { type: "string" } },
+    highValueTacticalHooks: { type: "array", items: { type: "string" } }
+  }
+};
+
 export const JSON_ONLY_PROMPT = `Return ONLY valid JSON. Do not include Markdown fences, comments, prose before the JSON, or prose after the JSON.
 The response must be a single JSON object with this exact shape:
 {
   "guidance": "brief tactical guidance for the player",
   "missingInfo": ["important missing fact"],
+  "optionAudit": {
+    "dataWarnings": ["data issue noticed or none"],
+    "ignoredDeterministicRecommendations": ["candidate ignored or downgraded"],
+    "highValueTacticalHooks": ["important tactical hook used"]
+  },
   "recommendations": [
     {
       "id": "rec-1",
@@ -41,7 +57,11 @@ The response must be a single JSON object with this exact shape:
       "concentrationImpact": "none, starts concentration, maintains concentration, or replaces existing concentration",
       "assumptions": ["assumption"],
       "reasons": ["short reason"],
-      "warnings": ["short warning"]
+      "warnings": ["short warning"],
+      "rejectedAlternatives": [
+        { "optionId": "exact option id", "name": "option name", "reason": "why it was not ranked higher" }
+      ],
+      "whyNotHigher": "why this plan is not ranked above stronger plans, or empty for the top plan"
     }
   ]
 }
@@ -59,10 +79,11 @@ export function recommendationResponseFormat() {
       schema: {
         type: "object",
         additionalProperties: false,
-        required: ["guidance", "missingInfo", "recommendations"],
+        required: ["guidance", "missingInfo", "optionAudit", "recommendations"],
         properties: {
           guidance: { type: "string" },
           missingInfo: { type: "array", items: { type: "string" } },
+          optionAudit: OPTION_AUDIT_SCHEMA,
           recommendations: {
             type: "array",
             minItems: 1,
@@ -82,7 +103,8 @@ function recommendationSchema() {
     required: [
       "id", "rank", "category", "title", "score", "confidence", "legality",
       "riskLevel", "explanation", "planPieces", "resourcesUsed",
-      "concentrationImpact", "assumptions", "reasons", "warnings"
+      "concentrationImpact", "assumptions", "reasons", "warnings",
+      "rejectedAlternatives", "whyNotHigher"
     ],
     properties: {
       id: { type: "string" },
@@ -107,7 +129,21 @@ function recommendationSchema() {
       concentrationImpact: { type: "string" },
       assumptions: { type: "array", items: { type: "string" } },
       reasons: { type: "array", items: { type: "string" } },
-      warnings: { type: "array", items: { type: "string" } }
+      warnings: { type: "array", items: { type: "string" } },
+      rejectedAlternatives: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["optionId", "name", "reason"],
+          properties: {
+            optionId: { type: "string" },
+            name: { type: "string" },
+            reason: { type: "string" }
+          }
+        }
+      },
+      whyNotHigher: { type: "string" }
     }
   };
 }

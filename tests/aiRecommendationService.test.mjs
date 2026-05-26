@@ -57,6 +57,7 @@ test("AI recommendation service falls back when json_schema response format is u
   assert.equal(calls.length, 2);
   assert.equal(calls[0].responseFormat.type, "json_schema");
   assert.ok(JSON.stringify(calls[0].responseFormat).includes("optionId"));
+  assert.ok(JSON.stringify(calls[0].responseFormat).includes("optionAudit"));
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("planPieces"), true);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"action\""), false);
   assert.equal(JSON.stringify(calls[0].responseFormat).includes("\"bonusAction\""), false);
@@ -64,6 +65,7 @@ test("AI recommendation service falls back when json_schema response format is u
   assert.equal(calls[1].responseFormat.type, "json_object");
   assert.match(calls[1].messages[0].content, /Return ONLY valid JSON/);
   assert.match(calls[1].messages[1].content, /ranked list of complete turn plans/);
+  assert.match(calls[1].messages[1].content, /optionAudit/);
   assert.match(calls[1].messages[1].content, /optionIndex/);
   assert.equal(recommendations.recommendations[0].pieces[0].optionId, "attack_rapier");
   assert.equal(recommendations.sets, recommendations.recommendations);
@@ -305,6 +307,7 @@ test("user message builder includes shared tactical instructions and context JSO
   assert.match(message, /Hex or Hunter's Mark/);
   assert.match(message, /selectedCreatures/);
   assert.match(message, /optionIndex/);
+  assert.match(message, /optionAudit/);
   assert.match(message, /classTactics/);
   assert.match(message, /combat-option-recommendation\/v3/);
 });

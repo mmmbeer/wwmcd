@@ -2,6 +2,8 @@ import { findByName } from "../data/referenceDataService.js";
 import { normalizeName } from "../data/combatDataTransformer.js";
 import { applySpellFeatureRiders } from "./spellFeatureRiders.js";
 
+const DAMAGE_TYPES = ["acid", "cold", "fire", "force", "lightning", "necrotic", "poison", "psychic", "radiant", "thunder"];
+
 export function getSpellActions(character, combatState, referenceData) {
   const spells = uniqueSpells([
     ...(character?.spells?.prepared ?? []),
@@ -24,13 +26,16 @@ function createSpellOption(character, combatState, referenceData, spell, referen
   const description = referenceDescription || importedDescription;
   const attackBonus = spell.attackBonus ?? character?.spells?.attackBonus ?? spellAttackBonus(character);
   const saveDc = spell.saveDc ?? character?.spells?.saveDc ?? null;
-  const rolls = spellRolls(character, spell, description, attackBonus);
-  const rollCount = Math.max(1, Number(spell.attackCount ?? 1));
+  const rollCount = spellAttackCount(character, spell, description);
+  const rolls = spellRolls(character, spell, description, attackBonus, level);
   const slotReason = slotUnavailableReason(character, combatState, level);
   const range = spell.range || reference.range;
+  const rangeInfo = normalizeSpellRange(range, description);
   const duration = spell.duration || reference.duration;
   const concentration = Boolean(spell.concentration) || /concentration/i.test(String(duration ?? description));
   const save = saveText(spell, description, saveDc);
+  const isAttackSpell = rolls.some((roll) => roll.type === "attack");
+  const damageTypes = damageTypesFromRolls(rolls, description);
 
   const option = {
     id: `spell_${normalizeName(spell.name).replace(/[^a-z0-9]+/g, "_") || index}`,
@@ -42,11 +47,14 @@ function createSpellOption(character, combatState, referenceData, spell, referen
     ].filter(Boolean).join(" - "),
     source: "spell",
     group: cost.bonus ? "bonus" : cost.reaction ? "reaction" : "action",
-    tags: ["spell", level === 0 ? "cantrip" : "slot"],
+    tags: ["spell", level === 0 ? "cantrip" : "slot", isAttackSpell ? "attack" : null, rangeInfo?.type].filter(Boolean),
     cost: { ...cost, resource: level > 0 ? { type: "spellSlot", level } : null },
     resource: level > 0 ? `Level ${level} spell slot` : null,
+    attack: isAttackSpell ? { count: rollCount, consumesAttackAction: false } : null,
+    range: rangeInfo,
     recommended: index < 2,
     rolls,
+    damageTypes,
     rollCount: rollCount > 1 ? rollCount : undefined,
     unavailableReasons: slotReason ? [slotReason] : [],
     meta: [
@@ -152,14 +160,15 @@ function castingCostName(cost) {
   return "special";
 }
 
-function spellRolls(character, spell, description, attackBonus) {
+function spellRolls(character, spell, description, attackBonus, spellLevel) {
   const damage = formulaFromDamage(spell.damage) ?? firstFormulaNear(description, /(takes?|deals?|take|deal)\s+(\d+d\d+)/i);
   const healing = firstFormulaNear(description, /(regains? hit points equal to|regains?|restore|heals?)\s+(\d+d\d+)/i);
+  const scaledDamage = scaleCantripDamage(damage, characterLevel(character), spellLevel, description);
 
   if (spell.attackType || (spell.attackBonus !== null && spell.attackBonus !== undefined) || /spell attack/i.test(description)) {
     return [
       { id: "spellAttack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" },
-      damage ? { id: "damage", label: "Roll Damage", formula: damage, type: "damage", damageType: damageTypeFrom(spell.damage) } : null
+      scaledDamage ? { id: "damage", label: "Roll Damage", formula: scaledDamage, type: "damage", damageType: damageTypeFrom(spell.damage) || damageTypeFromText(description) } : null
     ].filter(Boolean);
   }
 
@@ -168,10 +177,65 @@ function spellRolls(character, spell, description, attackBonus) {
   }
 
   if (damage) {
-    return [{ id: "damage", label: "Roll Damage", formula: damage, type: "damage", damageType: damageTypeFrom(spell.damage) }];
+    return [{ id: "damage", label: "Roll Damage", formula: scaledDamage, type: "damage", damageType: damageTypeFrom(spell.damage) || damageTypeFromText(description) }];
   }
 
   return [];
+}
+
+function spellAttackCount(character, spell, description) {
+  const explicit = Number(spell.attackCount ?? 0);
+  if (explicit > 0) return explicit;
+  const level = characterLevel(character);
+  if (/\bmore than one beam\b|\btwo beams at (?:level|5th level)|make a separate attack roll for each beam/i.test(description)) {
+    if (level >= 17) return 4;
+    if (level >= 11) return 3;
+    if (level >= 5) return 2;
+  }
+  return 1;
+}
+
+function normalizeSpellRange(range, description) {
+  const text = String(range ?? "");
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  if (/\btouch\b/.test(lower)) return { type: "melee", label: "Touch", normal: 5, long: null };
+  if (/\bself\b/.test(lower)) return { type: "self", label: text, normal: 0, long: null };
+  const feet = Number(text.match(/(\d+)\s*(?:feet|foot|ft\.?)/i)?.[1] ?? 0);
+  const type = /ranged spell attack/i.test(description) || feet > 5 ? "ranged" : "melee";
+  return {
+    type,
+    label: text.replace(/\bfeet\b/i, "ft.").trim(),
+    normal: feet || null,
+    long: null
+  };
+}
+
+function scaleCantripDamage(formula, characterLevelValue, spellLevel, description) {
+  if (!formula || Number(spellLevel) !== 0 || !hasCantripScaling(description)) return formula;
+  if (/\bmore than one beam\b|\bmake a separate attack roll for each beam\b/i.test(description)) return formula;
+  const tier = characterLevelValue >= 17 ? 4 : characterLevelValue >= 11 ? 3 : characterLevelValue >= 5 ? 2 : 1;
+  return String(formula).replace(/^(\d*)d(\d+)/i, (match, countText, sides) => {
+    const count = Number(countText || 1);
+    return count >= tier ? match : `${count * tier}d${sides}`;
+  });
+}
+
+function hasCantripScaling(description) {
+  return /\b(?:cantrip upgrade|higher levels?|5th level|level 5|11th level|level 11|17th level|level 17)\b/i.test(description);
+}
+
+function characterLevel(character) {
+  const explicit = Number(character?.level ?? 0);
+  if (explicit > 0) return explicit;
+  return (character?.classes ?? []).reduce((total, entry) => total + Number(entry?.level ?? 0), 0) || 1;
+}
+
+function damageTypesFromRolls(rolls, description) {
+  return [...new Set([
+    ...rolls.map((roll) => roll.damageType).filter(Boolean),
+    damageTypeFromText(description)
+  ].filter(Boolean).map((type) => String(type).toLowerCase()))];
 }
 
 function firstFormulaNear(description, pattern) {
@@ -188,6 +252,10 @@ function formulaFromDamage(damage) {
 function damageTypeFrom(damage) {
   if (!damage || typeof damage === "string") return "";
   return damage.type ?? damage.damageType ?? "";
+}
+
+function damageTypeFromText(text) {
+  return DAMAGE_TYPES.find((type) => new RegExp(`\\b${type}\\b`, "i").test(text)) ?? "";
 }
 
 function addCastingMod(character, description, formula) {

@@ -31,7 +31,7 @@ export function getRankedRecommendationSets({ rankedEntries, answers = {} }) {
     const attackCount = attackActionCount(primary.option);
     const pieces = [piece(attackCount > 1 ? "Attack 1" : slotForOption(primary.option), primary)];
     addExtraAttacks(pieces, primary, attackActions, attackCount);
-    const nextBonus = firstCompatible(bonus.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
+    const nextBonus = firstCompatible(bonus.filter((entry) => canFollowPrimary(entry.option, primary.option) && bonusMateriallyImproves(entry.option, primary.option, resolvedAnswers)), pieces);
     const nextRider = firstCompatible(riders.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
     const nextSpecial = firstCompatible(special.filter((entry) => canFollowPrimary(entry.option, primary.option)), pieces);
     const nextMove = firstCompatible(movement, pieces);
@@ -106,6 +106,31 @@ function canAddEntry(entry, pieces) {
   if (pieces.some((piece) => piece.entry.option.id === entry.option.id)) return false;
   if (isLeveledSpell(entry.option) && pieces.some((piece) => isLeveledSpell(piece.entry.option))) return false;
   return true;
+}
+
+function bonusMateriallyImproves(bonus, primary, answers) {
+  if (!bonus?.cost?.bonus) return true;
+  const text = optionText(bonus);
+  if (/\bharness divine power\b/i.test(text)) return answers.goal !== "damage" && answers.resources === "conserve";
+  if (/\bhealing word\b/i.test(text)) return answers.situation === "ally";
+  if (/\b(hex|hunter'?s mark|rage|smite|flurry|martial arts|polearm|frenzy)\b/i.test(text)) return true;
+  if (/\b(shield of faith|sanctuary|dodge|patient defense|temporary hit points|ac|protect)\b/i.test(text)) {
+    return ["defense", "mobility", "balanced"].includes(answers.goal) || ["self", "hard", "deadly"].includes(answers.situation) || ["hard", "deadly"].includes(answers.difficulty);
+  }
+  if (/\b(disengage|dash|hide|teleport|misty step|move|escape)\b/i.test(text)) return answers.goal === "mobility" || answers.situation === "self";
+  if (primary?.rolls?.some((roll) => roll.type === "damage" || roll.id === "damage") && answers.goal === "damage") return false;
+  return true;
+}
+
+function optionText(option) {
+  return [
+    option?.name,
+    option?.description,
+    option?.summary,
+    option?.spell?.reference?.description,
+    ...(option?.meta ?? []),
+    ...(option?.tags ?? [])
+  ].filter(Boolean).join(" ");
 }
 
 function isLeveledSpell(option) {

@@ -341,3 +341,71 @@ test("AI recommendation context tolerates malformed deterministic recommendation
   assert.equal(context.deterministicRecommendations[0].pieces[0].option.name, "Unknown option");
   assert.deepEqual(context.deterministicRecommendations[0].warnings, []);
 });
+
+test("AI recommendation context includes option audit diagnostics for malformed spell attacks and deterministic candidates", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Eustace",
+        level: 5,
+        classes: [{ name: "Warlock", level: 5 }],
+        race: {},
+        combat: { maxHp: 38, ac: 13 },
+        resources: {},
+        features: {},
+        inventory: {},
+        spells: { attackBonus: 7 }
+      },
+      combatState: { current: { hp: 12, concentration: null }, turn: {}, resourcesUsed: {} }
+    },
+    groups: {
+      attacks: [{
+        id: "weapon_fire_bolt",
+        name: "Fire Bolt",
+        source: "weapon",
+        group: "attacks",
+        available: true,
+        cost: { action: true },
+        range: { type: "melee", label: "5 ft", normal: 5 },
+        rolls: [
+          { id: "attack", type: "attack", formula: "1d20+3" },
+          { id: "damage", type: "damage", formula: "2d10", damageType: "fire" }
+        ],
+        tags: ["attack", "weapon", "melee"]
+      }],
+      resources: [{
+        id: "feature_harness_divine_power",
+        name: "Harness Divine Power",
+        source: "feature",
+        available: true,
+        cost: { bonus: true },
+        rolls: []
+      }],
+      movement: [{ id: "movement_walk", name: "Move", source: "basic", group: "movement", available: true, cost: { movement: true }, rolls: [] }]
+    },
+    recommendationSets: [{
+      rank: 1,
+      title: "Damage turn: Fire Bolt",
+      score: 100,
+      pieces: [
+        { slot: "Action", entry: { option: { id: "missing_fire_bolt", name: "Fire Bolt", rolls: [{ id: "damage", type: "damage", formula: "2d10" }] }, reasons: [], warnings: [] } },
+        { slot: "Bonus", entry: { option: { id: "feature_harness_divine_power", name: "Harness Divine Power" }, reasons: [], warnings: [] } },
+        { slot: "Move", entry: { option: { id: "movement_walk", name: "Move" }, reasons: [], warnings: [] } }
+      ]
+    }],
+    answers: { goal: "damage", distance: "unknown" },
+    userNotes: "Abominable Yeti 30 ft away near a ravine.",
+    selectedCreatures: [{
+      name: "Abominable Yeti",
+      immune: ["cold"],
+      action: [{ name: "Multiattack", entries: ["The yeti makes claw attacks and uses Chilling Gaze."] }]
+    }]
+  });
+
+  assert.ok(context.optionAudit.dataWarnings.some((warning) => /spell attack represented as a weapon/i.test(warning)));
+  assert.ok(context.optionAudit.dataWarnings.some((warning) => /missing optionId/i.test(warning)));
+  assert.ok(context.optionAudit.ignoredDeterministicRecommendations.some((warning) => /Harness Divine Power/i.test(warning)));
+  assert.ok(context.optionAudit.candidateDowngrades.some((warning) => /safe path/i.test(warning)));
+  assert.ok(context.optionAudit.highValueTacticalHooks.some((hook) => /dangerous short-range pressure/i.test(hook)));
+  assert.ok(context.optionAudit.highValueTacticalHooks.some((hook) => /cold damage/i.test(hook)));
+});

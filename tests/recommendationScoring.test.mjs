@@ -672,6 +672,44 @@ test("single durable targets prioritize Hex as a compatible bonus-action setup",
   assert.ok(blastSet.pieces.some((piece) => piece.slot === "Bonus" && piece.entry.option.name === "Hex"));
 });
 
+test("damage recommendation sets do not attach low-synergy Harness Divine Power bonus actions", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      {
+        id: "spell_eldritch_blast",
+        name: "Eldritch Blast",
+        source: "spell",
+        description: "Make a ranged spell attack.",
+        tags: ["spell", "cantrip", "attack", "ranged"],
+        spell: { level: 0, castingCost: "action", range: "120 feet" },
+        cost: { action: true },
+        range: { type: "ranged", label: "120 ft", normal: 120 },
+        rolls: [
+          { id: "spellAttack", type: "attack", formula: "1d20+7" },
+          { id: "damage", type: "damage", formula: "1d10", damageType: "force" }
+        ],
+        available: true
+      },
+      {
+        id: "feature_harness_divine_power",
+        name: "Harness Divine Power",
+        source: "feature",
+        description: "As a bonus action, expend a Channel Divinity use to regain one expended spell slot.",
+        cost: { bonus: true, resource: { type: "classResource", id: "channel-divinity", amount: 1 } },
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", situation: "single", resources: "normal" }
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "damage", situation: "single", resources: "normal" } });
+  const blastSet = sets.find((set) => set.pieces[0].entry.option.name === "Eldritch Blast");
+
+  assert.ok(blastSet);
+  assert.ok(!blastSet.pieces.some((piece) => piece.entry.option.name === "Harness Divine Power"));
+});
+
 test("battlefield creature lore penalizes avoided damage types", () => {
   const ranked = getRankedRecommendations({
     groups: groupsWith([

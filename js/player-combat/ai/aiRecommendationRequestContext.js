@@ -43,12 +43,22 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     availableOptions,
     unavailableOptions: compactUnavailableOptionGroups(context?.unavailableOptions, unavailableLimit),
     optionIndex,
+    optionAudit: compactOptionAudit(context?.optionAudit),
     deterministicRecommendations: (context?.deterministicRecommendations ?? []).slice(0, 3).map(compactRecommendationSet),
     requestNotes: {
       contextCompacted: true,
       compactReason: "Original tactical context exceeded request payload budget.",
       availableOptionsShape: "grouped option id lists; use optionIndex for candidate details"
     }
+  });
+}
+
+function compactOptionAudit(audit = {}) {
+  return pruneEmpty({
+    dataWarnings: compactStrings(audit.dataWarnings, 8),
+    ignoredDeterministicRecommendations: compactStrings(audit.ignoredDeterministicRecommendations, 8),
+    candidateDowngrades: compactStrings(audit.candidateDowngrades, 8),
+    highValueTacticalHooks: compactStrings(audit.highValueTacticalHooks, 8)
   });
 }
 

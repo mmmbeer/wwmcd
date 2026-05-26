@@ -1,5 +1,6 @@
 import { CLASS_TACTICS } from "./classTactics.js";
 import { summarizeSelectedCreatures } from "./creatureContext.js";
+import { auditRecommendationContext } from "./aiRecommendationOptionAudit.js";
 
 const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
 
@@ -9,22 +10,35 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   const availableOptions = summarizeGroups(groups);
   const playerIntent = summarizePlayerIntent(answers, userNotes);
   const battlefieldKnowledge = summarizeBattlefieldKnowledge(playerIntent, availableOptions);
+  const optionIndex = buildOptionIndex(availableOptions);
+  const deterministicRecommendations = (Array.isArray(recommendationSets) ? recommendationSets : [])
+    .slice(0, 5)
+    .map(summarizeRecommendationSet);
+  const selectedCreatureContext = summarizeSelectedCreatures(selectedCreatures);
+  const optionAudit = auditRecommendationContext({
+    availableOptions,
+    optionIndex,
+    deterministicRecommendations,
+    character: summarizeCharacter(character, combatState),
+    combatState: summarizeCombatState(combatState, character),
+    playerIntent,
+    selectedCreatures: selectedCreatureContext
+  });
   return pruneEmpty({
     schemaVersion: "combat-option-recommendation/v3",
     character: summarizeCharacter(character, combatState),
     combatState: summarizeCombatState(combatState, character),
     turnRules: buildTurnRules(character, combatState),
     playerIntent,
-    selectedCreatures: summarizeSelectedCreatures(selectedCreatures),
+    selectedCreatures: selectedCreatureContext,
     battlefieldKnowledge,
     rankingGuidance: summarizeRankingGuidance({ availableOptions, battlefieldKnowledge, combatState, playerIntent }),
     classTactics: summarizeClassTactics(character),
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups),
-    optionIndex: buildOptionIndex(availableOptions),
-    deterministicRecommendations: (Array.isArray(recommendationSets) ? recommendationSets : [])
-      .slice(0, 5)
-      .map(summarizeRecommendationSet),
+    optionIndex,
+    optionAudit,
+    deterministicRecommendations,
     instructionHints: {
       useOnlyOptionIds: true,
       preferCompleteTurnPlans: true,
@@ -108,7 +122,11 @@ export function buildOptionIndex(availableOptions) {
       tags: option.tags ?? [],
       isSpell: Boolean(option.spell),
       spellLevel: option.spell?.level ?? null,
-      concentration: option.spell?.concentration ?? false
+      concentration: option.spell?.concentration ?? false,
+      attack: option.attack ?? null,
+      range: option.range ?? null,
+      rolls: option.rolls ?? [],
+      damageTypes: option.damageTypes ?? []
     }))
   );
 }

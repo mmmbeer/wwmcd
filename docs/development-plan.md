@@ -1,6 +1,54 @@
 # Development Plan
 
-## Current Session: PDF Cantrip Attack Import
+## Current Session: AI Turn Recommendation Audit
+
+### Implemented
+
+- Normalized spell attack options with spell source metadata, ranged/touch range, `attack.count`, spell attack bonus rolls, damage types, and cantrip scaling.
+- Kept Eldritch Blast damage per beam while scaling its beam count by character level.
+- Filtered spell-like pseudo-weapons from weapon option generation when they match known spell data or spell-like metadata.
+- Added an AI option audit context with data warnings, ignored deterministic recommendations, tactical downgrades, and high-value tactical hooks.
+- Updated deterministic turn-set assembly so low-synergy bonus actions such as Harness Divine Power are not attached to damage plans just to fill the bonus action.
+- Expanded the AI prompt and response schema to require `optionAudit` diagnostics and support rejected alternatives / why-not-higher explanations.
+
+### Files Changed
+
+- `js/player-combat/rules/spellActions.js`
+- `js/player-combat/rules/weaponActions.js`
+- `js/player-combat/ai/aiRecommendationOptionAudit.js`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationResponseContract.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/recommendations/recommendationSets.js`
+- `tests/playerCombatImport.test.mjs`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The audit is deterministic and conservative; it flags likely hazards and low-synergy plans but still leaves final tactical tradeoffs to the AI.
+- Creature danger-zone reasoning uses selected creature summaries and player notes, not full hidden encounter geometry.
+- Movement near hazards is marked conditional unless notes provide a safe path; the app does not pathfind on a battle map.
+
+### Manual Test Checklist
+
+1. Load the Abominable Yeti recommendation scenario and confirm Fire Bolt / Eldritch Blast appear as spell options, not weapon attacks.
+2. Confirm Fire Bolt has 120 ft ranged metadata and uses the character spell attack bonus.
+3. Confirm a level 5 Eldritch Blast has `attack.count: 2` and per-beam `1d10` force damage.
+4. Request AI recommendations and confirm the prompt context includes `optionAudit`.
+5. Confirm deterministic damage plans do not automatically add Harness Divine Power.
+6. Confirm ravine or similar terrain notes make movement conditional unless a safe path is specified.
+7. Confirm cold immunity and dangerous short-range pressure affect the recommendation explanation and ranking.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs tests\recommendationScoring.test.mjs`
+
+## Previous Session: PDF Cantrip Attack Import
 
 ### Implemented
 

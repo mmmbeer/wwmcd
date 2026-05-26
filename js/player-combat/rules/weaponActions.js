@@ -4,7 +4,7 @@ import { collectCharacterFeatures, featureText } from "./featureData.js";
 import { applyWeaponFeatureRiders } from "./weaponFeatureRiders.js";
 
 export function getWeaponActions(character, combatState, referenceData) {
-  const weapons = character?.inventory?.weapons ?? [];
+  const weapons = (character?.inventory?.weapons ?? []).filter((weapon) => !isSpellLikeWeapon(weapon, referenceData));
   const attackCount = getAttackCount(character, referenceData);
 
   const referenceWeapons = buildWeaponReference(referenceData?.data?.equipment);
@@ -14,6 +14,25 @@ export function getWeaponActions(character, combatState, referenceData) {
     createGrappleOption(character, attackCount),
     createShoveOption(character, attackCount)
   ];
+}
+
+function isSpellLikeWeapon(weapon, referenceData) {
+  const name = normalizeName(weapon?.baseName ?? weapon?.name);
+  if (!name) return false;
+  const spellReference = referenceData?.indexes?.spellIndexByName?.get?.(name);
+  if (spellReference) return true;
+  const text = [
+    weapon?.name,
+    weapon?.type,
+    weapon?.category,
+    weapon?.properties,
+    weapon?.description,
+    weapon?.snippet,
+    weapon?.text,
+    weapon?.notes,
+    formatRangeObject(weapon?.range)
+  ].filter(Boolean).join(" ");
+  return /\bspell attack\b|\bcantrip\b|\bV\/?S(?:\/?M)?\b|\bcomponents?\b/i.test(text);
 }
 
 function createWeaponOptions(character, combatState, referenceData, weapon, referenceWeapons, index, attackCount) {
