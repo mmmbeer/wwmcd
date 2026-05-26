@@ -67,7 +67,7 @@ export function buildRecommendationUserMessage(context) {
     "- Do not rank avoided damage types as good attacks when the optionIndex contains viable alternatives.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
     "- Each planPiece must reference one concrete option from optionIndex or availableOptions.",
-    "- If a turn slot has no useful option, represent it as name \"None\" with no optionId.",
+    "- If a turn slot has no useful option, represent it as name \"None\" with optionId null.",
     "- Combine compatible pieces when useful: attacks, Extra Attack pieces, bonus actions, riders, resource spends, free/object interactions, movement, and reaction reminders.",
     "- Strong bonus-action setup spells such as Hex or Hunter's Mark should be included with a compatible attack when available, legal, in range, and the character is not already concentrating.",
     "- Do not fill a bonus action merely because one exists. Include a bonus action only when it improves damage, survival, positioning, resource needs, or the player's goal.",

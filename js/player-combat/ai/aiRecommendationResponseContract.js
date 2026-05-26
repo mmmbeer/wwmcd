@@ -1,13 +1,13 @@
 const PLAN_PIECE_DESCRIPTION = {
   type: "object",
   additionalProperties: false,
-  required: ["slot", "name", "explanation"],
+  required: ["slot", "optionId", "name", "explanation"],
   properties: {
     slot: {
       type: "string",
       description: "Action, Attack 1, Attack 2, Bonus Action, Rider, Special, Free, Move, or Reaction."
     },
-    optionId: { type: "string" },
+    optionId: { type: ["string", "null"] },
     name: { type: "string" },
     explanation: { type: "string" }
   }
@@ -54,6 +54,7 @@ The response must be a single JSON object with this exact shape:
         },
         {
           "slot": "Bonus Action",
+          "optionId": null,
           "name": "None",
           "explanation": "No useful bonus action this turn."
         }

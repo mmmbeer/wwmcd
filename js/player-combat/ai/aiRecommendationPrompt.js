@@ -15,7 +15,7 @@ Absolute rules:
 - Do not recommend casting a concentration spell when the character is already concentrating unless you clearly explain that it replaces concentration and why that is worth it.
 - If the character is already concentrating on Hex, do not recommend casting Hex again unless the context explicitly says the current Hex cannot apply to the target and recasting is legal.
 - If an option is not in optionIndex, do not recommend it even if classTactics, deterministicRecommendations, equipment, or optionAudit mention it.
-- For a turn slot with no useful option, use name "None" and omit optionId instead of inventing or reusing an optionId.
+- For a turn slot with no useful option, use name "None" and optionId null instead of inventing or reusing an optionId.
 
 Before ranking, do this silently:
 1. Read optionAudit.
