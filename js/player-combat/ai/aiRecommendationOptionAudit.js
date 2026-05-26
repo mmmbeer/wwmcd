@@ -6,6 +6,7 @@ const DANGEROUS_MELEE = /\b(multiattack|claw|bite|gore|pounce|swallow|grapple|re
 export function auditRecommendationContext({ availableOptions, optionIndex, deterministicRecommendations, character, combatState, playerIntent, selectedCreatures }) {
   const options = Object.values(availableOptions ?? {}).flat();
   const indexed = new Map((optionIndex ?? []).map((option) => [option.id, option]));
+  const indexedOptions = [...indexed.values()];
   const spellAttackBonus = character?.spells?.attackBonus ?? null;
   const dangerousMelee = hasDangerousShortRangePressure(selectedCreatures);
   const hazards = TERRAIN_HAZARDS.test(`${playerIntent?.userNotes ?? ""} ${playerIntent?.situation ?? ""}`);
@@ -17,7 +18,7 @@ export function auditRecommendationContext({ availableOptions, optionIndex, dete
   const ignoredDeterministicRecommendations = deterministicRecommendations
     .flatMap((set) => auditDeterministicSet(set, indexed, { dangerousMelee, hazards }));
   const candidateDowngrades = options.flatMap((option) => tacticalDowngrades(option, { dangerousMelee, hazards, playerIntent }));
-  const highValueTacticalHooks = tacticalHooks({ options, selectedCreatures, playerIntent, dangerousMelee, hazards });
+  const highValueTacticalHooks = tacticalHooks({ options: indexedOptions, selectedCreatures, playerIntent, dangerousMelee, hazards });
 
   return {
     dataWarnings: unique(dataWarnings).slice(0, 12),
@@ -66,8 +67,7 @@ function auditOption(option, spellAttackBonus) {
 }
 
 function auditDeterministicIds(recommendations, indexed) {
-  return (recommendations ?? []).flatMap((set) => (set.pieces ?? [])
-    .map((piece) => piece?.option?.id)
+  return (recommendations ?? []).flatMap((set) => deterministicOptionIds(set)
     .filter((id) => id && !indexed.has(id))
     .map((id) => `Deterministic recommendation "${set.title}" references missing optionId ${id}.`));
 }
@@ -92,8 +92,9 @@ function auditDeterministicSet(set, indexed, context) {
 
 function deterministicSetProblems(set, indexed) {
   const pieces = Array.isArray(set?.pieces) ? set.pieces : [];
-  if (!pieces.length) return ["no concrete plan pieces."];
-  return pieces.flatMap((piece) => {
+  const explicitIds = Array.isArray(set?.optionIds) ? set.optionIds.filter(Boolean) : [];
+  if (!pieces.length && !explicitIds.length) return ["no concrete optionIds."];
+  const pieceProblems = pieces.flatMap((piece) => {
     const option = piece?.option;
     const id = option?.id;
     if (!id) return [`${piece?.slot ?? "Plan piece"} has no optionId.`];
@@ -104,6 +105,17 @@ function deterministicSetProblems(set, indexed) {
     }
     return [];
   });
+  const idProblems = explicitIds
+    .filter((id) => !indexed.has(id))
+    .map((id) => `${id} is missing from optionIndex.`);
+  return [...pieceProblems, ...idProblems];
+}
+
+function deterministicOptionIds(set) {
+  return [
+    ...(Array.isArray(set?.optionIds) ? set.optionIds : []),
+    ...(Array.isArray(set?.pieces) ? set.pieces.map((piece) => piece?.option?.id) : [])
+  ].filter(Boolean);
 }
 
 function tacticalDowngrades(option, { dangerousMelee, hazards, playerIntent }) {

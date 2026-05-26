@@ -1,9 +1,12 @@
+import { validateDeterministicRecommendations } from "./aiRecommendationOptionAudit.js";
+
 const CONTEXT_JSON_BUDGET = 18000;
 
 export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) {
-  if (JSON.stringify(context).length <= budget) return context;
+  const sanitized = sanitizeContextForModel(context);
+  if (JSON.stringify(sanitized).length <= budget) return sanitized;
 
-  const compact = buildCompactContext(context, {
+  const compact = buildCompactContext(sanitized, {
     availableLimit: 18,
     unavailableLimit: 8,
     optionSummaryLimit: 180,
@@ -30,6 +33,10 @@ export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) 
 function buildCompactContext(context, { availableLimit, unavailableLimit, optionSummaryLimit, listLimit }) {
   const availableOptions = compactOptionIdsByGroup(context?.availableOptions, availableLimit);
   const optionIndex = buildCompactOptionIndex(context?.availableOptions, availableLimit, optionSummaryLimit);
+  const deterministicValidation = validateDeterministicRecommendations(
+    (context?.deterministicRecommendations ?? []).slice(0, 3).map(compactRecommendationSet),
+    optionIndex
+  );
   return pruneEmpty({
     schemaVersion: context?.schemaVersion,
     character: compactCharacter(context?.character, listLimit),
@@ -43,8 +50,8 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     availableOptions,
     unavailableOptions: compactUnavailableOptionGroups(context?.unavailableOptions, unavailableLimit),
     optionIndex,
-    optionAudit: compactOptionAudit(context?.optionAudit),
-    deterministicRecommendations: (context?.deterministicRecommendations ?? []).slice(0, 3).map(compactRecommendationSet),
+    optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored),
+    deterministicRecommendations: deterministicValidation.recommendations,
     requestNotes: {
       contextCompacted: true,
       compactReason: "Original tactical context exceeded request payload budget.",
@@ -53,12 +60,35 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
   });
 }
 
-function compactOptionAudit(audit = {}) {
+function sanitizeContextForModel(context = {}) {
+  const optionIndex = Array.isArray(context?.optionIndex) ? context.optionIndex : [];
+  if (!optionIndex.length) return context;
+  const deterministicValidation = validateDeterministicRecommendations(context?.deterministicRecommendations ?? [], optionIndex);
+  return {
+    ...context,
+    optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored),
+    deterministicRecommendations: deterministicValidation.recommendations
+  };
+}
+
+function compactOptionAudit(audit = {}, optionIndex = [], ignored = []) {
   return pruneEmpty({
     dataWarnings: compactStrings(audit.dataWarnings, 8),
-    ignoredDeterministicRecommendations: compactStrings(audit.ignoredDeterministicRecommendations, 8),
+    ignoredDeterministicRecommendations: [
+      ...compactStrings(audit.ignoredDeterministicRecommendations, 8),
+      ...compactStrings(ignored, 8)
+    ].slice(0, 12),
     candidateDowngrades: compactStrings(audit.candidateDowngrades, 8),
-    highValueTacticalHooks: compactStrings(audit.highValueTacticalHooks, 8)
+    highValueTacticalHooks: compactHooks(audit.highValueTacticalHooks, optionIndex, 8)
+  });
+}
+
+function compactHooks(hooks = [], optionIndex = [], limit) {
+  const optionNames = new Set((optionIndex ?? []).map((option) => String(option?.name ?? "").toLowerCase()).filter(Boolean));
+  return compactStrings(hooks, limit).filter((hook) => {
+    if (/eldritch blast/i.test(hook) && !optionNames.has("eldritch blast")) return false;
+    if (/fire bolt/i.test(hook) && !optionNames.has("fire bolt")) return false;
+    return true;
   });
 }
 
@@ -320,7 +350,10 @@ function compactRecommendationSet(set) {
     rank: set.rank,
     title: set.title,
     score: set.score,
-    optionIds: uniqueStrings((set.pieces ?? []).map((piece) => piece.option?.id)).slice(0, 6),
+    optionIds: uniqueStrings([
+      ...(set.optionIds ?? []),
+      ...(set.pieces ?? []).map((piece) => piece.option?.id)
+    ]).slice(0, 6),
     reasons: compactStrings(set.reasons, 3),
     warnings: compactStrings(set.warnings, 3)
   });

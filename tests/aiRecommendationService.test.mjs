@@ -150,14 +150,8 @@ test("strict optionIndex validation rejects missing and mismatched plan pieces",
   ];
 
   const result = normalizeAiResponse(JSON.stringify(payload), yetiContext());
-  const pieces = result.recommendations[0].pieces;
 
-  assert.equal(pieces.some((piece) => piece.optionId === "spell_eldritch_blast"), false);
-  assert.equal(pieces.some((piece) => piece.optionId === "attack_unarmed_strike" && piece.name === "Eldritch Blast"), false);
-  assert.equal(pieces[2].name, "None");
-  assert.equal(result.recommendations[0].legality, "invalid");
-  assert.match(result.recommendations[0].warnings.join(" "), /No optionIndex entry found.*spell_eldritch_blast/);
-  assert.match(result.recommendations[0].warnings.join(" "), /does not match optionIndex name "Unarmed Strike"/);
+  assert.equal(result.recommendations.length, 0);
 });
 
 test("strict validation rejects explanations that describe a different indexed option", () => {
@@ -171,9 +165,7 @@ test("strict validation rejects explanations that describe a different indexed o
     ]
   });
 
-  assert.equal(result.recommendations[0].pieces[0].optionId, "");
-  assert.equal(result.recommendations[0].legality, "invalid");
-  assert.match(result.recommendations[0].warnings.join(" "), /explanation appears to describe "Eldritch Blast"/);
+  assert.equal(result.recommendations.length, 0);
 });
 
 test("strict validation flags misleading resource and Hex concentration claims", () => {
@@ -418,6 +410,57 @@ test("compact context rebuilds option index from compacted available options", (
   assert.equal(compact.requestNotes.contextCompacted, true);
   assert.deepEqual(compactIds.sort(), ["bonus_hide", "reaction_shield", "resource_smite", "spell_bless"].sort());
   assert.equal(compactIds.some((id) => id.startsWith("stale_")), false);
+});
+
+test("compact context removes deterministic candidates with optionIds missing from compact optionIndex", () => {
+  const context = {
+    schemaVersion: "combat-option-recommendation/v3",
+    character: { name: "Eustace" },
+    combatState: { current: { concentration: "Hex" } },
+    playerIntent: { range: "unknown", userNotes: "I am 15ft from an adult white dragon." },
+    availableOptions: {
+      spells: [{ id: "spell_guiding_bolt", name: "Guiding Bolt", available: true, cost: { action: true } }],
+      attacks: [{ id: "attack_unarmed_strike", name: "Unarmed Strike", available: true, cost: { action: true } }]
+    },
+    optionIndex: [
+      { id: "spell_guiding_bolt", name: "Guiding Bolt" },
+      { id: "attack_unarmed_strike", name: "Unarmed Strike" }
+    ],
+    optionAudit: {
+      ignoredDeterministicRecommendations: [],
+      highValueTacticalHooks: [
+        "Hex plus Eldritch Blast is high value against a durable single target when concentration and range are legal.",
+        "User notes include a concrete distance; use it for range legality."
+      ]
+    },
+    deterministicRecommendations: [
+      { title: "Damage turn: Guiding Bolt", optionIds: ["spell_guiding_bolt"] },
+      { title: "Damage turn: Fire Bolt", optionIds: ["spell_fire_bolt", "spell_hex", "movement_walk"] }
+    ]
+  };
+
+  const compact = compactContextForRequest(context, 700);
+
+  assert.deepEqual(compact.deterministicRecommendations.map((set) => set.title), ["Damage turn: Guiding Bolt"]);
+  assert.ok(compact.optionAudit.ignoredDeterministicRecommendations.some((warning) => /spell_fire_bolt is missing from optionIndex/i.test(warning)));
+  assert.equal(compact.optionAudit.highValueTacticalHooks.some((hook) => /Eldritch Blast/i.test(hook)), false);
+});
+
+test("request context removes invalid deterministic candidates even without compaction", () => {
+  const context = {
+    optionIndex: [{ id: "spell_guiding_bolt", name: "Guiding Bolt" }],
+    optionAudit: { highValueTacticalHooks: ["Hex plus Eldritch Blast is high value against a durable single target when concentration and range are legal."] },
+    deterministicRecommendations: [
+      { title: "Damage turn: Fire Bolt", optionIds: ["spell_fire_bolt"] },
+      { title: "Damage turn: Guiding Bolt", optionIds: ["spell_guiding_bolt"] }
+    ]
+  };
+
+  const requestContext = compactContextForRequest(context, 10000);
+
+  assert.deepEqual(requestContext.deterministicRecommendations.map((set) => set.title), ["Damage turn: Guiding Bolt"]);
+  assert.ok(requestContext.optionAudit.ignoredDeterministicRecommendations.some((warning) => /spell_fire_bolt is missing from optionIndex/i.test(warning)));
+  assert.equal((requestContext.optionAudit.highValueTacticalHooks ?? []).some((hook) => /Eldritch Blast/i.test(hook)), false);
 });
 
 function responseWithAction(optionId, name) {

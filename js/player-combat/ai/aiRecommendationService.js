@@ -122,6 +122,7 @@ export function normalizeAiResponse(text, contextOrOptions) {
   const optionMap = buildOptionMap(contextOrOptions);
   const recommendations = sets.slice(0, 6)
     .map((set, index) => normalizeRecommendationSet(set, index, optionMap))
+    .filter((set) => !set.rejected)
     .sort((left, right) => left.rank - right.rank);
 
   return {
@@ -202,6 +203,7 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     warnings,
     rejectedAlternatives: normalizeRejectedAlternatives(safeSet.rejectedAlternatives),
     whyNotHigher: stringOr(safeSet.whyNotHigher, ""),
+    rejected: hasRejectedPiece,
     pieces
   };
 }

@@ -12,6 +12,8 @@
 - Expanded the AI prompt and response schema to require `optionAudit` diagnostics and support rejected alternatives / why-not-higher explanations.
 - Added strict optionIndex validation before and after the AI call: invalid deterministic recommendations are removed from prompt candidates, AI plan pieces with missing or mismatched option IDs are rejected, and "None" turn slots no longer need fake option IDs.
 - Added post-model checks for option/name swaps, explanations describing another option, misleading no-resource claims, and recasting Hex while already concentrating on Hex without a legal retarget/recast explanation.
+- Revalidated deterministic recommendations after request-context compaction so compact payloads cannot include candidates whose option IDs are missing from the compacted `optionIndex`.
+- Filtered high-value tactical hooks during compaction when they mention unavailable option names such as Eldritch Blast or Fire Bolt.
 
 ### Files Changed
 
