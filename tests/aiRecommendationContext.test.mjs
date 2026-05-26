@@ -89,6 +89,8 @@ test("AI recommendation context includes versioned tactical context", () => {
   assert.equal(context.unavailableOptions.spells[0].id, "spell_fireball");
   assert.equal(context.optionIndex.some((option) => option.id === "attack_rapier"), true);
   assert.equal(context.optionIndex.some((option) => option.id === "spell_fireball"), false);
+  assert.equal(context.candidatePackage.piecesBySlot.action.some((piece) => piece.optionId === "attack_rapier"), true);
+  assert.equal(context.clarification.prompts.some((prompt) => prompt.id === "lineOfSight"), true);
   assert.equal(context.deterministicRecommendations[0].pieces[0].option.id, "attack_rapier");
 });
 
@@ -141,13 +143,57 @@ test("AI recommendation context prioritizes castable high-level spells and omits
     },
     groups: { actions: [...lowLevelSpells, highLevelSpell] },
     recommendationSets: [],
-    answers: {},
+    answers: { goal: "damage" },
     userNotes: ""
   });
 
   assert.equal(context.availableOptions.actions.some((option) => option.id === "spell_sunburst"), true);
+  assert.equal(context.candidatePackage.allGoalRelevantSpells.some((option) => option.optionId === "spell_sunburst"), true);
   assert.equal(context.character.spells.prepared.some((spell) => spell.name === "Sunburst"), true);
   assert.equal(context.character.spells.prepared.some((spell) => spell.name === "Meteor Swarm"), false);
+});
+
+test("AI recommendation context includes compact reference summaries for relevant options", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Ilyra",
+        classes: [{ name: "Wizard", level: 5 }],
+        race: { name: "Elf" },
+        combat: {},
+        resources: {},
+        features: {},
+        inventory: {},
+        spells: {}
+      },
+      combatState: { current: {}, turn: {}, resourcesUsed: {} },
+      referenceData: {
+        data: {
+          spells: { spell: [{ name: "Fireball", level: 3, school: "V", entries: ["A bright streak flashes and explodes."] }] },
+          classes: { class: [{ name: "Wizard", entries: ["Arcane spellcaster."] }] },
+          races: { race: [{ name: "Elf", entries: ["Keen senses."] }] }
+        }
+      }
+    },
+    groups: {
+      spells: [{
+        id: "spell_fireball",
+        name: "Fireball",
+        source: "spell",
+        group: "spells",
+        available: true,
+        cost: { action: true },
+        spell: { level: 3, concentration: false }
+      }]
+    },
+    recommendationSets: [],
+    answers: { goal: "damage" },
+    userNotes: ""
+  });
+
+  assert.equal(context.referenceSummaries.spells[0].name, "Fireball");
+  assert.equal(context.referenceSummaries.classes[0].name, "Wizard");
+  assert.equal(context.referenceSummaries.races[0].name, "Elf");
 });
 
 test("AI recommendation context infers common creature lore from player notes", () => {

@@ -4224,3 +4224,62 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\data\bestiaryOptions.js`
 - `node --test tests\bestiaryOptions.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
 - `node --test tests\*.test.mjs`
+
+### AI Tactical Planner Refactor
+
+- Split AI recommendation context building into focused helpers for character/combat summaries, tactical candidate packages, compact reference summaries, and clarification prompts.
+- Added a goal-aware candidate package with complete turn slots for action, bonus action, rider, movement, free/object interaction, reaction, and resource-spend pieces.
+- Included all currently castable spell options in the AI candidate package so the model ranks full plans instead of inheriting only procedural top picks.
+- Added compact reference summaries for relevant active character options, selected creatures, class/race context, and candidate options from the loaded D&D data files.
+- Expanded the AI response contract with `goalFit`, `expectedOutcome`, `followUpQuestions`, and richer plan metadata while preserving `sets` as a compatibility alias.
+- Kept strict `optionIndex` validation and table adaptation; AI rows now use the first concrete actionable plan piece and carry the full plan under `option.recommendation.pieces`.
+- Added non-blocking tactical metadata coverage warnings under `optionAudit.dataWarnings`.
+- Added optional AI modal clarification chips for facts such as distance, line of sight, ally status, cover, and resource preference.
+
+### Files Changed
+
+- `js/player-combat/ai/aiCandidateContext.js`
+- `js/player-combat/ai/aiCharacterContext.js`
+- `js/player-combat/ai/aiClarificationContext.js`
+- `js/player-combat/ai/aiReferenceContext.js`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationOptionAudit.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationResponseContract.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `js/player-combat/ui/aiRecommendationTableAdapter.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `tests/aiRecommendationTableAdapter.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Metadata coverage warnings are advisory only; recommendations still proceed when tactical tags are missing.
+- Reference snippets are compact summaries and do not replace the local rules engine as the source of legal options.
+- Clarification chips append prompts into notes; they do not block or force a second question flow before showing conditional recommendations.
+
+### Manual Test Steps
+
+1. Open AI Recommendations on mobile width and confirm the existing recommendation options, bestiary picker, notes field, and optional useful-detail chips render without overlap.
+2. Request damage recommendations for a character with a bonus-action setup spell plus an attack; confirm AI results show complete turn plans and the Recommended table row opens from the primary actionable piece.
+3. Repeat with missing distance or line of sight; confirm recommendations still appear and missing facts are listed as conditional context.
+4. Select a bestiary creature with a resistance or immunity and confirm AI context uses it for ranking without displaying hidden stat-block details in the modal.
+5. Try a malformed AI response with invented option IDs or mismatched names in tests or a mocked client; confirm invalid pieces do not become actionable rows.
+
+### AI Tactical Planner Verification
+
+- `node --check js\player-combat\ai\aiRecommendationContext.js`
+- `node --check js\player-combat\ai\aiCandidateContext.js`
+- `node --check js\player-combat\ai\aiCharacterContext.js`
+- `node --check js\player-combat\ai\aiClarificationContext.js`
+- `node --check js\player-combat\ai\aiReferenceContext.js`
+- `node --check js\player-combat\ai\aiRecommendationService.js`
+- `node --check js\player-combat\ai\aiRecommendationRequestContext.js`
+- `node --check js\player-combat\ai\aiRecommendationResponseContract.js`
+- `node --check js\player-combat\ai\aiRecommendationOptionAudit.js`
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --check js\player-combat\ui\aiRecommendationTableAdapter.js`
+- `node --test tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs tests\aiRecommendationTableAdapter.test.mjs tests\recommendationScoring.test.mjs`

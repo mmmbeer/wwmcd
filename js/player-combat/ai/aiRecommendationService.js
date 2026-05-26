@@ -58,8 +58,12 @@ export function buildRecommendationUserMessage(context) {
     "",
     "Requirements:",
     "- Return a ranked list of complete turn plans using planPieces.",
+    "- Each recommendation must include goalFit, expectedOutcome, legality, confidence, riskLevel, resourcesUsed, concentrationImpact, rejectedAlternatives, and followUpQuestions.",
     "- Every recommendation should consider the whole turn: main action, bonus action, movement, free/object interaction, and a relevant reaction reminder.",
     "- Use optionId values from optionIndex. availableOptions may be grouped ID lists for orientation.",
+    "- Use candidatePackage and referenceSummaries to assemble complete legal plans; optionIndex remains the source of truth for every actionable piece.",
+    "- Include all goal-relevant castable spells from candidatePackage; do not discard a spell only because deterministicRecommendations ranked it low.",
+    "- Use clarification.prompts and missingInfo for facts that would materially change ranking; still provide conditional recommendations if the user skipped them.",
     "- Every optionId and name must match the same optionIndex entry exactly; never attach one option's name or explanation to another optionId.",
     "- Read optionAudit before ranking. Treat deterministicRecommendations as candidate ideas, not as truth; ignore or downgrade entries listed in optionAudit.",
     "- Use selectedCreatures for hidden target AC, defenses, saves, traits, and likely tactics, but do not print unrevealed stat-block details back to the player.",
@@ -186,6 +190,7 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     name: primaryPiece.name,
     option: primaryPiece.option,
     score: Number(safeSet.score) || 0,
+    goalFit: stringOr(safeSet.goalFit, ""),
     confidence: confidenceEnum(safeSet.confidence, "medium"),
     legality,
     riskLevel: riskEnum(safeSet.riskLevel, "medium"),
@@ -203,6 +208,7 @@ export function normalizeRecommendationSet(set, index, optionMap) {
     warnings,
     rejectedAlternatives: normalizeRejectedAlternatives(safeSet.rejectedAlternatives),
     whyNotHigher: stringOr(safeSet.whyNotHigher, ""),
+    followUpQuestions: arrayOfStrings(safeSet.followUpQuestions).slice(0, 6),
     rejected: hasRejectedPiece,
     pieces
   };
@@ -470,16 +476,7 @@ function stringOr(value, fallback) {
 }
 
 function categoryEnum(value) {
-  return enumOr(value, [
-    "best_overall",
-    "damage",
-    "defense",
-    "support",
-    "control",
-    "resource_conserving",
-    "escape_or_reposition",
-    "other"
-  ], "other");
+  return enumOr(value, ["best_overall", "balanced", "damage", "defense", "support", "control", "mobility", "resource_conserving", "escape_or_reposition", "other"], "other");
 }
 
 function confidenceEnum(value, fallback) {

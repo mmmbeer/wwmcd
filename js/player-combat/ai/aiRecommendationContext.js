@@ -1,12 +1,15 @@
 import { CLASS_TACTICS } from "./classTactics.js";
 import { summarizeSelectedCreatures } from "./creatureContext.js";
+import { summarizeCharacter, summarizeCombatState } from "./aiCharacterContext.js";
+import { buildTacticalCandidatePackage } from "./aiCandidateContext.js";
+import { buildClarificationContext } from "./aiClarificationContext.js";
+import { buildReferenceSummaries } from "./aiReferenceContext.js";
 import {
   auditRecommendationContext,
   validateDeterministicRecommendations
 } from "./aiRecommendationOptionAudit.js";
 import {
   characterSpellNames,
-  isSpellLikeWeaponItem,
   isSpellLikeWeaponOption
 } from "./aiRecommendationOptionSanitizer.js";
 
@@ -26,22 +29,25 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
   const deterministicValidation = validateDeterministicRecommendations(rawDeterministicRecommendations, optionIndex);
   const deterministicRecommendations = deterministicValidation.recommendations;
   const selectedCreatureContext = summarizeSelectedCreatures(selectedCreatures);
+  const characterContext = summarizeCharacter(character, combatState);
+  const combatStateContext = summarizeCombatState(combatState, character);
   const optionAudit = auditRecommendationContext({
     availableOptions,
     optionIndex,
     deterministicRecommendations: rawDeterministicRecommendations,
-    character: summarizeCharacter(character, combatState),
-    combatState: summarizeCombatState(combatState, character),
+    character: characterContext,
+    combatState: combatStateContext,
     playerIntent,
     selectedCreatures: selectedCreatureContext
   });
   return pruneEmpty({
     schemaVersion: "combat-option-recommendation/v3",
-    character: summarizeCharacter(character, combatState),
-    combatState: summarizeCombatState(combatState, character),
+    character: characterContext,
+    combatState: combatStateContext,
     turnRules: buildTurnRules(character, combatState),
     playerIntent,
     selectedCreatures: selectedCreatureContext,
+    clarification: buildClarificationContext({ answers, userNotes, combatState, selectedCreatures: selectedCreatureContext }),
     battlefieldKnowledge,
     rankingGuidance: summarizeRankingGuidance({ availableOptions, battlefieldKnowledge, combatState, playerIntent }),
     classTactics: summarizeClassTactics(character),
@@ -49,6 +55,13 @@ export function buildAiRecommendationContext({ snapshot, groups, recommendationS
     unavailableOptions: summarizeUnavailableGroups(groups, spellNames),
     optionIndex,
     optionAudit: mergeAudit(optionAudit, deterministicValidation.ignored),
+    candidatePackage: buildTacticalCandidatePackage({ availableOptions, deterministicRecommendations, playerIntent }),
+    referenceSummaries: buildReferenceSummaries({
+      referenceData: snapshot.referenceData,
+      character,
+      selectedCreatures,
+      availableOptions
+    }),
     deterministicRecommendations,
     instructionHints: {
       useOnlyOptionIds: true,
@@ -152,81 +165,6 @@ export function buildOptionIndex(availableOptions) {
   );
 }
 
-function summarizeCharacter(character, combatState) {
-  if (!character) return null;
-  const spellNames = characterSpellNames(character);
-  return pruneEmpty({
-    name: character.name,
-    level: character.level,
-    race: character.race?.name,
-    classes: (character.classes ?? []).map((entry) => ({
-      name: entry.name,
-      subclass: entry.subclass,
-      level: entry.level
-    })),
-    stats: character.stats,
-    combat: character.combat,
-    resources: summarizeCharacterResources(character),
-    features: summarizeFeatureBuckets(character.features),
-    traits: summarizeList(character.race?.features, 24),
-    equipment: summarizeInventory(character.inventory, spellNames),
-    spells: summarizeSpells(character.spells, character, combatState)
-  });
-}
-
-function summarizeCombatState(state, character) {
-  if (!state) return null;
-  return {
-    round: state.round,
-    hp: {
-      current: state.current?.hp,
-      max: character?.combat?.maxHp,
-      temp: state.current?.tempHp
-    },
-    ac: state.current?.ac,
-    conditions: state.current?.conditions ?? [],
-    concentration: state.current?.concentration,
-    activeEffects: state.current?.activeEffects ?? [],
-    currentForm: state.current?.currentForm,
-    turn: state.turn,
-    resourcesUsed: state.resourcesUsed,
-    lastRoll: state.lastRoll
-  };
-}
-
-function summarizeCharacterResources(character) {
-  return {
-    spellSlots: character.resources?.spellSlots ?? {},
-    classResources: summarizeList(character.resources?.classResources, 30),
-    limitedUses: summarizeList(character.resources?.limitedUses, 30)
-  };
-}
-
-function summarizeFeatureBuckets(features = {}) {
-  return Object.fromEntries(Object.entries(features).map(([key, value]) => [key, summarizeList(value, 35)]));
-}
-
-function summarizeInventory(inventory = {}, spellNames = new Set()) {
-  return {
-    weapons: summarizeList((inventory.weapons ?? []).filter((item) => !isSpellLikeWeaponItem(item, spellNames)), 30),
-    armor: summarizeList(inventory.armor, 20),
-    consumables: summarizeList(inventory.consumables, 25),
-    magicItems: summarizeList(inventory.magicItems, 25),
-    items: summarizeList(inventory.other, 50)
-  };
-}
-
-function summarizeSpells(spells = {}, character, combatState) {
-  return pruneEmpty({
-    spellcastingAbility: spells.spellcastingAbility,
-    attackBonus: spells.attackBonus,
-    saveDc: spells.saveDc,
-    cantrips: summarizeList(spells.cantrips, 30),
-    prepared: summarizeList(filterCastableSpells(spells.prepared, character, combatState), 80),
-    known: summarizeList(filterCastableSpells(spells.known, character, combatState), 100)
-  });
-}
-
 function summarizeGroups(groups = {}, spellNames = new Set()) {
   return pruneEmpty(Object.fromEntries(OPTION_GROUPS.map((group) => [
     group,
@@ -302,31 +240,6 @@ function summarizeOption(option) {
       350
     )
   };
-}
-
-function filterCastableSpells(spells = [], character, combatState) {
-  return (spells ?? []).filter((spell) => {
-    const level = normalizeSpellLevel(spell?.level);
-    return level === 0 || remainingSpellSlots(character, combatState, level) > 0;
-  });
-}
-
-function remainingSpellSlots(character, combatState, level) {
-  const slots = character?.resources?.spellSlots ?? {};
-  const max = spellSlotMax(slots[level]);
-  const used = Number(combatState?.resourcesUsed?.spellSlots?.[level] ?? 0);
-  return Math.max(0, max - used);
-}
-
-function spellSlotMax(value) {
-  if (value && typeof value === "object") return Number(value.available ?? value.max ?? value.value ?? 0);
-  return Number(value ?? 0);
-}
-
-function normalizeSpellLevel(level) {
-  if (String(level).toLowerCase() === "cantrip") return 0;
-  const numeric = Number(level);
-  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function prioritizeOptionsForContext(options) {
@@ -424,26 +337,6 @@ function inferDamageTypes(option, spell) {
     spell?.reference?.description
   ].filter(Boolean).join(" ");
   return DAMAGE_TYPES.filter((type) => new RegExp(`\\b${type}\\b`, "i").test(text));
-}
-
-function summarizeList(items = [], max = 20) {
-  return (items ?? []).slice(0, max).map((item) => {
-    if (typeof item === "string") return item;
-    return {
-      name: item.name,
-      level: item.level,
-      prepared: item.prepared,
-      equipped: item.equipped,
-      quantity: item.quantity,
-      damage: item.damage,
-      damageType: item.damageType,
-      properties: item.properties,
-      max: item.max,
-      reset: item.reset,
-      note: item.note,
-      description: trimText(item.description ?? item.snippet ?? item.text, 500)
-    };
-  });
 }
 
 function trimText(value, max) {

@@ -21,7 +21,7 @@ function aiRecommendationOptions(result, groups) {
 }
 
 function aiRecommendationOption(recommendation, index, result, groups) {
-  const optionId = recommendation?.optionId ?? recommendation?.pieces?.[0]?.optionId;
+  const optionId = primaryOptionId(recommendation);
   const option = optionId ? findOption(groups, optionId) : null;
   if (!option) return null;
   const warnings = [
@@ -35,19 +35,32 @@ function aiRecommendationOption(recommendation, index, result, groups) {
       source: "ai",
       rank: Number(recommendation.rank) || index + 1,
       score: recommendation.score,
-      reasons: recommendation.reasons?.length ? recommendation.reasons : [recommendation.summary || recommendation.category || "AI recommendation"],
+      reasons: recommendation.reasons?.length ? recommendation.reasons : [recommendation.goalFit || recommendation.summary || recommendation.category || "AI recommendation"],
       warnings,
       guidance: result?.guidance || result?.turnAssessment || "",
       summary: recommendation.summary,
-      explanation: recommendation.pieces?.[0]?.explanation ?? "",
+      explanation: firstConcretePiece(recommendation)?.explanation ?? "",
       pieces: recommendation.pieces ?? [],
       assumptions: recommendation.assumptions ?? [],
       confidence: recommendation.confidence,
       legality: recommendation.legality,
       category: recommendation.category,
+      goalFit: recommendation.goalFit,
       riskLevel: recommendation.riskLevel,
       resourcesUsed: recommendation.resourcesUsed ?? [],
-      concentrationImpact: recommendation.concentrationImpact
+      concentrationImpact: recommendation.concentrationImpact,
+      expectedOutcome: recommendation.expectedOutcome,
+      rejectedAlternatives: recommendation.rejectedAlternatives ?? [],
+      followUpQuestions: recommendation.followUpQuestions ?? [],
+      whyNotHigher: recommendation.whyNotHigher
     }
   };
+}
+
+function primaryOptionId(recommendation) {
+  return recommendation?.optionId || firstConcretePiece(recommendation)?.optionId || "";
+}
+
+function firstConcretePiece(recommendation) {
+  return (recommendation?.pieces ?? []).find((piece) => piece?.optionId) ?? null;
 }

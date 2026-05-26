@@ -2,6 +2,10 @@ const SPELL_ATTACK_NAMES = /\b(fire bolt|eldritch blast|guiding bolt|inflict wou
 const LOW_SYNERGY_BONUS = /\b(harness divine power|healing word)\b/i;
 const TERRAIN_HAZARDS = /\b(ravine|cliff|pit|lava|hazard|chasm|ledge|precipice)\b/i;
 const DANGEROUS_MELEE = /\b(multiattack|claw|bite|gore|pounce|swallow|grapple|restrain|paralyz|stun|cold gaze|chilling gaze|breath|aura)\b/i;
+const TACTICAL_CATEGORIES = [
+  "damage", "support", "control", "defense", "mobility", "rider", "setup",
+  "reaction", "resourceSpend", "concentration", "area", "singleTarget", "saveOrAttack"
+];
 
 export function auditRecommendationContext({ availableOptions, optionIndex, deterministicRecommendations, character, combatState, playerIntent, selectedCreatures }) {
   const options = Object.values(availableOptions ?? {}).flat();
@@ -13,7 +17,8 @@ export function auditRecommendationContext({ availableOptions, optionIndex, dete
 
   const dataWarnings = [
     ...options.flatMap((option) => auditOption(option, spellAttackBonus)),
-    ...auditDeterministicIds(deterministicRecommendations, indexed)
+    ...auditDeterministicIds(deterministicRecommendations, indexed),
+    ...auditTacticalMetadataCoverage(options)
   ];
   const ignoredDeterministicRecommendations = deterministicRecommendations
     .flatMap((set) => auditDeterministicSet(set, indexed, { dangerousMelee, hazards }));
@@ -26,6 +31,19 @@ export function auditRecommendationContext({ availableOptions, optionIndex, dete
     candidateDowngrades: unique(candidateDowngrades).slice(0, 10),
     highValueTacticalHooks: unique(highValueTacticalHooks).slice(0, 10)
   };
+}
+
+export function auditTacticalMetadataCoverage(options = []) {
+  return (options ?? [])
+    .filter((option) => option?.available !== false)
+    .filter((option) => meaningfulCombatOption(option))
+    .map((option) => {
+      const categories = inferredTacticalCategories(option);
+      if (categories.length) return null;
+      return `${option.name} has no tactical metadata category (${TACTICAL_CATEGORIES.join(", ")}).`;
+    })
+    .filter(Boolean)
+    .slice(0, 12);
 }
 
 export function validateDeterministicRecommendations(recommendations = [], optionIndex = []) {
@@ -145,6 +163,41 @@ function tacticalHooks({ options, selectedCreatures, playerIntent, dangerousMele
   }
   if (/\b\d+\s*ft\b/i.test(playerIntent?.userNotes ?? "")) hooks.push("User notes include a concrete distance; use it for range legality.");
   return hooks;
+}
+
+function meaningfulCombatOption(option) {
+  return option?.cost?.action
+    || option?.cost?.bonus
+    || option?.cost?.reaction
+    || option?.cost?.movement
+    || option?.resource
+    || option?.spell
+    || option?.source === "feature";
+}
+
+function inferredTacticalCategories(option) {
+  const categories = new Set([
+    ...(option?.tactics?.roles ?? []),
+    ...(option?.tags ?? []),
+    ...(option?.damageTypes?.length ? ["damage"] : []),
+    ...(option?.spell?.concentration ? ["concentration"] : []),
+    ...(option?.resource || option?.cost?.resource ? ["resourceSpend"] : []),
+    ...(option?.cost?.reaction ? ["reaction"] : [])
+  ]);
+  const text = `${option?.name ?? ""} ${option?.summary ?? ""} ${option?.description ?? ""} ${option?.spell?.reference?.description ?? ""}`.toLowerCase();
+  if (/\b(damage|deal|hit points?|attack)\b/.test(text)) categories.add("damage");
+  if (/\b(heal|restore|help|bless|buff|ally)\b/.test(text)) categories.add("support");
+  if (/\b(restrain|prone|frighten|charm|stun|slow|control|save)\b/.test(text)) categories.add("control");
+  if (/\b(ac|dodge|shield|protect|temporary hit points|resistance)\b/.test(text)) categories.add("defense");
+  if (/\b(move|dash|disengage|teleport|speed|fly|climb)\b/.test(text)) categories.add("mobility");
+  if (/\b(on a hit|when you hit|rider|smite|sneak attack|stunning strike)\b/.test(text)) categories.add("rider");
+  if (/\b(setup|advantage|mark|hex|hunter'?s mark)\b/.test(text)) categories.add("setup");
+  if (/\b(area|radius|cone|cube|sphere|line)\b/.test(text)) categories.add("area");
+  if (/\b(single target|one target|a target|one creature)\b/.test(text)) categories.add("singleTarget");
+  if (optionHasAttackRoll(option) || option?.spell?.requiresSave || option?.spell?.saveAbility || /\bsaving throw\b/.test(text)) {
+    categories.add("saveOrAttack");
+  }
+  return [...categories].filter((category) => TACTICAL_CATEGORIES.includes(category));
 }
 
 function sameName(left, right) {

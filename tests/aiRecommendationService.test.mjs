@@ -307,6 +307,25 @@ test("normalization defaults null concentration impact to none", () => {
   assert.equal(result.recommendations[0].concentrationImpact, "none");
 });
 
+test("normalization preserves tactical plan metadata fields", () => {
+  const payload = responseWithAction("attack_rapier", "Rapier");
+  payload.recommendations[0].goalFit = "Best damage plan without spending resources.";
+  payload.recommendations[0].expectedOutcome = "Reliable weapon damage.";
+  payload.recommendations[0].followUpQuestions = ["Is the target within melee reach?"];
+  payload.recommendations[0].rejectedAlternatives = [
+    { optionId: "spell_fireball", name: "Fireball", reason: "No slot available." }
+  ];
+  const result = normalizeAiResponse(JSON.stringify(payload), {
+    availableOptions: { attacks: [availableRapier] },
+    unavailableOptions: { spells: [unavailableFireball] }
+  });
+
+  assert.equal(result.recommendations[0].goalFit, "Best damage plan without spending resources.");
+  assert.equal(result.recommendations[0].expectedOutcome, "Reliable weapon damage.");
+  assert.deepEqual(result.recommendations[0].followUpQuestions, ["Is the target within melee reach?"]);
+  assert.equal(result.recommendations[0].rejectedAlternatives[0].name, "Fireball");
+});
+
 test("balanced JSON extraction ignores surrounding text and braces in strings", () => {
   const wrapped = `notes before JSON ${JSON.stringify({
     turnAssessment: "Use {braces} safely.",
@@ -463,6 +482,30 @@ test("request context removes invalid deterministic candidates even without comp
   assert.equal((requestContext.optionAudit.highValueTacticalHooks ?? []).some((hook) => /Eldritch Blast/i.test(hook)), false);
 });
 
+test("request compaction preserves candidate package and clarification prompts", () => {
+  const context = {
+    ...largeContext(),
+    clarification: {
+      prompts: [{ id: "distance", question: "Enemy distance or range band" }],
+      canSkip: true
+    },
+    candidatePackage: {
+      goal: "damage",
+      completeTurnSlots: ["action", "bonusAction"],
+      piecesBySlot: {
+        action: [{ optionId: "spell_0", name: "Spell 0", slot: "Action", tacticalCategories: ["damage"] }]
+      },
+      allGoalRelevantSpells: [{ optionId: "spell_0", name: "Spell 0", slot: "Action", tacticalCategories: ["damage"] }]
+    }
+  };
+
+  const compact = compactContextForRequest(context, 9000);
+
+  assert.equal(compact.clarification.prompts[0].id, "distance");
+  assert.equal(compact.candidatePackage.piecesBySlot.action[0].optionId, "spell_0");
+  assert.equal(compact.candidatePackage.allGoalRelevantSpells[0].name, "Spell 0");
+});
+
 function responseWithAction(optionId, name) {
   return {
     turnAssessment: "Attack is the clearest plan.",
@@ -590,6 +633,7 @@ function recommendation(optionId, name) {
     id: "rec-1",
     rank: 1,
     category: "best_overall",
+    goalFit: "Fits the selected goal.",
     title: `Use ${name}`,
     score: 90,
     confidence: "high",
@@ -624,6 +668,9 @@ function recommendation(optionId, name) {
     concentrationImpact: "none",
     assumptions: [],
     reasons: ["Reliable option"],
+    rejectedAlternatives: [],
+    whyNotHigher: "",
+    followUpQuestions: [],
     warnings: []
   };
 }

@@ -39,6 +39,7 @@ The response must be a single JSON object with this exact shape:
       "id": "rec-1",
       "rank": 1,
       "category": "best_overall",
+      "goalFit": "why this plan fits the player's selected goal",
       "title": "short complete turn title",
       "score": 100,
       "confidence": "high",
@@ -61,13 +62,15 @@ The response must be a single JSON object with this exact shape:
       ],
       "resourcesUsed": ["resource name"],
       "concentrationImpact": "none, starts concentration, maintains concentration, or replaces existing concentration",
+      "expectedOutcome": "short table-ready outcome",
       "assumptions": ["assumption"],
       "reasons": ["short reason"],
       "warnings": ["short warning"],
       "rejectedAlternatives": [
         { "optionId": "exact option id", "name": "option name", "reason": "why it was not ranked higher" }
       ],
-      "whyNotHigher": "why this plan is not ranked above stronger plans, or empty for the top plan"
+      "whyNotHigher": "why this plan is not ranked above stronger plans, or empty for the top plan",
+      "followUpQuestions": ["specific question that would materially change ranking"]
     }
   ]
 }
@@ -107,18 +110,19 @@ function recommendationSchema() {
     type: "object",
     additionalProperties: false,
     required: [
-      "id", "rank", "category", "title", "score", "confidence", "legality",
+      "id", "rank", "category", "goalFit", "title", "score", "confidence", "legality",
       "riskLevel", "explanation", "planPieces", "resourcesUsed",
-      "concentrationImpact", "assumptions", "reasons", "warnings",
-      "rejectedAlternatives", "whyNotHigher"
+      "concentrationImpact", "expectedOutcome", "assumptions", "reasons", "warnings",
+      "rejectedAlternatives", "whyNotHigher", "followUpQuestions"
     ],
     properties: {
       id: { type: "string" },
       rank: { type: "integer" },
       category: {
         type: "string",
-        enum: ["best_overall", "damage", "defense", "support", "control", "resource_conserving", "escape_or_reposition", "other"]
+        enum: ["best_overall", "balanced", "damage", "defense", "support", "control", "mobility", "resource_conserving", "escape_or_reposition", "other"]
       },
+      goalFit: { type: "string" },
       title: { type: "string" },
       score: { type: "number" },
       confidence: { type: "string", enum: ["low", "medium", "high"] },
@@ -133,6 +137,7 @@ function recommendationSchema() {
       },
       resourcesUsed: { type: "array", items: { type: "string" } },
       concentrationImpact: { type: "string" },
+      expectedOutcome: { type: "string" },
       assumptions: { type: "array", items: { type: "string" } },
       reasons: { type: "array", items: { type: "string" } },
       warnings: { type: "array", items: { type: "string" } },
@@ -149,7 +154,8 @@ function recommendationSchema() {
           }
         }
       },
-      whyNotHigher: { type: "string" }
+      whyNotHigher: { type: "string" },
+      followUpQuestions: { type: "array", items: { type: "string" } }
     }
   };
 }

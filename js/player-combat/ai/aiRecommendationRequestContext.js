@@ -44,6 +44,7 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     turnRules: context?.turnRules,
     playerIntent: context?.playerIntent,
     selectedCreatures: compactSelectedCreatures(context?.selectedCreatures),
+    clarification: compactClarification(context?.clarification),
     battlefieldKnowledge: compactBattlefieldKnowledge(context?.battlefieldKnowledge),
     rankingGuidance: compactRankingGuidance(context?.rankingGuidance),
     classTactics: compactClassTactics(context?.classTactics),
@@ -51,6 +52,8 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     unavailableOptions: compactUnavailableOptionGroups(context?.unavailableOptions, unavailableLimit),
     optionIndex,
     optionAudit: compactOptionAudit(context?.optionAudit, optionIndex, deterministicValidation.ignored),
+    candidatePackage: compactCandidatePackage(context?.candidatePackage, optionIndex, listLimit),
+    referenceSummaries: compactReferenceSummaries(context?.referenceSummaries, listLimit),
     deterministicRecommendations: deterministicValidation.recommendations,
     requestNotes: {
       contextCompacted: true,
@@ -58,6 +61,59 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
       availableOptionsShape: "grouped option id lists; use optionIndex for candidate details"
     }
   });
+}
+
+function compactClarification(clarification = {}) {
+  return pruneEmpty({
+    prompts: Array.isArray(clarification.prompts)
+      ? clarification.prompts.slice(0, 6).map((entry) => pruneEmpty({
+        id: entry.id,
+        question: entry.question
+      }))
+      : [],
+    canSkip: clarification.canSkip,
+    policy: clarification.policy
+  });
+}
+
+function compactCandidatePackage(candidatePackage = {}, optionIndex = [], limit) {
+  const validIds = new Set((optionIndex ?? []).map((option) => option.id));
+  return pruneEmpty({
+    goal: candidatePackage.goal,
+    completeTurnSlots: candidatePackage.completeTurnSlots,
+    piecesBySlot: pruneEmpty(Object.fromEntries(Object.entries(candidatePackage.piecesBySlot ?? {}).map(([slot, pieces]) => [
+      slot,
+      compactCandidatePieces(pieces, validIds, limit)
+    ]))),
+    allGoalRelevantSpells: compactCandidatePieces(candidatePackage.allGoalRelevantSpells, validIds, Math.max(limit, 12)),
+    deterministicSeedPlans: compactList(candidatePackage.deterministicSeedPlans, 3),
+    instruction: candidatePackage.instruction
+  });
+}
+
+function compactCandidatePieces(pieces = [], validIds, limit) {
+  if (!Array.isArray(pieces)) return [];
+  return pieces
+    .filter((piece) => !piece?.optionId || !validIds.size || validIds.has(piece.optionId))
+    .slice(0, limit)
+    .map((piece) => pruneEmpty({
+      optionId: piece.optionId,
+      name: piece.name,
+      slot: piece.slot,
+      cost: piece.cost,
+      resource: piece.resource,
+      tacticalCategories: piece.tacticalCategories,
+      range: piece.range,
+      damageTypes: piece.damageTypes,
+      spell: piece.spell
+    }));
+}
+
+function compactReferenceSummaries(referenceSummaries = {}, limit) {
+  return pruneEmpty(Object.fromEntries(Object.entries(referenceSummaries ?? {}).map(([file, entries]) => [
+    file,
+    compactList(entries, Math.min(limit, 8))
+  ])));
 }
 
 function sanitizeContextForModel(context = {}) {

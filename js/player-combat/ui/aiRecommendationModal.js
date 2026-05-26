@@ -5,6 +5,7 @@ import {
 } from "../data/bestiaryOptions.js";
 import { getActiveAiProviderSettings, getAiSettings } from "../ai/aiSettings.js";
 import { getAiRecommendations } from "../ai/aiRecommendationService.js";
+import { buildClarificationContext } from "../ai/aiClarificationContext.js";
 import {
   readRecommendationOptionsForm,
   renderRecommendationOptionsControls
@@ -59,6 +60,7 @@ function renderInitialBody({ settings, snapshot, groups, answers, notes, creatur
       <button class="btn btn-primary" type="button" data-ai-open-settings>Open AI Options</button>
     `}
     ${renderCreatureSelector(creatureOptions, selectedCreature)}
+    ${renderQuickClarifications({ answers, notes, selectedCreature, snapshot })}
     <label class="field ai-notes-field">
       <span class="field-label">What else matters right now?</span>
       <textarea data-ai-notes placeholder="Enemy resistances, ally danger, battlefield hazards, monster AC, expected saves, positioning, objectives, or table rulings.">${escapeHtml(notes)}</textarea>
@@ -121,10 +123,46 @@ function bindEvents(body, services) {
     renderCreatureBadges(body);
   });
   body.querySelector("[data-ai-remove-creature]")?.addEventListener("click", () => removeSelectedCreature(body));
+  body.querySelector("[data-ai-clarification-prompts]")?.addEventListener("click", (event) => {
+    const prompt = event.target.closest("[data-ai-clarification]");
+    if (!prompt) return;
+    appendClarificationPrompt(body, prompt.dataset.aiClarification);
+  });
   body.querySelector("[data-ai-creature-badges]")?.addEventListener("click", (event) => {
     if (event.target.closest("[data-ai-remove-creature]")) removeSelectedCreature(body);
   });
   body.querySelector("[data-ai-get-recommendations]")?.addEventListener("click", () => requestRecommendations(body, services));
+}
+
+function renderQuickClarifications({ answers, notes, selectedCreature, snapshot }) {
+  const context = buildClarificationContext({
+    answers,
+    userNotes: notes,
+    combatState: snapshot.combatState,
+    selectedCreatures: selectedCreature ? [selectedCreature.creature] : []
+  });
+  if (!context.prompts?.length) return "";
+  return `
+    <div class="ai-clarification-prompts" data-ai-clarification-prompts>
+      <span class="field-label">Useful details</span>
+      <div class="recommendation-summary">
+        ${context.prompts.map((prompt) => `
+          <button class="btn btn-secondary" type="button" data-ai-clarification="${escapeHtml(prompt.noteTemplate)}">
+            ${escapeHtml(prompt.question)}
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function appendClarificationPrompt(body, template) {
+  const notes = body.querySelector("[data-ai-notes]");
+  if (!notes || !template) return;
+  const current = notes.value.trim();
+  notes.value = current ? `${current}\n${template}` : template;
+  savedAiNotes = notes.value;
+  notes.focus();
 }
 
 function removeSelectedCreature(body) {

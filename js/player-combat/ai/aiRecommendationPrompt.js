@@ -42,6 +42,8 @@ Ranking rules:
 
 Response rules:
 - Be concise and table-ready.
+- Return complete turn plans, not isolated single-option picks.
+- Include goalFit, expectedOutcome, assumptions, warnings, rejectedAlternatives, and followUpQuestions for each ranked plan.
 - Do not expose hidden stat-block details.
 - Do not give long rules explanations.
 - If information is missing, say exactly what fact would change the recommendation.
