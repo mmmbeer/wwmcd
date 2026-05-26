@@ -203,6 +203,99 @@ test("AI recommendation context infers common creature lore from player notes", 
   }]);
 });
 
+test("AI recommendation context exposes high-priority bonus setup and range guidance", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Eustace",
+        classes: [{ name: "Warlock", level: 2 }],
+        race: {},
+        combat: { maxHp: 47, ac: 17 },
+        resources: { spellSlots: { 1: 1 } },
+        features: {},
+        inventory: {},
+        spells: {}
+      },
+      combatState: {
+        current: { hp: 47, concentration: null },
+        turn: {},
+        resourcesUsed: { spellSlots: {} }
+      }
+    },
+    groups: {
+      attacks: [{
+        id: "weapon_eldritch_blast",
+        name: "Eldritch Blast",
+        source: "weapon",
+        group: "attacks",
+        available: true,
+        cost: { action: true },
+        range: { type: "ranged", label: "120 ft", normal: 120 },
+        rolls: [{ id: "damage", type: "damage", formula: "1d10", damageType: "force" }]
+      }],
+      bonus: [{
+        id: "spell_hex",
+        name: "Hex",
+        source: "spell",
+        group: "bonus",
+        available: true,
+        cost: { bonus: true, resource: { type: "spellSlot", level: 1 } },
+        spell: { level: 1, castingCost: "bonus", concentration: true, range: "90 ft." }
+      }]
+    },
+    recommendationSets: [],
+    answers: { situation: "single", distance: "long" },
+    userNotes: "Adult red dragon at 60 ft."
+  });
+
+  assert.equal(context.rankingGuidance.highPriorityOptions[0].id, "spell_hex");
+  assert.match(context.rankingGuidance.fullTurnPlanning, /bonus action/);
+  assert.match(context.rankingGuidance.rangeTactics, /range/);
+});
+
+test("AI recommendation context includes selected creature stats for hidden model guidance", () => {
+  const context = buildAiRecommendationContext({
+    snapshot: {
+      activeCharacter: {
+        name: "Eustace",
+        classes: [{ name: "Warlock", level: 5 }],
+        race: {},
+        combat: { maxHp: 47, ac: 17 },
+        resources: {},
+        features: {},
+        inventory: {},
+        spells: {}
+      },
+      combatState: { current: { hp: 47 }, turn: {}, resourcesUsed: {} }
+    },
+    groups: {},
+    recommendationSets: [],
+    answers: {},
+    userNotes: "",
+    selectedCreatures: [{
+      name: "Adult Red Dragon",
+      source: "MM",
+      ac: [19],
+      hp: { average: 256, formula: "19d12 + 133" },
+      cr: "17",
+      str: 27,
+      dex: 10,
+      con: 25,
+      int: 16,
+      wis: 13,
+      cha: 21,
+      immune: ["fire"],
+      action: [{ name: "Bite", entries: ["{@hit 14} to hit."] }]
+    }]
+  });
+
+  assert.equal(context.selectedCreatures[0].name, "Adult Red Dragon");
+  assert.deepEqual(context.selectedCreatures[0].ac, [19]);
+  assert.equal(context.selectedCreatures[0].hp.average, 256);
+  assert.deepEqual(context.selectedCreatures[0].immunities, ["fire"]);
+  assert.equal(context.selectedCreatures[0].actions[0].name, "Bite");
+});
+
 test("AI recommendation context tolerates malformed deterministic recommendations", () => {
   const context = buildAiRecommendationContext({
     snapshot: {

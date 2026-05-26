@@ -4045,3 +4045,89 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\mobileActionList.js`
 - `node --test tests\mobileActionList.test.mjs tests\recommendationScoring.test.mjs tests\playerCombatActions.test.mjs`
 - `node --test tests\*.test.mjs`
+
+### Combat Recommendation Tactical Corrections
+
+- Added tactical scoring for bonus-action mark spells so Hex and Hunter's Mark are treated as high-priority setup options against durable single targets when the character is not already concentrating.
+- Added battlefield-lore damage avoidance to procedural scoring so named creatures such as red dragons penalize obviously poor damage types like fire.
+- Added AI context ranking guidance for high-priority bonus actions, avoided damage options, full-turn planning, and ranged-versus-melee positioning.
+- Strengthened AI instructions to recommend across the whole turn, consider useful bonus actions, use obvious creature lore, and evaluate melee/ranged tactics from range metadata.
+- Added AI response validation that downgrades recommendations using damage types the battlefield context says to avoid.
+
+### Files Changed
+
+- `data/recommendations/spellTactics.json`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/recommendations/recommendationScoring.js`
+- `js/player-combat/recommendations/recommendationTacticalAdjustments.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `tests/recommendationScoring.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- Creature lore remains a conservative common-lore heuristic, not a replacement for exact DM stat blocks.
+- Hex and Hunter's Mark are prioritized only when they are present as available options; the recommendation system still does not invent missing spells or features.
+- Ranged-versus-melee guidance depends on the option range metadata provided by import and rule generation.
+
+### Manual Test Steps
+
+1. Import or load a warlock with Hex, no active concentration, and a durable single target in notes; confirm recommended turn plans include Hex plus a compatible attack.
+2. Repeat with a ranger that has Hunter's Mark and confirm the same bonus-action setup behavior.
+3. Add notes naming an adult red dragon and confirm fire-damage options show avoidance warnings and do not outrank viable non-fire attacks.
+4. Request AI recommendations for the red-dragon scenario and confirm the payload includes battlefield knowledge, ranking guidance, and full-turn instructions.
+
+### Recommendation Tactical Verification
+
+- `node --test tests\recommendationScoring.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
+- `node --test tests\*.test.mjs`
+
+### AI Bestiary Target Context
+
+- Added `data/bestiary-mm.json` to the browser reference-data load list.
+- Added a bestiary-backed creature combobox to the AI recommendation modal directly above the tactical notes text area.
+- Selecting a creature shows only a name badge with a remove button; stat-block details are not rendered in the modal.
+- Selected creature data is summarized into `selectedCreatures` for the AI payload, including AC, HP, CR, stats, saves, senses, movement, defenses, traits, actions, reactions, and legendary actions.
+- Updated AI prompt instructions so the model can use selected creature stats for tactical ranking without repeating hidden stat-block details back to the player.
+- Preserved selected creature context through compacted AI requests.
+
+### Files Changed
+
+- `css/turn-economy.css`
+- `js/player-combat/ai/aiRecommendationContext.js`
+- `js/player-combat/ai/aiRecommendationPrompt.js`
+- `js/player-combat/ai/aiRecommendationRequestContext.js`
+- `js/player-combat/ai/aiRecommendationService.js`
+- `js/player-combat/ai/creatureContext.js`
+- `js/player-combat/data/bestiaryOptions.js`
+- `js/player-combat/data/referenceDataLoader.js`
+- `js/player-combat/ui/aiRecommendationModal.js`
+- `tests/aiRecommendationContext.test.mjs`
+- `tests/aiRecommendationService.test.mjs`
+- `tests/bestiaryOptions.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The UI intentionally shows only the selected creature name, but the browser still loads local bestiary data as app data.
+- The first pass supports the Monster Manual bestiary file; other bestiary files can be added to the selector later.
+- Duplicate creature names are matched by the first exact name match in the sorted bestiary options.
+
+### Manual Test Steps
+
+1. Open AI Recommendations and confirm a Creature combobox appears above the tactical notes textarea.
+2. Type and select `Adult Red Dragon`; confirm only an `Adult Red Dragon` badge appears below the combobox.
+3. Click the badge remove button and confirm the badge and input are cleared.
+4. Request AI recommendations with a selected creature and confirm the model request context includes `selectedCreatures` while the modal does not display AC or other stat-block details.
+
+### AI Bestiary Verification
+
+- `node --check js\player-combat\ui\aiRecommendationModal.js`
+- `node --check js\player-combat\ai\creatureContext.js`
+- `node --check js\player-combat\data\bestiaryOptions.js`
+- `node --test tests\bestiaryOptions.test.mjs tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs`
+- `node --test tests\*.test.mjs`

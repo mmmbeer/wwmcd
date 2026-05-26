@@ -2,6 +2,7 @@ const REFERENCE_FILES = [
   "classes",
   "conditions",
   "equipment",
+  "bestiary-mm",
   "feats",
   "items",
   "magic-items",

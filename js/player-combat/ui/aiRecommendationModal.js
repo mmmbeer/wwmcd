@@ -1,4 +1,8 @@
 import { buildAiRecommendationContext } from "../ai/aiRecommendationContext.js";
+import {
+  findBestiaryOptionByName,
+  getBestiaryOptions
+} from "../data/bestiaryOptions.js";
 import { getActiveAiProviderSettings, getAiSettings } from "../ai/aiSettings.js";
 import { getAiRecommendations } from "../ai/aiRecommendationService.js";
 import {
@@ -8,6 +12,7 @@ import {
 import { escapeHtml } from "./renderUtils.js";
 
 let savedAiNotes = "";
+let savedCreatureOption = null;
 
 export function openAiRecommendationModal({
   modalApi,
@@ -23,8 +28,17 @@ export function openAiRecommendationModal({
 }) {
   const body = document.createElement("div");
   body.className = "ai-recommendation-modal";
-  body.innerHTML = renderInitialBody({ settings: getAiSettings(storage), snapshot, groups, answers, notes: savedAiNotes });
-  bindEvents(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, openSettings, onAnswersChanged, onRecommendations });
+  const creatureOptions = getBestiaryOptions(snapshot.referenceData);
+  body.innerHTML = renderInitialBody({
+    settings: getAiSettings(storage),
+    snapshot,
+    groups,
+    answers,
+    notes: savedAiNotes,
+    creatureOptions,
+    selectedCreature: savedCreatureOption
+  });
+  bindEvents(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, openSettings, onAnswersChanged, onRecommendations, creatureOptions });
   modalApi.showModal({
     title: "AI Recommendations",
     body,
@@ -32,7 +46,7 @@ export function openAiRecommendationModal({
   });
 }
 
-function renderInitialBody({ settings, snapshot, groups, answers, notes }) {
+function renderInitialBody({ settings, snapshot, groups, answers, notes, creatureOptions, selectedCreature }) {
   const active = getActiveAiProviderSettings(settings);
   const ready = Boolean(active.apiKey && active.model);
   return `
@@ -44,6 +58,7 @@ function renderInitialBody({ settings, snapshot, groups, answers, notes }) {
       <p class="inline-message warning">Save a provider API key and select a model in AI Options before requesting recommendations.</p>
       <button class="btn btn-primary" type="button" data-ai-open-settings>Open AI Options</button>
     `}
+    ${renderCreatureSelector(creatureOptions, selectedCreature)}
     <label class="field ai-notes-field">
       <span class="field-label">What else matters right now?</span>
       <textarea data-ai-notes placeholder="Enemy resistances, ally danger, battlefield hazards, monster AC, expected saves, positioning, objectives, or table rulings.">${escapeHtml(notes)}</textarea>
@@ -57,12 +72,71 @@ function renderInitialBody({ settings, snapshot, groups, answers, notes }) {
   `;
 }
 
+export function renderCreatureSelector(creatureOptions = [], selectedCreature = null) {
+  const disabled = creatureOptions.length ? "" : "disabled";
+  const value = selectedCreature?.name ?? "";
+  return `
+    <div class="field ai-creature-field">
+      <label class="field-label" for="ai-creature-combobox">Creature</label>
+      <input
+        id="ai-creature-combobox"
+        class="field-input"
+        type="text"
+        list="ai-creature-options"
+        data-ai-creature-input
+        value="${escapeHtml(value)}"
+        placeholder="${creatureOptions.length ? "Type to find a creature" : "Bestiary unavailable"}"
+        autocomplete="off"
+        ${disabled}
+      >
+      <datalist id="ai-creature-options">
+        ${creatureOptions.map((option) => `<option value="${escapeHtml(option.name)}"></option>`).join("")}
+      </datalist>
+      <div class="ai-creature-badges" data-ai-creature-badges>
+        ${renderSelectedCreatureBadge(selectedCreature)}
+      </div>
+    </div>
+  `;
+}
+
+function renderSelectedCreatureBadge(selectedCreature) {
+  if (!selectedCreature) return "";
+  return `
+    <span class="ai-creature-badge">
+      <span>${escapeHtml(selectedCreature.name)}</span>
+      <button type="button" aria-label="Remove ${escapeHtml(selectedCreature.name)}" data-ai-remove-creature>&times;</button>
+    </span>
+  `;
+}
+
 function bindEvents(body, services) {
   body.querySelector("[data-ai-open-settings]")?.addEventListener("click", () => services.openSettings?.());
   body.querySelector("[data-ai-notes]")?.addEventListener("input", (event) => {
     savedAiNotes = event.currentTarget.value;
   });
+  body.querySelector("[data-ai-creature-input]")?.addEventListener("change", (event) => {
+    const match = findBestiaryOptionByName(services.creatureOptions, event.currentTarget.value);
+    savedCreatureOption = match;
+    if (match) event.currentTarget.value = match.name;
+    renderCreatureBadges(body);
+  });
+  body.querySelector("[data-ai-remove-creature]")?.addEventListener("click", () => removeSelectedCreature(body));
+  body.querySelector("[data-ai-creature-badges]")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-ai-remove-creature]")) removeSelectedCreature(body);
+  });
   body.querySelector("[data-ai-get-recommendations]")?.addEventListener("click", () => requestRecommendations(body, services));
+}
+
+function removeSelectedCreature(body) {
+  savedCreatureOption = null;
+  const input = body.querySelector("[data-ai-creature-input]");
+  if (input) input.value = "";
+  renderCreatureBadges(body);
+}
+
+function renderCreatureBadges(body) {
+  const badges = body.querySelector("[data-ai-creature-badges]");
+  if (badges) badges.innerHTML = renderSelectedCreatureBadge(savedCreatureOption);
 }
 
 async function requestRecommendations(body, { modalApi, storage, snapshot, groups, recommendationSets, answers, showToast, onAnswersChanged, onRecommendations }) {
@@ -85,7 +159,14 @@ async function requestRecommendations(body, { modalApi, storage, snapshot, group
 
   try {
     onAnswersChanged?.(nextAnswers);
-    const context = buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers: nextAnswers, userNotes: notes });
+    const context = buildAiRecommendationContext({
+      snapshot,
+      groups,
+      recommendationSets,
+      answers: nextAnswers,
+      userNotes: notes,
+      selectedCreatures: savedCreatureOption ? [savedCreatureOption.creature] : []
+    });
     const recommendations = await getAiRecommendations({
       provider: active.provider,
       apiKey: active.apiKey,

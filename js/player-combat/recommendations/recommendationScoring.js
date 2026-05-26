@@ -3,6 +3,12 @@ import {
   enrichOptionWithTactics,
   tacticalReasons
 } from "./tacticalMetadata.js";
+import {
+  applySpecialTacticalAdjustments,
+  inferBattlefieldKnowledge,
+  specialTacticalReasons,
+  specialTacticalWarnings
+} from "./recommendationTacticalAdjustments.js";
 export { getRankedRecommendationSets } from "./recommendationSets.js";
 
 const DEFAULT_ANSWERS = {
@@ -146,12 +152,13 @@ export function getContextualRecommendationAnswers(answers = {}, context = {}) {
   };
 }
 
-export function getRankedRecommendations({ groups, character, combatState, answers = {}, referenceData, tacticalMetadata }) {
+export function getRankedRecommendations({ groups, character, combatState, answers = {}, referenceData, tacticalMetadata, battlefieldKnowledge }) {
   const resolvedAnswers = { ...DEFAULT_ANSWERS, ...answers };
   const metadata = tacticalMetadata ?? referenceData?.recommendations;
   const options = collectOptions(groups).map((option) => enrichOptionWithTactics(option, metadata));
+  const resolvedBattlefieldKnowledge = battlefieldKnowledge ?? inferBattlefieldKnowledge(resolvedAnswers);
   return options
-    .map((option) => scoreOption(option, { character, combatState, answers: resolvedAnswers }))
+    .map((option) => scoreOption(option, { character, combatState, answers: resolvedAnswers, battlefieldKnowledge: resolvedBattlefieldKnowledge }))
     .sort((a, b) => b.score - a.score || Number(a.option.available === false) - Number(b.option.available === false) || a.option.name.localeCompare(b.option.name))
     .map((entry, index) => ({
       ...entry,
@@ -183,6 +190,7 @@ function scoreOption(option, context) {
   applyDifficultyAdjustments(categoryScores, option, context.answers);
   applyRollModeAdjustments(categoryScores, option, context.answers);
   applyConcentrationAdjustments(categoryScores, option, context);
+  applySpecialTacticalAdjustments(categoryScores, option, context);
   const tacticalAdjustment = applyTacticalMetadata(categoryScores, option, context);
 
   const weights = GOAL_WEIGHTS[context.answers.goal] ?? GOAL_WEIGHTS.balanced;
@@ -370,6 +378,7 @@ function applyConcentrationAdjustments(scores, option, context) {
 function recommendationReasons(option, scores, context) {
   const reasons = [];
   reasons.push(...tacticalReasons(option, context));
+  reasons.push(...specialTacticalReasons(option, context));
   if (scores.damage >= 30) reasons.push("High damage");
   if (scores.support >= 28) reasons.push("Strong support");
   if (scores.control >= 28) reasons.push("Control option");
@@ -390,7 +399,7 @@ function recommendationReasons(option, scores, context) {
 }
 
 function recommendationWarnings(option, context) {
-  const warnings = [...(option.warnings ?? [])];
+  const warnings = [...(option.warnings ?? []), ...specialTacticalWarnings(option, context)];
   if (option.spell?.concentration && context.combatState?.current?.concentration) {
     warnings.push(`May replace ${context.combatState.current.concentration}`);
   }

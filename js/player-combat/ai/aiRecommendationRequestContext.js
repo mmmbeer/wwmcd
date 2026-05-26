@@ -36,7 +36,9 @@ function buildCompactContext(context, { availableLimit, unavailableLimit, option
     combatState: context?.combatState,
     turnRules: context?.turnRules,
     playerIntent: context?.playerIntent,
+    selectedCreatures: compactSelectedCreatures(context?.selectedCreatures),
     battlefieldKnowledge: compactBattlefieldKnowledge(context?.battlefieldKnowledge),
+    rankingGuidance: compactRankingGuidance(context?.rankingGuidance),
     classTactics: compactClassTactics(context?.classTactics),
     availableOptions,
     unavailableOptions: compactUnavailableOptionGroups(context?.unavailableOptions, unavailableLimit),
@@ -69,6 +71,50 @@ function compactBattlefieldKnowledge(knowledge = {}) {
     impactedOptionIds: uniqueStrings((knowledge.impactedOptions ?? []).map((option) => option.id)).slice(0, 12),
     inferencePolicy: "Common lore assumptions from user notes; DM variants may differ."
   });
+}
+
+function compactRankingGuidance(guidance = {}) {
+  return pruneEmpty({
+    highPriorityOptions: compactGuidanceOptions(guidance.highPriorityOptions, 8),
+    avoidOptions: compactGuidanceOptions(guidance.avoidOptions, 8),
+    fullTurnPlanning: guidance.fullTurnPlanning,
+    rangeTactics: guidance.rangeTactics
+  });
+}
+
+function compactSelectedCreatures(creatures = []) {
+  if (!Array.isArray(creatures)) return [];
+  return creatures.slice(0, 3).map((creature) => pruneEmpty({
+    name: creature.name,
+    type: creature.type,
+    ac: creature.ac,
+    hp: creature.hp,
+    cr: creature.cr,
+    stats: creature.stats,
+    saves: creature.saves,
+    skills: creature.skills,
+    senses: creature.senses,
+    speed: creature.speed,
+    vulnerabilities: creature.vulnerabilities,
+    resistances: creature.resistances,
+    immunities: creature.immunities,
+    conditionImmunities: creature.conditionImmunities,
+    traits: compactList(creature.traits, 5),
+    actions: compactList(creature.actions, 6),
+    bonusActions: compactList(creature.bonusActions, 3),
+    reactions: compactList(creature.reactions, 3),
+    legendaryActions: compactList(creature.legendaryActions, 4)
+  }));
+}
+
+function compactGuidanceOptions(options = [], limit) {
+  if (!Array.isArray(options)) return [];
+  return options.slice(0, limit).map((option) => pruneEmpty({
+    id: option.id,
+    name: option.name,
+    damageTypes: option.damageTypes,
+    reason: option.reason
+  }));
 }
 
 function compactCharacter(character, listLimit) {
@@ -158,6 +204,7 @@ function compactList(items = [], limit) {
       quantity: item.quantity,
       damage: item.damage?.diceString ?? item.damage,
       damageType: item.damageType,
+      summary: item.summary,
       max: item.max,
       reset: item.reset,
       note: item.note

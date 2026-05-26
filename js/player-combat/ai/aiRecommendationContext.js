@@ -1,19 +1,23 @@
 import { CLASS_TACTICS } from "./classTactics.js";
+import { summarizeSelectedCreatures } from "./creatureContext.js";
 
 const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
 
-export function buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes }) {
+export function buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes, selectedCreatures = [] }) {
   const character = snapshot.activeCharacter;
   const combatState = snapshot.combatState;
   const availableOptions = summarizeGroups(groups);
   const playerIntent = summarizePlayerIntent(answers, userNotes);
+  const battlefieldKnowledge = summarizeBattlefieldKnowledge(playerIntent, availableOptions);
   return pruneEmpty({
     schemaVersion: "combat-option-recommendation/v3",
     character: summarizeCharacter(character, combatState),
     combatState: summarizeCombatState(combatState, character),
     turnRules: buildTurnRules(character, combatState),
     playerIntent,
-    battlefieldKnowledge: summarizeBattlefieldKnowledge(playerIntent, availableOptions),
+    selectedCreatures: summarizeSelectedCreatures(selectedCreatures),
+    battlefieldKnowledge,
+    rankingGuidance: summarizeRankingGuidance({ availableOptions, battlefieldKnowledge, combatState, playerIntent }),
     classTactics: summarizeClassTactics(character),
     availableOptions,
     unavailableOptions: summarizeUnavailableGroups(groups),
@@ -314,6 +318,32 @@ function summarizeBattlefieldKnowledge(playerIntent, availableOptions) {
     avoidDamageTypes,
     impactedOptions
   });
+}
+
+function summarizeRankingGuidance({ availableOptions, battlefieldKnowledge, combatState, playerIntent }) {
+  const options = Object.values(availableOptions ?? {}).flat();
+  const highPriorityOptions = options
+    .filter((option) => isOpeningMarkSpell(option, combatState, playerIntent))
+    .map((option) => ({
+      id: option.id,
+      name: option.name,
+      reason: "Available bonus-action concentration damage setup; include before attacks against a durable single target when legal."
+    }));
+  const avoidOptions = Array.isArray(battlefieldKnowledge?.impactedOptions) ? battlefieldKnowledge.impactedOptions : [];
+
+  return pruneEmpty({
+    highPriorityOptions,
+    avoidOptions,
+    fullTurnPlanning: "Rank plans across the whole current turn, including a compatible bonus action when it materially improves the attack plan.",
+    rangeTactics: "Use stated distance and each option's range/tags to prefer ranged plans over closing to melee unless closing has a clear benefit."
+  });
+}
+
+function isOpeningMarkSpell(option, combatState, playerIntent) {
+  if (!/\b(hex|hunter'?s mark)\b/i.test(option?.name ?? "")) return false;
+  if (!option?.cost?.bonus || !option?.spell?.concentration) return false;
+  if (combatState?.current?.concentration) return false;
+  return ["single", "bigBad", ""].includes(playerIntent?.situation ?? "");
 }
 
 function inferCreaturesFromText(text) {

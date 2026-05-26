@@ -80,6 +80,15 @@
     "synergies": ["Sneak Attack", "Elven Accuracy"],
     "reasonBoosts": ["Damages one target and sets up advantage."]
   },
+  "Hex": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 20,
+    "roles": ["damage", "bossDebuff"],
+    "goodSituations": ["single", "bigBad"],
+    "goodRanges": ["long"],
+    "goodDifficulties": ["medium", "hard", "deadly"],
+    "reasonBoosts": ["Bonus-action concentration damage for repeated attacks."]
+  },
   "Haste": {
     "combatUsefulness": "strong",
     "recommendationBonus": 10,
@@ -107,6 +116,15 @@
     "goodDifficulties": ["hard", "deadly"],
     "synergies": ["Sneak Attack", "Divine Smite", "Elven Accuracy"],
     "reasonBoosts": ["Paralysis can decide a humanoid boss fight."]
+  },
+  "Hunter's Mark": {
+    "combatUsefulness": "signature",
+    "recommendationBonus": 20,
+    "roles": ["damage", "bossDebuff"],
+    "goodSituations": ["single", "bigBad"],
+    "goodRanges": ["long", "far"],
+    "goodDifficulties": ["medium", "hard", "deadly"],
+    "reasonBoosts": ["Bonus-action mark damage for repeated weapon attacks."]
   },
   "Invisibility": {
     "combatUsefulness": "strong",

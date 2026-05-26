@@ -54,11 +54,15 @@ export function buildRecommendationUserMessage(context) {
     "",
     "Requirements:",
     "- Return a ranked list of complete turn plans using planPieces.",
+    "- Every recommendation should consider the whole turn: main action, bonus action, movement, free/object interaction, and a relevant reaction reminder.",
     "- Use optionId values from optionIndex. availableOptions may be grouped ID lists for orientation.",
+    "- Use selectedCreatures for hidden target AC, defenses, saves, traits, and likely tactics, but do not print unrevealed stat-block details back to the player.",
     "- Use battlefieldKnowledge to avoid obviously poor damage types or tactics against named creatures from the notes.",
+    "- Do not rank avoided damage types as good attacks when the optionIndex contains viable alternatives.",
     "- Use classTactics only to rank, explain, warn, or identify missing information; do not treat them as extra options.",
     "- Each planPiece must reference one concrete option from optionIndex or availableOptions.",
     "- Combine compatible pieces when useful: attacks, Extra Attack pieces, bonus actions, riders, resource spends, free/object interactions, movement, and reaction reminders.",
+    "- Strong bonus-action setup spells such as Hex or Hunter's Mark should be included with a compatible attack when available, legal, in range, and the character is not already concentrating.",
     "- Examples of useful combinations include Steady Aim plus Longbow plus Sneak Attack, weapon attack plus Divine Smite, and monk weapon plus Flurry of Blows when those option IDs are present.",
     "- Include class-feature riders such as Sneak Attack, Divine Smite, Stunning Strike, or Flurry of Blows only when they appear as provided options; mark hit-triggered riders conditional if the hit has not happened yet.",
     "- Do not include more than one explicit Action or one Bonus Action unless the app-provided option is an Extra Attack/attack-count piece.",
@@ -144,7 +148,8 @@ export function normalizeRecommendationSet(set, index, optionMap) {
 
   const validationWarnings = [
     ...pieces.flatMap(validateMatchedPiece),
-    ...validateActionEconomy(pieces)
+    ...validateActionEconomy(pieces),
+    ...validateBattlefieldKnowledge(pieces, optionMap?.battlefieldKnowledge)
   ];
   const warnings = [...arrayOfStrings(safeSet.warnings), ...validationWarnings].slice(0, 8);
   const legality = validationWarnings.length
@@ -283,7 +288,7 @@ function buildOptionMap(contextOrOptions) {
     if (uniqueIds.size === 1) byName.set(name, options[0]);
     else ambiguousNames.add(name);
   });
-  return { byId, byName, ambiguousNames };
+  return { byId, byName, ambiguousNames, battlefieldKnowledge: contextOrOptions?.battlefieldKnowledge };
 }
 
 function findMatchingOption({ optionId, name, optionMap }) {
@@ -320,6 +325,27 @@ function validateActionEconomy(pieces) {
 function isExplicitActionSlot(slot) {
   const normalized = String(slot ?? "").trim().toLowerCase();
   return normalized === "action" || normalized === "main action";
+}
+
+function validateBattlefieldKnowledge(pieces, battlefieldKnowledge = {}) {
+  const avoid = new Set((battlefieldKnowledge.avoidDamageTypes ?? []).map((type) => String(type).toLowerCase()));
+  if (!avoid.size) return [];
+  const warnings = [];
+  pieces.forEach((piece) => {
+    const matchedTypes = optionDamageTypes(piece.option).filter((type) => avoid.has(type));
+    if (matchedTypes.length) {
+      warnings.push(`"${piece.option.name}" deals ${matchedTypes.join("/")} damage, which battlefield notes say to avoid.`);
+    }
+  });
+  return [...new Set(warnings)];
+}
+
+function optionDamageTypes(option) {
+  if (!option) return [];
+  return [
+    ...(Array.isArray(option.damageTypes) ? option.damageTypes : []),
+    ...(Array.isArray(option.rolls) ? option.rolls.map((roll) => roll.damageType ?? roll.typeLabel) : [])
+  ].filter(Boolean).map((type) => String(type).toLowerCase()).filter((type, index, types) => types.indexOf(type) === index);
 }
 
 export function parseJson(text) {

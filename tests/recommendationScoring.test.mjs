@@ -635,6 +635,61 @@ test("Light is penalized in normal combat recommendations", () => {
   assert.ok(light.reasons.includes("Low-combat utility; usually cast before combat."));
 });
 
+test("single durable targets prioritize Hex as a compatible bonus-action setup", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      rangedAttack("weapon_eldritch_blast", "Eldritch Blast", "1d10", 120),
+      {
+        id: "spell_hex",
+        name: "Hex",
+        source: "spell",
+        description: "Bonus action concentration spell that adds necrotic damage when you hit the target.",
+        spell: { level: 1, castingCost: "bonus", concentration: true, range: "90 feet" },
+        cost: { bonus: true, resource: { type: "spellSlot", level: 1 } },
+        damageTypes: ["necrotic"],
+        rolls: [],
+        available: true
+      },
+      {
+        id: "spell_sanctuary",
+        name: "Sanctuary",
+        source: "spell",
+        description: "Protect a creature from attacks.",
+        spell: { level: 1, castingCost: "bonus", range: "30 feet" },
+        cost: { bonus: true, resource: { type: "spellSlot", level: 1 } },
+        rolls: [],
+        available: true
+      }
+    ]),
+    combatState: baseCombatState(),
+    answers: { goal: "damage", situation: "single", resources: "normal" },
+    tacticalMetadata
+  });
+  const sets = getRankedRecommendationSets({ rankedEntries: ranked, answers: { goal: "damage", situation: "single" } });
+  const blastSet = sets.find((set) => set.pieces[0].entry.option.name === "Eldritch Blast");
+
+  assert.ok(ranked.find((entry) => entry.option.name === "Hex").reasons.includes("Sets up bonus-action damage concentration"));
+  assert.ok(blastSet.pieces.some((piece) => piece.slot === "Bonus" && piece.entry.option.name === "Hex"));
+});
+
+test("battlefield creature lore penalizes avoided damage types", () => {
+  const ranked = getRankedRecommendations({
+    groups: groupsWith([
+      rangedAttack("weapon_fire_bolt", "Fire Bolt", "2d10", 120, "fire"),
+      rangedAttack("weapon_eldritch_blast", "Eldritch Blast", "1d10", 120)
+    ]),
+    combatState: baseCombatState(),
+    answers: {
+      goal: "damage",
+      situation: "single",
+      userNotes: "I am fighting an adult red dragon."
+    }
+  });
+
+  assert.equal(ranked[0].option.name, "Eldritch Blast");
+  assert.ok(ranked.find((entry) => entry.option.name === "Fire Bolt").warnings.join(" ").includes("Avoid fire damage"));
+});
+
 test("Rogue Hide advantage setup is boosted when Sneak Attack is present", () => {
   const ranked = getRankedRecommendations({
     groups: groupsWith([
@@ -811,7 +866,7 @@ function attack(id, name, damage, { attackCount = 1 } = {}) {
   };
 }
 
-function rangedAttack(id, name, damage, range) {
+function rangedAttack(id, name, damage, range, damageType = "piercing") {
   return {
     id,
     name,
@@ -822,7 +877,7 @@ function rangedAttack(id, name, damage, range) {
     range: { type: "ranged", label: `${range} ft`, normal: range },
     rolls: [
       { id: "attack", type: "attack", formula: "1d20+7" },
-      { id: "damage", type: "damage", formula: damage, damageType: "piercing" }
+      { id: "damage", type: "damage", formula: damage, damageType }
     ],
     available: true
   };

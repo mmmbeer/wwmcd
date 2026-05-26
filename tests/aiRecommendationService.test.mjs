@@ -225,6 +225,25 @@ test("normalization flags unavailable matched options", () => {
   assert.match(result.recommendations[0].warnings.join(" "), /marked unavailable/);
 });
 
+test("normalization downgrades recommendations using battlefield-avoided damage", () => {
+  const fireBolt = {
+    id: "spell_fire_bolt",
+    name: "Fire Bolt",
+    available: true,
+    cost: { action: true },
+    damageTypes: ["fire"],
+    rolls: [{ id: "damage", type: "damage", formula: "2d10", damageType: "fire" }]
+  };
+  const result = normalizeAiResponse(JSON.stringify(responseWithAction("spell_fire_bolt", "Fire Bolt")), {
+    battlefieldKnowledge: { avoidDamageTypes: ["fire"] },
+    availableOptions: { spells: [fireBolt] },
+    unavailableOptions: {}
+  });
+
+  assert.equal(result.recommendations[0].legality, "conditional");
+  assert.match(result.recommendations[0].warnings.join(" "), /deals fire damage/);
+});
+
 test("normalization defaults null concentration impact to none", () => {
   const payload = responseWithAction("attack_rapier", "Rapier");
   payload.recommendations[0].concentrationImpact = null;
@@ -282,6 +301,9 @@ test("schema request selection avoids providers and models likely to reject json
 test("user message builder includes shared tactical instructions and context JSON", () => {
   const message = buildRecommendationUserMessage({ schemaVersion: "combat-option-recommendation/v3" });
   assert.match(message, /complete turn plans/);
+  assert.match(message, /whole turn/);
+  assert.match(message, /Hex or Hunter's Mark/);
+  assert.match(message, /selectedCreatures/);
   assert.match(message, /optionIndex/);
   assert.match(message, /classTactics/);
   assert.match(message, /combat-option-recommendation\/v3/);
@@ -294,6 +316,8 @@ test("user message builder compacts oversized tactical context", () => {
 
   assert.equal(compact.requestNotes.contextCompacted, true);
   assert.equal(compact.classTactics.rogue.priorities[0], "Prioritize Sneak Attack.");
+  assert.equal(compact.rankingGuidance.highPriorityOptions[0].id, "spell_hex");
+  assert.equal(compact.selectedCreatures[0].ac[0], 19);
   assert.ok(JSON.stringify(compact).length < JSON.stringify(context).length);
   assert.ok(compact.availableOptions.spells.length < context.availableOptions.spells.length);
   assert.equal(typeof compact.availableOptions.spells[0], "string");
@@ -371,6 +395,21 @@ function largeContext() {
     combatState: { current: { concentration: null }, turn: {} },
     turnRules: {},
     playerIntent: {},
+    selectedCreatures: [{
+      name: "Adult Red Dragon",
+      ac: [19],
+      hp: { average: 256 },
+      cr: "17",
+      stats: { str: 27, dex: 10, con: 25, int: 16, wis: 13, cha: 21 },
+      immunities: ["fire"],
+      actions: [{ name: "Bite", summary: "Melee attack." }]
+    }],
+    rankingGuidance: {
+      highPriorityOptions: [{ id: "spell_hex", name: "Hex", reason: "Use before repeated attacks." }],
+      avoidOptions: [{ id: "spell_fire_bolt", name: "Fire Bolt", damageTypes: ["fire"] }],
+      fullTurnPlanning: "Consider action, bonus action, movement, free interaction, and reaction reminder.",
+      rangeTactics: "Prefer ranged plans when range supports them."
+    },
     classTactics: {
       rogue: {
         priorities: ["Prioritize Sneak Attack."],

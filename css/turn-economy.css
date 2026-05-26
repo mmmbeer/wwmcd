@@ -613,6 +613,60 @@
   min-height: 112px;
 }
 
+.ai-creature-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ai-creature-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-height: 24px;
+}
+
+.ai-creature-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid rgba(93, 169, 233, 0.45);
+  border-radius: 999px;
+  background: rgba(93, 169, 233, 0.13);
+  color: var(--accent-blue);
+  padding: 3px 4px 3px 9px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ai-creature-badge span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-creature-badge button {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ai-creature-badge button:hover,
+.ai-creature-badge button:focus-visible {
+  background: rgba(93, 169, 233, 0.22);
+  outline: none;
+}
+
 .ai-loading {
   color: var(--accent-gold-soft);
   font-size: 0.82rem;
