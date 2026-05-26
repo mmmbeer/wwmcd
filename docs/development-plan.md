@@ -1,6 +1,41 @@
 # Development Plan
 
-## Current Session: Animated Dice Roll Modal
+## Current Session: PDF Cantrip Attack Import
+
+### Implemented
+
+- Changed PDF weapon/cantrip attack rows so matching cantrip spells are enriched instead of imported as weapon attacks.
+- Preserved PDF attack-row damage, spell attack bonus, and `Count: N` metadata on the normalized spell.
+- Added generic spell/action roll repetition support via `rollCount`, so a PDF `Count: 2` spell action prompts for two attack-and-damage roll bundles without treating it as the Attack action.
+- Added regression coverage for `docs/recommendation-issues/mwokasch_159696225.pdf`, confirming `Fire Bolt` and `Eldritch Blast` are spell actions, not weapon attacks.
+
+### Files Changed
+
+- `js/player-combat/importers/pdfCharacterInputBuilder.js`
+- `js/player-combat/normalizers/characterNormalizer.js`
+- `js/player-combat/rules/spellActions.js`
+- `js/player-combat/ui/actionRollModal.js`
+- `tests/playerCombatImport.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- PDF import still depends on fillable form fields and best-effort D&D Beyond field naming.
+- Repeated spell rolls are handled as repeated roll prompts, not as separate spell action plan pieces.
+
+### Manual Test Checklist
+
+1. Import `docs/recommendation-issues/mwokasch_159696225.pdf`.
+2. Confirm `Fire Bolt` and `Eldritch Blast` appear under spell actions, not weapon attacks.
+3. Open `Eldritch Blast` and confirm the roll flow prompts twice, each with attack and damage rolls.
+4. Confirm ordinary weapon attacks still appear in the attacks list and still use Attack action sequencing.
+
+### Verification Completed
+
+- `node --test tests\playerCombatImport.test.mjs`
+- `node --test tests\*.test.mjs tests\*.test.js`
+
+## Previous Session: Animated Dice Roll Modal
 
 ### Implemented
 

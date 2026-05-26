@@ -154,6 +154,8 @@ function rollForForm(body, option, rolls, { rollIndex = null, rollTotal = null }
 }
 
 function rollRepeatCount(option) {
+  const explicitRepeat = Number(option?.rollCount);
+  if (Number.isFinite(explicitRepeat)) return Math.max(1, explicitRepeat);
   if (!isAttackAction(option)) return 1;
   if (!option.rolls?.some((roll) => roll.type === "attack" || roll.id === "attack")) return 1;
   return Math.max(1, Number(option.attack?.count ?? 1));

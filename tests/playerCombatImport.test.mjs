@@ -203,6 +203,24 @@ test("example high-level druid PDF exposes all imported spell options", async ()
   assert.equal(groups.spells.find((option) => option.name === "Storm of Vengeance").available, true);
 });
 
+test("PDF cantrip attack rows enrich spell actions instead of weapon attacks", async () => {
+  const imported = await importCharacterFromPdfTextOrBuffer("docs/recommendation-issues/mwokasch_159696225.pdf");
+  const { character } = normalizeCharacter(imported.raw);
+  const groups = getCombatOptions({ character, combatState: baseCombatState(), referenceData: spellAttackReferenceData() });
+
+  assert.equal(character.inventory.weapons.some((weapon) => weapon.name === "Fire Bolt"), false);
+  assert.equal(character.inventory.weapons.some((weapon) => weapon.name === "Eldritch Blast"), false);
+  assert.equal(groups.attacks.some((option) => option.name === "Fire Bolt" || option.name === "Eldritch Blast"), false);
+
+  const eldritchBlast = groups.spells.find((option) => option.name === "Eldritch Blast");
+  assert.equal(eldritchBlast.source, "spell");
+  assert.equal(eldritchBlast.spell.level, 0);
+  assert.equal(eldritchBlast.rollCount, 2);
+  assert.deepEqual(eldritchBlast.rolls.map((roll) => roll.type), ["attack", "damage"]);
+  assert.equal(eldritchBlast.rolls.find((roll) => roll.type === "attack").formula, "1d20+7");
+  assert.equal(eldritchBlast.rolls.find((roll) => roll.type === "damage").formula, "1d10");
+});
+
 test("rejects PDFs without fillable form fields", () => {
   const imported = importCharacterFromPdfText("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>", { sourceName: "flat.pdf" });
 
@@ -840,6 +858,32 @@ function featureSpellReferenceData() {
           range: "60 feet",
           duration: "Concentration, up to 10 minutes",
           description: "One creature or object must make a Constitution saving throw."
+        }]
+      ])
+    }
+  };
+}
+
+function spellAttackReferenceData() {
+  return {
+    indexes: {
+      featureActionIndexByName: new Map(),
+      spellIndexByName: new Map([
+        ["fire bolt", {
+          name: "Fire Bolt",
+          level: 0,
+          casting_time: "1 action",
+          range: "120 feet",
+          duration: "Instantaneous",
+          description: "Make a ranged spell attack. On a hit, the target takes 2d10 fire damage."
+        }],
+        ["eldritch blast", {
+          name: "Eldritch Blast",
+          level: 0,
+          casting_time: "1 action",
+          range: "120 feet",
+          duration: "Instantaneous",
+          description: "Make a ranged spell attack. On a hit, the target takes 1d10 force damage."
         }]
       ])
     }

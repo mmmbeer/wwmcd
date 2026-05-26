@@ -14,7 +14,8 @@ export function buildNormalizerInput(fields, sourceName) {
   const classes = parseClasses(firstField(fields, ["CLASS LEVEL", "ClassLevel"]));
   const level = classes.reduce((sum, entry) => sum + Number(entry.level ?? 0), 0);
   const proficiencyBonus = numberFrom(field(fields, "ProfBonus"), proficiencyBonusForLevel(level));
-  const spells = extractSpells(fields);
+  const attackRows = extractAttackRows(fields);
+  const spells = extractSpells(fields, attackRows);
   return {
     name: firstField(fields, ["CharacterName", "CharacterName2", "CharacterName4"]) || sourceName.replace(/\.pdf$/i, ""),
     race: { name: firstField(fields, ["RACE", "RACE2", "Race"]) },
@@ -27,7 +28,7 @@ export function buildNormalizerInput(fields, sourceName) {
     initiative: numberFrom(firstField(fields, ["Init", "Initiative"]), 0),
     proficiencyBonus,
     speed: { walk: numberFromText(field(fields, "Speed"), 30) },
-    inventory: extractWeapons(fields),
+    inventory: attackRows.filter((row) => !row.spellMatch).map((row) => row.item),
     spellSlots: Object.fromEntries(spells.slots.map((slot) => [slot.level, slot.max])),
     spells: { pdf: spells.known },
     features: extractFeatures(fields),
@@ -45,29 +46,36 @@ function parseClasses(value) {
   return entries.length ? entries : [{ name: text, level: 0 }];
 }
 
-function extractWeapons(fields) {
-  const weapons = [];
+function extractAttackRows(fields) {
+  const rows = [];
   for (let index = 1; index <= 12; index += 1) {
     const suffix = index === 1 ? "" : ` ${index}`;
     const name = field(fields, `Wpn Name${suffix}`);
     if (!name) continue;
     const damage = parseDamage(field(fields, `Wpn${index} Damage`));
-    weapons.push({
-      equipped: true,
-      definition: {
-        name,
-        filterType: "Weapon",
-        type: "Weapon",
-        damage: damage.dice ? { diceString: damage.dice } : null,
-        damageType: damage.type,
-        propertiesText: field(fields, `Wpn Notes ${index}`)
+    const notes = field(fields, `Wpn Notes ${index}`);
+    rows.push({
+      name,
+      damage,
+      notes,
+      count: parseAttackCount(notes),
+      item: {
+        equipped: true,
+        definition: {
+          name,
+          filterType: "Weapon",
+          type: "Weapon",
+          damage: damage.dice ? { diceString: damage.dice } : null,
+          damageType: damage.type,
+          propertiesText: notes
+        }
       }
     });
   }
-  return weapons;
+  return rows;
 }
 
-function extractSpells(fields) {
+function extractSpells(fields, attackRows = []) {
   let currentLevel = 0;
   const slots = [];
   const spells = [];
@@ -89,6 +97,8 @@ function extractSpells(fields) {
     if (!match || !clean) continue;
     const index = match[1];
     const saveHit = field(fields, `spellSaveHit${index}`);
+    const attackRow = currentLevel === 0 ? matchingAttackRow(attackRows, clean) : null;
+    if (attackRow) attackRow.spellMatch = true;
     spells.push({
       prepared: isMarked(field(fields, `spellPrepared${index}`)) || currentLevel === 0,
       spellCastingAbilityId: castingAbility,
@@ -100,7 +110,10 @@ function extractSpells(fields) {
         duration: field(fields, `spellDuration${index}`),
         concentration: /concentration/i.test(field(fields, `spellDuration${index}`)),
         description: [field(fields, `spellNotes${index}`), saveHit].filter(Boolean).join(" "),
-        saveDcAbilityId: abilityIdFromSaveHit(saveHit)
+        saveDcAbilityId: abilityIdFromSaveHit(saveHit),
+        attackBonus: attackBonusFrom(saveHit) ?? attackBonusFrom(attackRow?.notes),
+        attackCount: attackRow?.count,
+        damage: attackRow?.damage?.dice ? { diceString: attackRow.damage.dice, type: attackRow.damage.type } : null
       }
     });
   }
@@ -122,6 +135,21 @@ function parseSpellSlotHeader(value, level) {
 function parseDamage(value) {
   const match = String(value ?? "").match(/(\d+d\d+)(?:\s*[+-]\s*\d+)?\s*([a-z]+)?/i);
   return { dice: match?.[1] ?? "", type: match?.[2] ?? "" };
+}
+
+function parseAttackCount(value) {
+  const match = String(value ?? "").match(/\bcount\s*:\s*(\d+)/i);
+  return match ? Math.max(1, Number(match[1])) : null;
+}
+
+function matchingAttackRow(rows, spellName) {
+  const target = normalizeName(spellName);
+  return rows.find((row) => normalizeName(row.name) === target) ?? null;
+}
+
+function attackBonusFrom(value) {
+  const match = String(value ?? "").match(/(?:^|[\s,])([+-]\d+)(?:\b|$)/);
+  return match ? Number(match[1]) : null;
 }
 
 function abilityFromText(value) {
@@ -167,4 +195,8 @@ function numberFromText(value, fallback) {
 
 function proficiencyBonusForLevel(level) {
   return Math.max(2, Math.ceil((Number(level || 1) - 1) / 4) + 2);
+}
+
+function normalizeName(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ");
 }

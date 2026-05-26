@@ -24,7 +24,8 @@ function createSpellOption(character, combatState, referenceData, spell, referen
   const description = referenceDescription || importedDescription;
   const attackBonus = spell.attackBonus ?? character?.spells?.attackBonus ?? spellAttackBonus(character);
   const saveDc = spell.saveDc ?? character?.spells?.saveDc ?? null;
-  const roll = spellRoll(character, spell, description, attackBonus);
+  const rolls = spellRolls(character, spell, description, attackBonus);
+  const rollCount = Math.max(1, Number(spell.attackCount ?? 1));
   const slotReason = slotUnavailableReason(character, combatState, level);
   const range = spell.range || reference.range;
   const duration = spell.duration || reference.duration;
@@ -45,13 +46,15 @@ function createSpellOption(character, combatState, referenceData, spell, referen
     cost: { ...cost, resource: level > 0 ? { type: "spellSlot", level } : null },
     resource: level > 0 ? `Level ${level} spell slot` : null,
     recommended: index < 2,
-    rolls: roll ? [roll] : [],
+    rolls,
+    rollCount: rollCount > 1 ? rollCount : undefined,
     unavailableReasons: slotReason ? [slotReason] : [],
     meta: [
       castingTime,
       duration ? `Duration ${duration}` : null,
       save,
-      roll?.type === "attack" ? `${signed(attackBonus)} spell attack` : null,
+      rolls.some((roll) => roll.type === "attack") ? `${signed(attackBonus)} spell attack` : null,
+      rollCount > 1 ? `Count: ${rollCount}` : null,
       slotReason
     ].filter(Boolean),
     spell: {
@@ -149,23 +152,26 @@ function castingCostName(cost) {
   return "special";
 }
 
-function spellRoll(character, spell, description, attackBonus) {
+function spellRolls(character, spell, description, attackBonus) {
   const damage = formulaFromDamage(spell.damage) ?? firstFormulaNear(description, /(takes?|deals?|take|deal)\s+(\d+d\d+)/i);
   const healing = firstFormulaNear(description, /(regains? hit points equal to|regains?|restore|heals?)\s+(\d+d\d+)/i);
 
-  if (spell.attackType || /spell attack/i.test(description)) {
-    return { id: "spellAttack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" };
+  if (spell.attackType || (spell.attackBonus !== null && spell.attackBonus !== undefined) || /spell attack/i.test(description)) {
+    return [
+      { id: "spellAttack", label: "Roll Attack", formula: `1d20${signed(attackBonus)}`, type: "attack" },
+      damage ? { id: "damage", label: "Roll Damage", formula: damage, type: "damage", damageType: damageTypeFrom(spell.damage) } : null
+    ].filter(Boolean);
   }
 
   if (healing) {
-    return { id: "healing", label: "Roll Healing", formula: addCastingMod(character, description, healing), type: "healing" };
+    return [{ id: "healing", label: "Roll Healing", formula: addCastingMod(character, description, healing), type: "healing" }];
   }
 
   if (damage) {
-    return { id: "damage", label: "Roll Damage", formula: damage, type: "damage" };
+    return [{ id: "damage", label: "Roll Damage", formula: damage, type: "damage", damageType: damageTypeFrom(spell.damage) }];
   }
 
-  return null;
+  return [];
 }
 
 function firstFormulaNear(description, pattern) {
@@ -177,6 +183,11 @@ function formulaFromDamage(damage) {
   if (!damage) return null;
   if (typeof damage === "string") return damage.match(/\d+d\d+/i)?.[0] ?? null;
   return damage.diceString ?? damage.dice?.diceString ?? damage.dice ?? null;
+}
+
+function damageTypeFrom(damage) {
+  if (!damage || typeof damage === "string") return "";
+  return damage.type ?? damage.damageType ?? "";
 }
 
 function addCastingMod(character, description, formula) {

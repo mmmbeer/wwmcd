@@ -350,6 +350,8 @@ function normalizeSpell(spell) {
     requiresSave: Boolean(definition?.requiresSavingThrow ?? spell?.requiresSavingThrow ?? saveAbility),
     saveAbility,
     castingAbility: STAT_ID_TO_ABILITY[spell?.spellCastingAbilityId ?? definition?.spellCastingAbilityId] ?? "",
+    attackBonus: numberOrNull(definition?.attackBonus ?? spell?.attackBonus),
+    attackCount: numberOrNull(definition?.attackCount ?? spell?.attackCount),
     description: definition?.description ?? definition?.snippet ?? spell?.description ?? "",
     damage: definition?.damage ?? spell?.damage ?? null
   };
@@ -440,6 +442,11 @@ function numberValue(value, fallback) {
   if (value === null || value === undefined || value === "") return fallback;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function numberOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 function numberFromText(value, fallback) {
