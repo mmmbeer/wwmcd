@@ -320,19 +320,46 @@
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
-  color: #171009;
-  filter: drop-shadow(0 8px 13px rgba(0, 0, 0, 0.34));
+  width: 68px;
+  height: 68px;
+  color: var(--accent-gold-soft);
+  filter:
+    drop-shadow(0 0 1px rgba(255, 244, 209, 0.82))
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.46));
   transform: rotate(var(--die-rotation, 0deg));
 }
 
-.animated-die img {
+.animated-die::before {
+  content: "";
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  inset: -5px;
+  border: 2px solid rgba(243, 234, 215, 0.78);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(243, 234, 215, 0.16), rgba(217, 164, 65, 0.05) 62%, transparent 64%);
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 164, 65, 0.35),
+    0 0 18px rgba(217, 164, 65, 0.24);
+}
+
+.dice-shape {
+  position: absolute;
+  inset: 4px;
+  background:
+    linear-gradient(160deg, var(--accent-gold-soft), var(--accent-blue) 52%, var(--accent-purple));
+  mask: var(--die-url) center / contain no-repeat;
+  -webkit-mask: var(--die-url) center / contain no-repeat;
+}
+
+.animated-die::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  background: rgba(5, 8, 10, 0.98);
+  opacity: 0.72;
+  mask: var(--die-url) center / contain no-repeat;
+  -webkit-mask: var(--die-url) center / contain no-repeat;
+  transform: scale(0.82);
 }
 
 .animated-die strong {
@@ -340,16 +367,21 @@
   z-index: 1;
   display: inline-grid;
   place-items: center;
-  min-width: 1.55em;
-  min-height: 1.55em;
+  min-width: 1.82em;
+  min-height: 1.82em;
+  border: 2px solid rgba(255, 255, 255, 0.92);
   border-radius: 999px;
-  background: rgba(243, 234, 215, 0.82);
-  color: #171009;
+  background: rgba(5, 8, 10, 0.94);
+  color: #fff7df;
   font-family: var(--font-display);
-  font-size: 1.04rem;
+  font-size: 1.18rem;
   font-weight: 900;
   line-height: 1;
   text-align: center;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 8px rgba(240, 196, 106, 0.48);
+  box-shadow: 0 0 0 2px rgba(5, 8, 10, 0.78);
 }
 
 .animated-die.is-pending {
@@ -368,6 +400,8 @@
   position: fixed;
   left: 0;
   top: 0;
+  width: 82px;
+  height: 82px;
   will-change: transform;
 }
 

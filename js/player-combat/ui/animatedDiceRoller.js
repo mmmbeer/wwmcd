@@ -98,8 +98,8 @@ function renderFinalDiceGroups(results, { settling = false } = {}) {
 function renderDieFace({ sides, value, pending = false, target = false }) {
   const attrs = target ? "data-dice-target" : "";
   return `
-    <span class="animated-die ${pending ? "is-pending" : ""}" ${attrs} style="--die-rotation:${randomBetween(-14, 14)}deg">
-      <img src="${DICE_ASSET_PATH}/dice-d${sides}.svg" alt="" aria-hidden="true">
+    <span class="animated-die ${pending ? "is-pending" : ""}" ${attrs} style="--die-rotation:${randomBetween(-14, 14)}deg; --die-url:url('${DICE_ASSET_PATH}/dice-d${sides}.svg')">
+      <span class="dice-shape" aria-hidden="true"></span>
       <strong>${escapeHtml(value)}</strong>
     </span>
   `;
@@ -107,12 +107,13 @@ function renderDieFace({ sides, value, pending = false, target = false }) {
 
 function createActor(die, target) {
   const rect = target.getBoundingClientRect();
-  const size = Math.max(46, Math.min(70, rect.width || 56));
+  const size = Math.max(76, Math.min(96, (rect.width || 68) * 1.18));
   const node = document.createElement("span");
   node.className = "animated-die is-flying";
   node.style.width = `${size}px`;
   node.style.height = `${size}px`;
-  node.innerHTML = `<img src="${DICE_ASSET_PATH}/dice-d${die.sides}.svg" alt="" aria-hidden="true"><strong>${escapeHtml(die.value)}</strong>`;
+  node.style.setProperty("--die-url", `url('${DICE_ASSET_PATH}/dice-d${die.sides}.svg')`);
+  node.innerHTML = `<span class="dice-shape" aria-hidden="true"></span><strong>${escapeHtml(die.value)}</strong>`;
   return {
     node,
     target,

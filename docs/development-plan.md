@@ -10,6 +10,8 @@
 - Final grouped dice results show attack/damage-style roll groups, rolled values, totals, and a modifier pop-in.
 - Kept dice math in `diceRoller.js`; the animation is a visual layer driven by the existing structured roll result.
 - Added reduced-motion handling that skips the viewport animation and reveals settled results directly.
+- Changed dice rendering to use the SVGs as CSS masks so dice color responds to stylesheet variables instead of rendering as black assets.
+- Enlarged dice faces and added an outer ring/glow plus high-contrast value badges.
 
 ### Files Changed
 
