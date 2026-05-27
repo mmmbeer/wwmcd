@@ -56,7 +56,7 @@ export function updateRecommendationWizard(root, visibleGroup, groups, rankedRec
     : "";
 }
 
-export function updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter = null }) {
+export function updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter = null, spellLevelFilter = null }) {
   const slot = root.querySelector("[data-action-list-slot]");
   if (!slot) return;
   const key = stableString({
@@ -64,12 +64,13 @@ export function updateActionList(root, visibleGroup, label, visibleOptions, comb
     label,
     hideUnavailable,
     actionCostFilter,
+    spellLevelFilter,
     turn: combatState?.turn,
     options: visibleOptions.map(optionRenderKey)
   });
   if (root.dataset.listKey === key) return;
   root.dataset.listKey = key;
-  slot.innerHTML = renderMobileActionList(visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter });
+  slot.innerHTML = renderMobileActionList(visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter, spellLevelFilter });
 }
 
 function optionRenderKey(option) {
@@ -83,6 +84,9 @@ function optionRenderKey(option) {
     option.cost?.movement ? "m" : "",
     option.cost?.object ? "o" : "",
     option.cost?.resource?.id,
+    option.cost?.resource?.name,
+    option.cost?.resource?.type,
+    option.cost?.resource?.level,
     option.cost?.resource?.amount,
     option.spell?.level,
     option.spell?.concentration ? "c" : "",

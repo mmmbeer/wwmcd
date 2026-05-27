@@ -885,15 +885,35 @@ body.is-busy {
 .action-row,
 .action-row--attack,
 .action-row--spell {
-  grid-template-columns: 22px 24px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(68px, 0.85fr) minmax(46px, 0.65fr) 64px;
+  grid-template-columns: 22px 42px 24px 78px minmax(112px, 1.45fr) minmax(46px, 0.65fr) minmax(68px, 0.85fr) minmax(46px, 0.65fr) 64px;
 }
 
 .resource-cell {
   display: inline-grid;
   place-items: center;
-  width: 20px;
+  width: 100%;
+  min-width: 0;
   height: 20px;
   color: var(--text-muted);
+}
+
+.resource-cost-label {
+  overflow: hidden;
+  border: 1px solid rgba(74, 168, 232, 0.32);
+  border-radius: var(--radius-sm);
+  background: rgba(74, 168, 232, 0.1);
+  color: var(--accent-blue);
+  padding-inline: 3px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-cost-label.is-concentration {
+  border-color: rgba(178, 107, 232, 0.5);
+  background: rgba(178, 107, 232, 0.14);
+  color: var(--accent-purple);
 }
 
 .source-cell {
@@ -1089,7 +1109,7 @@ body.is-busy {
   .action-row,
   .action-row--attack,
   .action-row--spell {
-    grid-template-columns: 20px 22px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(54px, 0.78fr) minmax(38px, 0.6fr) 56px;
+    grid-template-columns: 20px 36px 22px 66px minmax(88px, 1.35fr) minmax(38px, 0.6fr) minmax(54px, 0.78fr) minmax(38px, 0.6fr) 56px;
   }
 }
 

@@ -79,7 +79,7 @@ export function renderActionTabs(root, snapshot, { stateManager, modalApi, showT
   renderActionTabsShell(root, NAV_GROUPS);
   updateActionNav(root, visibleGroup);
   updateRecommendationWizard(root, visibleGroup, groups, rankedRecommendations, { storage, character, combatState });
-  updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter: selectedActionCost });
+  updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter: selectedActionCost, spellLevelFilter: selectedSpellLevel });
   rootContexts.set(root, { snapshot, services, groups, combatState });
 }
 
@@ -213,6 +213,14 @@ function handleActionTabsChange(root, event) {
     selectedSpellLevel = null;
     selectedSpellCost = null;
     selectedActionCost = actionCostFilter.value || null;
+    renderActionTabs(root, snapshot, services);
+    return;
+  }
+  const spellLevelFilter = event.target.closest("[data-spell-level-filter]");
+  if (spellLevelFilter && root.contains(spellLevelFilter)) {
+    selectedSpellLevel = spellLevelFilter.value === "" ? null : Number(spellLevelFilter.value);
+    selectedSpellCost = null;
+    selectedActionCost = null;
     renderActionTabs(root, snapshot, services);
     return;
   }

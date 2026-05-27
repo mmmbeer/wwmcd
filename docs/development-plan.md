@@ -1,6 +1,47 @@
 # Development Plan
 
-## Current Session: Spell Tactical Metadata Audit
+## Current Session: Spell Table Level and Resource Columns
+
+### Implemented
+
+- Added a spell-level dropdown filter to the Spells table header.
+- Added a compact level/resource cost cell to action rows so spell rows show their spell level and non-spell resource rows show labels such as Ki, Focus, CD, or Wild.
+- Restored meaningful resource-cost display in Recommendation rows; spell recommendations now show spell level in that column while feature/resource recommendations show their named resource.
+- Preserved existing turn-cost filtering for Actions and Recommendations.
+
+### Files Changed
+
+- `js/player-combat/ui/actionTabs.js`
+- `js/player-combat/ui/actionTabsView.js`
+- `js/player-combat/ui/mobileActionList.js`
+- `css/action-list.css`
+- `tests/mobileActionList.test.mjs`
+- `docs/development-plan.md`
+
+### Known Limitations
+
+- The resource column remains compact for phone layouts, so longer resource names are clipped visually and exposed through the cell title/accessibility label.
+- Spell-level filtering applies to the Spells table, not to the Recommendations table.
+
+### Manual Test Checklist
+
+1. Open the Spells tab and confirm the Level filter defaults to `All`.
+2. Select Cantrips and several numbered levels; confirm only spells of that level remain.
+3. Confirm spell rows show a compact level value in the first resource/level column.
+4. Open Recommendations and confirm spell recommendations show spell level while Ki/Focus-style features show their named resource.
+5. Toggle `Available only` while a spell-level filter is active and confirm both filters stay applied.
+
+### Verification Completed
+
+- `node --check js\player-combat\ui\mobileActionList.js`
+- `node --check js\player-combat\ui\actionTabs.js`
+- `node --check js\player-combat\ui\actionTabsView.js`
+- `node --test tests\mobileActionList.test.mjs`
+- `node --test tests\playerCombatActions.test.mjs`
+- `node --test tests\recommendationScoring.test.mjs`
+- `node --test tests\aiRecommendationTableAdapter.test.mjs`
+
+## Previous Session: Spell Tactical Metadata Audit
 
 ### Implemented
 

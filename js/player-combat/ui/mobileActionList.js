@@ -1,12 +1,12 @@
 import { escapeHtml } from "./renderUtils.js";
 import { isDependentOption } from "../recommendations/recommendationPrerequisites.js";
 import { isOptionPlanned } from "./plannedTurnState.js";
-import { renderResourceIcon } from "./resourceIcon.js";
+import { resourceLabel as formatResourceLabel } from "./resourceIcon.js";
 
 const rowHtmlCache = new Map();
 const ROW_CACHE_LIMIT = 600;
 
-export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false, actionCostFilter = null } = {}) {
+export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false, actionCostFilter = null, spellLevelFilter = null } = {}) {
   if (group === "log") return renderLog(label, combatState);
   const visibleOptions = options.length
     ? options.map((option) => renderCachedActionRow(option, group)).join("")
@@ -18,6 +18,7 @@ export function renderMobileActionList(group, label, options, combatState, { hid
         <span class="section-label">${escapeHtml(label)}</span>
         <div class="action-list-filters">
           ${["actions", "recommended"].includes(group) ? renderActionCostFilter(actionCostFilter) : ""}
+          ${group === "spells" ? renderSpellLevelFilter(spellLevelFilter) : ""}
           <label class="availability-toggle">
             <input type="checkbox" data-toggle-unavailable ${hideUnavailable ? "checked" : ""}>
             <span>Available only</span>
@@ -28,6 +29,31 @@ export function renderMobileActionList(group, label, options, combatState, { hid
         ${visibleOptions}
       </div>
     </section>
+  `;
+}
+
+function renderSpellLevelFilter(value) {
+  const selected = value === null || value === undefined ? "" : String(value);
+  const options = [
+    ["", "All"],
+    ["0", "Cantrips"],
+    ["1", "Level 1"],
+    ["2", "Level 2"],
+    ["3", "Level 3"],
+    ["4", "Level 4"],
+    ["5", "Level 5"],
+    ["6", "Level 6"],
+    ["7", "Level 7"],
+    ["8", "Level 8"],
+    ["9", "Level 9"]
+  ];
+  return `
+    <label class="action-cost-filter">
+      <span>Level</span>
+      <select data-spell-level-filter aria-label="Filter spells by spell level">
+        ${options.map(([key, label]) => `<option value="${escapeHtml(key)}"${key === selected ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+      </select>
+    </label>
   `;
 }
 
@@ -103,7 +129,7 @@ function renderCachedActionRow(option, group) {
 function renderRowCells(option, rowKind, selected) {
   const buttonLabel = plannedButtonLabel(option, rowKind, selected);
   return `
-    ${renderResourceIndicator(option)}
+    ${renderResourceCostCell(option)}
     ${renderSourceBadge(option)}
     ${renderCostBadge(option)}
     ${renderNameCell(option)}
@@ -219,15 +245,38 @@ function sourceType(option) {
   return { key: "basic", label: "Basic", short: "B" };
 }
 
-function renderResourceIndicator(option) {
-  if (option.spell?.concentration) {
-    return `<span class="resource-cell concentration-badge" title="Requires concentration" aria-label="Requires concentration">C</span>`;
+function renderResourceCostCell(option) {
+  const spellLevel = spellLevelValue(option);
+  if (spellLevel !== null) {
+    const title = [
+      spellLevel === 0 ? "Cantrip" : `Level ${spellLevel} spell`,
+      option.spell?.concentration ? "Requires concentration" : null
+    ].filter(Boolean).join("; ");
+    return `<span class="resource-cell resource-cost-label ${option.spell?.concentration ? "is-concentration" : ""}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${escapeHtml(spellLevel)}</span>`;
   }
   const resource = option.cost?.resource;
   if (!resource) return `<span class="resource-cell" aria-hidden="true"></span>`;
   return `
-    <span class="resource-cell">${renderResourceIcon(resource)}</span>
+    <span class="resource-cell resource-cost-label" title="${escapeHtml(formatResourceLabel(resource))}" aria-label="${escapeHtml(formatResourceLabel(resource))}">${escapeHtml(shortResourceLabel(resource))}</span>
   `;
+}
+
+function spellLevelValue(option) {
+  if (!option.spell && option.source !== "spell") return null;
+  const level = Number(option.spell?.level ?? option.cost?.resource?.level);
+  return Number.isFinite(level) ? level : null;
+}
+
+function shortResourceLabel(resource) {
+  if (resource?.type === "spellSlot" && resource.level !== undefined) return String(resource.level);
+  const label = formatResourceLabel(resource);
+  if (!label) return "";
+  const words = label.split(/\s+/).filter(Boolean);
+  if (/focus/i.test(label)) return "Focus";
+  if (/ki/i.test(label)) return "Ki";
+  if (/channel\s+divinity/i.test(label)) return "CD";
+  if (/wild\s+shape/i.test(label)) return "Wild";
+  return words[0]?.slice(0, 5) ?? label.slice(0, 5);
 }
 
 function renderLog(label, combatState) {
@@ -391,6 +440,9 @@ function actionRowCacheKey(option, group) {
     option.cost?.movement ? "movement" : "",
     option.cost?.object ? "object" : "",
     option.cost?.resource?.id,
+    option.cost?.resource?.name,
+    option.cost?.resource?.type,
+    option.cost?.resource?.level,
     option.cost?.resource?.amount,
     option.spell?.level,
     option.spell?.concentration ? "concentration" : "",

@@ -70,3 +70,50 @@ test("recommended list header includes synchronized turn cost filter", () => {
   assert.match(html, /<option value="">All<\/option>/);
   assert.match(html, /<option value="reaction" selected>Reaction<\/option>/);
 });
+
+test("spells list header includes spell level filter and level column", () => {
+  const html = renderMobileActionList("spells", "Spells", [{
+    id: "spell_fireball",
+    name: "Fireball",
+    source: "spell",
+    cost: { action: true, resource: { type: "spellSlot", level: 3 } },
+    spell: { level: 3, range: "150 ft" },
+    available: true,
+    rolls: [{ id: "damage", type: "damage", formula: "8d6", damageType: "fire" }]
+  }], {}, {
+    spellLevelFilter: 3
+  });
+
+  assert.match(html, /data-spell-level-filter/);
+  assert.match(html, /<option value="">All<\/option>/);
+  assert.match(html, /<option value="0"[^>]*>Cantrips<\/option>/);
+  assert.match(html, /<option value="3" selected>Level 3<\/option>/);
+  assert.match(html, /aria-label="Level 3 spell">3<\/span>/);
+});
+
+test("recommended rows show spell level or named resource cost in the resource column", () => {
+  const html = renderMobileActionList("recommended", "Recommended This Turn", [
+    {
+      id: "spell_healing_word",
+      name: "Healing Word",
+      source: "spell",
+      cost: { bonus: true, resource: { type: "spellSlot", level: 1 } },
+      spell: { level: 1 },
+      available: true,
+      rolls: [],
+      recommendation: { reasons: ["Revive ally"] }
+    },
+    {
+      id: "feature_flurry",
+      name: "Flurry of Blows",
+      source: "feature",
+      cost: { bonus: true, resource: { type: "classResource", id: "ki", name: "Focus", amount: 1 } },
+      available: true,
+      rolls: [],
+      recommendation: { reasons: ["Pressure target"] }
+    }
+  ], {});
+
+  assert.match(html, /aria-label="Level 1 spell">1<\/span>/);
+  assert.match(html, /aria-label="Focus">Focus<\/span>/);
+});
