@@ -91,6 +91,20 @@ test("spells list header includes spell level filter and level column", () => {
   assert.match(html, /aria-label="Level 3 spell">3<\/span>/);
 });
 
+test("cantrip spell level cells use c instead of zero", () => {
+  const html = renderMobileActionList("spells", "Spells", [{
+    id: "spell_fire_bolt",
+    name: "Fire Bolt",
+    source: "spell",
+    cost: { action: true },
+    spell: { level: 0, range: "120 ft" },
+    available: true,
+    rolls: [{ id: "damage", type: "damage", formula: "1d10", damageType: "fire" }]
+  }], {});
+
+  assert.match(html, /aria-label="Cantrip">c<\/span>/);
+});
+
 test("recommended rows show spell level or named resource cost in the resource column", () => {
   const html = renderMobileActionList("recommended", "Recommended This Turn", [
     {

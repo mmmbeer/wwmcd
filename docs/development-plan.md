@@ -6,6 +6,7 @@
 
 - Added a spell-level dropdown filter to the Spells table header.
 - Added a compact level/resource cost cell to action rows so spell rows show their spell level and non-spell resource rows show labels such as Ki, Focus, CD, or Wild.
+- Changed cantrip spell/resource cells to display `c` instead of `0`.
 - Restored meaningful resource-cost display in Recommendation rows; spell recommendations now show spell level in that column while feature/resource recommendations show their named resource.
 - Preserved existing turn-cost filtering for Actions and Recommendations.
 

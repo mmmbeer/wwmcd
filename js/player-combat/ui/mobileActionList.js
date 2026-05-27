@@ -252,7 +252,7 @@ function renderResourceCostCell(option) {
       spellLevel === 0 ? "Cantrip" : `Level ${spellLevel} spell`,
       option.spell?.concentration ? "Requires concentration" : null
     ].filter(Boolean).join("; ");
-    return `<span class="resource-cell resource-cost-label ${option.spell?.concentration ? "is-concentration" : ""}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${escapeHtml(spellLevel)}</span>`;
+    return `<span class="resource-cell resource-cost-label ${option.spell?.concentration ? "is-concentration" : ""}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${escapeHtml(spellLevelDisplay(spellLevel))}</span>`;
   }
   const resource = option.cost?.resource;
   if (!resource) return `<span class="resource-cell" aria-hidden="true"></span>`;
@@ -265,6 +265,10 @@ function spellLevelValue(option) {
   if (!option.spell && option.source !== "spell") return null;
   const level = Number(option.spell?.level ?? option.cost?.resource?.level);
   return Number.isFinite(level) ? level : null;
+}
+
+function spellLevelDisplay(level) {
+  return Number(level) === 0 ? "c" : String(level);
 }
 
 function shortResourceLabel(resource) {
