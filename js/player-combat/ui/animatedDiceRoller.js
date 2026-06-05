@@ -3,6 +3,7 @@ import { escapeHtml } from "./renderUtils.js";
 
 const DICE_ASSET_PATH = "./assets/dice";
 const SUPPORTED_SIDES = new Set([4, 6, 8, 10, 12, 20]);
+const MAX_FLYING_DICE = 12;
 
 export function renderDicePreview(container, rollGroups) {
   if (!container) return;
@@ -20,7 +21,7 @@ export async function playAnimatedDiceRoll({ result, container }) {
   container.innerHTML = renderFinalDiceGroups(result.results, { settling: true });
 
   const targets = [...container.querySelectorAll("[data-dice-target]")];
-  if (!dice.length || targets.length !== dice.length || prefersReducedMotion()) {
+  if (!dice.length || dice.length > MAX_FLYING_DICE || targets.length !== dice.length || prefersReducedMotion()) {
     revealSettledDice(container);
     return;
   }

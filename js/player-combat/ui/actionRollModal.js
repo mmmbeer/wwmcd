@@ -68,6 +68,7 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
     body.querySelector("[data-roll-mode]")?.addEventListener("change", () => updateDicePreview(body, rolls));
 
     let rolled = false;
+    let accepted = false;
     const resolveOnce = (value) => {
       if (resolveOnce.done) return;
       resolveOnce.done = true;
@@ -77,7 +78,9 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
     modalApi.showModal({
       title: `Roll ${title}`,
       body,
-      onClose: () => resolveOnce(false),
+      onClose: () => {
+        if (!accepted) resolveOnce(false);
+      },
       actions: [
         { label: "Cancel", variant: "secondary", onClick: () => resolveOnce(false) },
         {
@@ -96,10 +99,10 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
             if (result.ok) {
               removeRollButtonAfterSuccess(result, button);
               scheduleRollLog(stateManager, result, summary);
-              playAnimatedDiceRoll({
+              scheduleDiceAnimation({
                 result,
                 container: body.querySelector("[data-roll-animation]")
-              }).catch(() => {});
+              });
             } else if (button) {
               button.disabled = false;
             }
@@ -114,8 +117,9 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
               body.querySelector("[data-roll-feedback]").innerHTML = `<p class="inline-message warning">Roll before taking this action.</p>`;
               return;
             }
-            resolveOnce(true);
+            accepted = true;
             modalApi.close();
+            setTimeout(() => resolveOnce(true), 0);
           }
         }
       ]
@@ -250,4 +254,13 @@ function scheduleRollLog(stateManager, result, summary) {
     return;
   }
   window.requestAnimationFrame(log);
+}
+
+function scheduleDiceAnimation({ result, container }) {
+  const play = () => playAnimatedDiceRoll({ result, container }).catch(() => {});
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    setTimeout(play, 0);
+    return;
+  }
+  window.requestAnimationFrame(() => window.requestAnimationFrame(play));
 }
