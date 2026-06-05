@@ -13,8 +13,15 @@ import { getResourceActions } from "./resourceActions.js";
 import { getSpellActions } from "./spellActions.js";
 import { getWeaponActions } from "./weaponActions.js";
 
+const NULL_REFERENCE_DATA = {};
+const optionsCache = new WeakMap();
+
 export function getCombatOptions({ character, combatState, referenceData }) {
   if (!character || !combatState) return emptyGroups();
+
+  const referenceKey = referenceData ?? NULL_REFERENCE_DATA;
+  const cached = getCachedOptions(character, combatState, referenceKey);
+  if (cached) return cached;
 
   const options = [
     movementOption(character, combatState, referenceData),
@@ -29,7 +36,27 @@ export function getCombatOptions({ character, combatState, referenceData }) {
   ];
 
   const checked = applyActionEconomyRules(options, character, combatState);
-  return groupOptionsByTurnCost(checked);
+  const groups = groupOptionsByTurnCost(checked);
+  setCachedOptions(character, combatState, referenceKey, groups);
+  return groups;
+}
+
+function getCachedOptions(character, combatState, referenceKey) {
+  return optionsCache.get(character)?.get(combatState)?.get(referenceKey) ?? null;
+}
+
+function setCachedOptions(character, combatState, referenceKey, groups) {
+  let byState = optionsCache.get(character);
+  if (!byState) {
+    byState = new WeakMap();
+    optionsCache.set(character, byState);
+  }
+  let byReference = byState.get(combatState);
+  if (!byReference) {
+    byReference = new WeakMap();
+    byState.set(combatState, byReference);
+  }
+  byReference.set(referenceKey, groups);
 }
 
 function movementOption(character, combatState, referenceData) {

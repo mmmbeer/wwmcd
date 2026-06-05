@@ -1,8 +1,16 @@
 import { findByName } from "../data/referenceDataService.js";
 import { normalizeName } from "../data/combatDataTransformer.js";
 
+const NULL_REFERENCE_DATA = {};
+const featureCache = new WeakMap();
+
 export function collectCharacterFeatures(character, referenceData) {
-  return uniqueFeatures([
+  if (!character) return [];
+  const referenceKey = referenceData ?? NULL_REFERENCE_DATA;
+  const cached = featureCache.get(character)?.get(referenceKey);
+  if (cached) return cached;
+
+  const features = uniqueFeatures([
     ...featuresFromList(character?.features?.class, "class", referenceData),
     ...featuresFromList(character?.features?.race, "race", referenceData),
     ...featuresFromList(character?.race?.features, "race", referenceData),
@@ -10,6 +18,13 @@ export function collectCharacterFeatures(character, referenceData) {
     ...featuresFromList(character?.features?.other, "feature", referenceData),
     ...featuresFromList((character?.classes ?? []).flatMap((entry) => entry.features ?? []), "class", referenceData)
   ]);
+  let byReference = featureCache.get(character);
+  if (!byReference) {
+    byReference = new WeakMap();
+    featureCache.set(character, byReference);
+  }
+  byReference.set(referenceKey, features);
+  return features;
 }
 
 export function featureText(entry) {
