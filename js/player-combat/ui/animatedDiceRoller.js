@@ -136,6 +136,10 @@ function rollActors(actors) {
 
   return new Promise((resolve) => {
     function frame(now) {
+      if (actors.some((actor) => !actor.target.isConnected)) {
+        resolve();
+        return;
+      }
       const elapsed = now - started;
       if (elapsed < rollDuration) {
         updateRollingActors(actors, elapsed / rollDuration);

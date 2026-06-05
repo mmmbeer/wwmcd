@@ -90,16 +90,16 @@ function showActionRollModal({ modalApi, stateManager, option, rollIndex = null,
             const result = rollForForm(body, option, rolls, { rollIndex, rollTotal });
             const summary = formatBundleSummary(result);
             if (result.ok) {
-              stateManager.logRoll(result, summary);
               rolled = true;
             }
             body.querySelector("[data-roll-feedback]").innerHTML = renderResult(result, summary);
             if (result.ok) {
-              await playAnimatedDiceRoll({
+              removeRollButtonAfterSuccess(result, button);
+              scheduleRollLog(stateManager, result, summary);
+              playAnimatedDiceRoll({
                 result,
                 container: body.querySelector("[data-roll-animation]")
-              });
-              removeRollButtonAfterSuccess(result, button);
+              }).catch(() => {});
             } else if (button) {
               button.disabled = false;
             }
@@ -241,4 +241,13 @@ function normalizeExtraDice(value) {
   const text = String(value ?? "").trim().replace(/\s+/g, "");
   if (!text) return "";
   return /^\d*d\d+(?:[+-]\d*d\d+)*$/i.test(text) ? text : "";
+}
+
+function scheduleRollLog(stateManager, result, summary) {
+  const log = () => stateManager.logRoll(result, summary);
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    setTimeout(log, 0);
+    return;
+  }
+  window.requestAnimationFrame(log);
 }

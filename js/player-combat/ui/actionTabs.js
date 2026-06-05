@@ -255,6 +255,7 @@ async function useOptionById(optionId, groups, combatState, services) {
   }
   const rolled = await resolveActionRoll({ modalApi: services.modalApi, stateManager: services.stateManager, option });
   if (!rolled) return;
+  await nextPaint();
   if (option.cost?.movement) {
     services.stateManager.useMovement(Number(option.movement?.step ?? 5));
   } else {
@@ -496,4 +497,11 @@ function costFilterLabel(cost) {
     bonus: "Bonus Action",
     reaction: "Reaction"
   }[cost] ?? cost;
+}
+
+function nextPaint() {
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
