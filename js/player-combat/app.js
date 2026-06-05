@@ -39,6 +39,7 @@ export async function createPlayerCombatApp() {
 
   let latestSnapshot = null;
   let pendingActionTabsRender = 0;
+  let referenceLoading = true;
   const render = (snapshot) => measurePerformance("app.render", () => {
     const previousSnapshot = latestSnapshot;
     latestSnapshot = snapshot;
@@ -66,6 +67,10 @@ export async function createPlayerCombatApp() {
   });
 
   function renderActionTabsSection(snapshot) {
+    if (snapshot.activeCharacter && referenceLoading && !snapshot.referenceData) {
+      roots.tabs.innerHTML = `<p class="inline-message">Loading character actions...</p>`;
+      return;
+    }
     renderActionTabs(roots.tabs, snapshot, {
       stateManager,
       storage,
@@ -95,6 +100,12 @@ export async function createPlayerCombatApp() {
   eventBus.on("state:changed", render);
   window.addEventListener("combat:end-turn-requested", () => showEndTurnModal({ modalApi, stateManager, busyApi }));
 
+  const hasSavedCharacter = Boolean(storage.getActiveCharacterId());
+  if (hasSavedCharacter) {
+    busyApi.show("Loading character...");
+    await nextPaint();
+  }
+
   stateManager.initializeAppState();
 
   if (!storage.available) {
@@ -105,6 +116,10 @@ export async function createPlayerCombatApp() {
     stateManager.setReferenceData(await loadReferenceData());
   } catch (error) {
     showToast({ type: "error", message: `Reference data failed: ${error.message}` });
+  } finally {
+    referenceLoading = false;
+    if (latestSnapshot && !latestSnapshot.referenceData) render(latestSnapshot);
+    if (hasSavedCharacter) busyApi.hide();
   }
 
   return { stateManager };
