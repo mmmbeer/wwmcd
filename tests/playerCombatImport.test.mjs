@@ -732,6 +732,38 @@ test("ready action creates a readied reaction until used or next turn starts", (
   assert.equal(stateManager.getCombatState().turn.readiedAction, false);
 });
 
+test("starting a new turn after ending current turn emits one state change", () => {
+  const storage = createMemoryStorage();
+  const events = [];
+  const stateManager = createStateManager({ storage, eventBus: { emit: (name) => events.push(name) } });
+  const character = {
+    id: "quick-turn",
+    name: "Quick Turn",
+    importedAt: "2026-05-19T00:00:00.000Z",
+    combat: { maxHp: 10, ac: 12, speed: { walk: 30 } },
+    resources: { spellSlots: {}, classResources: [], limitedUses: [] },
+    inventory: { weapons: [] },
+    spells: { known: [], prepared: [], cantrips: [] },
+    features: { class: [], race: [], feats: [], other: [] }
+  };
+
+  stateManager.importCharacter(character);
+  events.length = 0;
+  stateManager.startTurn();
+  stateManager.useCombatOption({ id: "basic_ready", name: "Ready", cost: { action: true } });
+  events.length = 0;
+
+  stateManager.startNewTurn();
+
+  const combatState = stateManager.getCombatState();
+  assert.deepEqual(events, ["state:changed"]);
+  assert.equal(combatState.round, 2);
+  assert.equal(combatState.turnActive, true);
+  assert.equal(combatState.turn.actionUsed, false);
+  assert.equal(combatState.turn.readiedAction, false);
+  assert.deepEqual(combatState.log.slice(0, 2).map((entry) => entry.message), ["Turn started.", "Turn ended."]);
+});
+
 test("manual limited resource controls persist only in combat state", () => {
   const storage = createMemoryStorage();
   const eventBus = { emit() {} };

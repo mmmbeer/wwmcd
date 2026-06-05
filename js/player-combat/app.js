@@ -183,11 +183,11 @@ export function showEndTurnModal({ modalApi, stateManager, busyApi }) {
       close: false,
       onClick: async () => {
         await busyApi.run("Starting new turn...", () => {
-          const current = stateManager.getSnapshot?.();
-          if (current?.combatState?.turnActive !== false) {
-            stateManager.endTurn();
+          if (typeof stateManager.startNewTurn === "function") {
+            stateManager.startNewTurn();
+            return;
           }
-          stateManager.startTurn();
+          startNewTurnFallback(stateManager);
         });
         modalApi.close();
       }
@@ -202,6 +202,14 @@ export function showEndTurnModal({ modalApi, stateManager, busyApi }) {
     `,
     actions
   });
+}
+
+function startNewTurnFallback(stateManager) {
+  const current = stateManager.getSnapshot?.();
+  if (current?.combatState?.turnActive !== false) {
+    stateManager.endTurn();
+  }
+  stateManager.startTurn();
 }
 
 function unusedTurnFeatures(snapshot) {

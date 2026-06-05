@@ -113,6 +113,28 @@ export function createStateManager({ storage, eventBus }) {
     emitChange();
   }
 
+  function startNewTurn() {
+    const state = getCombatState();
+    if (!state) return;
+
+    const endedState = state.turnActive === false
+      ? state
+      : addLogEntry({
+        ...state,
+        turnActive: false,
+        round: state.round + 1,
+        turn: resetTurn({ reactionUsed: state.turn.reactionUsed, readiedAction: state.turn.readiedAction })
+      }, "Turn ended.");
+
+    combatStates[activeCharacterId] = addLogEntry({
+      ...endedState,
+      turnActive: true,
+      turn: resetTurn()
+    }, "Turn started.");
+    persistCombatState(activeCharacterId);
+    emitChange();
+  }
+
   function useAction() {
     updateTurn({ actionUsed: true }, "Action used.");
   }
@@ -351,6 +373,7 @@ export function createStateManager({ storage, eventBus }) {
     resetCombatState,
     startTurn,
     endTurn,
+    startNewTurn,
     useAction,
     useBonusAction,
     useReaction,
