@@ -1,3 +1,5 @@
+import { recordPerformanceMetric } from "../core/performanceMetrics.js";
+
 const AI_ENDPOINT = "./api/ai.php";
 
 export async function fetchAiModels({ provider, apiKey }) {
@@ -22,6 +24,13 @@ export async function requestAiChat({ provider, apiKey, model, messages, respons
 }
 
 async function requestAi(url, { method, apiKey, body = null }) {
+  const serializedBody = body ? JSON.stringify(body) : null;
+  if (serializedBody) {
+    recordPerformanceMetric("ai.request", {
+      action: new URL(url, globalThis.location?.href ?? "http://localhost/").searchParams.get("action") ?? "",
+      bytes: serializedBody.length
+    });
+  }
   const response = await fetch(url, {
     method,
     headers: {
@@ -29,7 +38,7 @@ async function requestAi(url, { method, apiKey, body = null }) {
       "Content-Type": "application/json",
       "X-Notwithstanding-AI-Api-Key": apiKey
     },
-    body: body ? JSON.stringify(body) : null
+    body: serializedBody
   });
 
   const payload = await response.json().catch(() => null);

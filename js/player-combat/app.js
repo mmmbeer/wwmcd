@@ -1,4 +1,5 @@
 import { createEventBus } from "./core/eventBus.js";
+import { measurePerformance, recordPerformanceMetric } from "./core/performanceMetrics.js";
 import { createStateManager } from "./core/stateManager.js";
 import { createStorage } from "./core/storage.js";
 import { loadReferenceData } from "./data/referenceDataService.js";
@@ -38,7 +39,7 @@ export async function createPlayerCombatApp() {
 
   let latestSnapshot = null;
   let pendingActionTabsRender = 0;
-  const render = (snapshot) => {
+  const render = (snapshot) => measurePerformance("app.render", () => {
     const previousSnapshot = latestSnapshot;
     latestSnapshot = snapshot;
     const movementOnly = isMovementOnlyUpdate(previousSnapshot, snapshot);
@@ -58,7 +59,7 @@ export async function createPlayerCombatApp() {
     renderSpellcastingBar(roots.spellcastingBar, snapshot, stateManager);
     renderActionTabsSection(snapshot);
     updateStickyHeaderOffset(roots);
-  };
+  });
 
   function renderActionTabsSection(snapshot) {
     renderActionTabs(roots.tabs, snapshot, {
@@ -155,6 +156,7 @@ function updateStickyHeaderOffset(roots) {
   if (roots.appShell.dataset.stickyHeaderHeight === String(height)) return;
   roots.appShell.dataset.stickyHeaderHeight = String(height);
   roots.appShell.style.setProperty("--sticky-header-height", `${height}px`);
+  recordPerformanceMetric("layout.stickyHeader", { height });
 }
 
 export function showEndTurnModal({ modalApi, stateManager, busyApi }) {

@@ -4,15 +4,20 @@ import {
 } from "./referenceDataLoader.js";
 import { loadRecommendationMetadata } from "./recommendationMetadataLoader.js";
 import { normalizeName, transformCombatData } from "./combatDataTransformer.js";
+import { measureAsyncPerformance, measurePerformance, recordPerformanceMetric } from "../core/performanceMetrics.js";
 
 let cache = null;
 
 export async function loadReferenceData() {
+  return measureAsyncPerformance("reference.load", async () => loadReferenceDataInternal());
+}
+
+async function loadReferenceDataInternal() {
   const files = listAvailableReferenceFiles();
   const data = {};
   const results = await Promise.all(files.map(async (file) => {
     try {
-      const fileData = await loadReferenceDataFile(file.name);
+      const fileData = await measureAsyncPerformance(`reference.fetch.${file.name}`, () => loadReferenceDataFile(file.name));
       return { file, data: fileData, status: { name: file.name, ok: true, count: countEntries(fileData) } };
     } catch (error) {
       return { file, data: null, status: { name: file.name, ok: false, count: 0, error: error.message } };
@@ -25,7 +30,7 @@ export async function loadReferenceData() {
     statuses.push(result.status);
   }
 
-  const transformed = transformCombatData(data);
+  const transformed = measurePerformance("reference.transform", () => transformCombatData(data));
   const recommendations = await loadRecommendationMetadata();
   for (const status of statuses) {
     status.count = transformed.counts[status.name] ?? status.count;
@@ -36,6 +41,11 @@ export async function loadReferenceData() {
     recommendations: recommendations.metadata,
     ...transformed
   };
+  recordPerformanceMetric("reference.cache", {
+    files: files.length,
+    retainedFiles: Object.values(cache.data).filter(Boolean).length,
+    indexedEntries: Object.values(transformed.counts).reduce((sum, count) => sum + Number(count || 0), 0)
+  });
   return cache;
 }
 

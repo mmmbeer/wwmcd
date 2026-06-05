@@ -16,7 +16,7 @@ export function createStateManager({ storage, eventBus }) {
 
     if (activeCharacterId && !combatStates[activeCharacterId]) {
       combatStates[activeCharacterId] = createCombatState(getActiveCharacter());
-      persistCombatStates();
+      persistCombatState(activeCharacterId);
     }
 
     emitChange();
@@ -42,7 +42,7 @@ export function createStateManager({ storage, eventBus }) {
     activeCharacterId = characterId;
     if (!combatStates[characterId]) {
       combatStates[characterId] = createCombatState(getActiveCharacter());
-      persistCombatStates();
+      persistCombatState(characterId);
     }
     storage.saveActiveCharacterId(activeCharacterId);
     emitChange();
@@ -60,7 +60,7 @@ export function createStateManager({ storage, eventBus }) {
     const current = getCombatState();
     if (!current) return;
     combatStates[activeCharacterId] = mergeState(current, patch);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -68,7 +68,7 @@ export function createStateManager({ storage, eventBus }) {
     const state = getCombatState();
     if (!state) return;
     combatStates[activeCharacterId] = addLogEntry(state, message);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -76,7 +76,7 @@ export function createStateManager({ storage, eventBus }) {
     const state = getCombatState();
     if (!state) return;
     combatStates[activeCharacterId] = addLogEntry({ ...state, lastRoll: result }, message, { type: "roll", roll: result });
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -84,7 +84,7 @@ export function createStateManager({ storage, eventBus }) {
     const character = characters.find((entry) => entry.id === characterId);
     if (!character) return;
     combatStates[characterId] = addLogEntry(createCombatState(character), "Combat state reset.");
-    persistCombatStates();
+    persistCombatState(characterId);
     emitChange();
   }
 
@@ -96,7 +96,7 @@ export function createStateManager({ storage, eventBus }) {
       turnActive: true,
       turn: resetTurn()
     }, "Turn started.");
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -109,7 +109,7 @@ export function createStateManager({ storage, eventBus }) {
       round: state.round + 1,
       turn: resetTurn({ reactionUsed: state.turn.reactionUsed, readiedAction: state.turn.readiedAction })
     }, "Turn ended.");
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -130,7 +130,7 @@ export function createStateManager({ storage, eventBus }) {
     if (!state) return;
 
     combatStates[activeCharacterId] = applyCombatOption(state, option);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -156,7 +156,7 @@ export function createStateManager({ storage, eventBus }) {
     }
 
     combatStates[activeCharacterId] = next;
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -170,7 +170,7 @@ export function createStateManager({ storage, eventBus }) {
       ...state,
       turn: { ...state.turn, movementUsed }
     };
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -191,7 +191,7 @@ export function createStateManager({ storage, eventBus }) {
         }
       }
     }, `Level ${slotLevel} spell slots used set to ${nextUsed}.`);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -211,7 +211,7 @@ export function createStateManager({ storage, eventBus }) {
         spellSlots
       }
     }, level === null ? "Spell slots reset." : `Level ${level} spell slots reset.`);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -232,7 +232,7 @@ export function createStateManager({ storage, eventBus }) {
         }
       }
     }, `${resource.name} used set to ${nextUsed}.`);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -254,7 +254,7 @@ export function createStateManager({ storage, eventBus }) {
         classResources
       }
     }, resourceId === null ? "Limited resources reset." : "Limited resource reset.");
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -266,7 +266,7 @@ export function createStateManager({ storage, eventBus }) {
       ...state,
       resourcesUsed: resetShortRestResources(character, state.resourcesUsed)
     }, "Short rest: eligible limited resources reset.");
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -283,7 +283,7 @@ export function createStateManager({ storage, eventBus }) {
       },
       resourcesUsed: resetLongRestResources(state.resourcesUsed)
     }, "Long rest: hit points, spell slots, and limited resources reset.");
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
@@ -294,18 +294,27 @@ export function createStateManager({ storage, eventBus }) {
       ...state,
       turn: { ...state.turn, ...patch }
     }, message);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
     emitChange();
   }
 
   function persistAll() {
     storage.saveCharacters(characters);
     storage.saveActiveCharacterId(activeCharacterId);
-    persistCombatStates();
+    persistCombatState(activeCharacterId);
   }
 
   function persistCombatStates() {
     storage.saveCombatStates(combatStates);
+  }
+
+  function persistCombatState(characterId) {
+    if (!characterId) return;
+    if (typeof storage.saveCombatState === "function") {
+      storage.saveCombatState(characterId, combatStates[characterId]);
+      return;
+    }
+    persistCombatStates();
   }
 
   function addImportHistory(character) {
