@@ -255,32 +255,24 @@ async function useOptionById(optionId, groups, combatState, services) {
   }
   const rolled = await resolveActionRoll({ modalApi: services.modalApi, stateManager: services.stateManager, option });
   if (!rolled) return;
+  const postActionModal = showAfterUseModal(option, services);
   await nextPaint();
   if (option.cost?.movement) {
     services.stateManager.useMovement(Number(option.movement?.step ?? 5));
   } else {
     services.stateManager.useCombatOption(option);
   }
-  showAfterUseModal(option, services);
+  schedulePostActionFollowups(postActionModal, option, services);
 }
 
 function showAfterUseModal(option, services) {
-  const snapshot = services.stateManager.getSnapshot?.();
-  const character = snapshot?.activeCharacter;
-  const combatState = snapshot?.combatState;
-  if (!character || !combatState) return;
-  const groups = getCombatOptions({ character, combatState, referenceData: snapshot.referenceData });
-  const followups = followupOptions(groups, option);
   const body = document.createElement("div");
   body.className = "post-action-modal";
   body.innerHTML = `
     <p>${escapeHtml(option.name)} was used.</p>
-    ${followups.length ? `
-      <div class="post-action-followups">
-        <span class="section-label">Available Next</span>
-        ${followups.map(renderFollowupButton).join("")}
-      </div>
-    ` : `<p class="inline-message">No immediate riders or follow-up actions are currently available.</p>`}
+    <div data-post-action-followups>
+      <p class="inline-message">Checking available follow-up actions.</p>
+    </div>
   `;
   services.modalApi.showModal({
     title: "Action Complete",
@@ -290,13 +282,41 @@ function showAfterUseModal(option, services) {
       { label: "End Turn", variant: "primary", close: false, onClick: () => endTurnFromModal(services) }
     ]
   });
-  body.querySelectorAll("[data-followup-use]").forEach((button) => {
+  return body;
+}
+
+function schedulePostActionFollowups(body, option, services) {
+  nextPaint().then(() => {
+    if (!body?.isConnected) return;
+    populatePostActionFollowups(body, option, services);
+  });
+}
+
+function populatePostActionFollowups(body, option, services) {
+  const snapshot = services.stateManager.getSnapshot?.();
+  const character = snapshot?.activeCharacter;
+  const combatState = snapshot?.combatState;
+  const container = body.querySelector("[data-post-action-followups]");
+  if (!container) return;
+  if (!character || !combatState) {
+    container.innerHTML = `<p class="inline-message">No immediate riders or follow-up actions are currently available.</p>`;
+    return;
+  }
+  const groups = getCombatOptions({ character, combatState, referenceData: snapshot.referenceData });
+  const followups = followupOptions(groups, option);
+  container.innerHTML = followups.length ? `
+    <div class="post-action-followups">
+      <span class="section-label">Available Next</span>
+      ${followups.map(renderFollowupButton).join("")}
+    </div>
+  ` : `<p class="inline-message">No immediate riders or follow-up actions are currently available.</p>`;
+  container.querySelectorAll("[data-followup-use]").forEach((button) => {
     button.addEventListener("click", () => {
       services.modalApi.close();
       useOptionById(button.dataset.followupUse, groups, combatState, services);
     });
   });
-  body.querySelectorAll("[data-followup-toggle]").forEach((button) => {
+  container.querySelectorAll("[data-followup-toggle]").forEach((button) => {
     button.addEventListener("click", () => toggleFollowupDescription(body, button.dataset.followupToggle));
   });
 }
