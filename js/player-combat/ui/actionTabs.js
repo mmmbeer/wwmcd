@@ -256,13 +256,21 @@ async function useOptionById(optionId, groups, combatState, services) {
   const rolled = await resolveActionRoll({ modalApi: services.modalApi, stateManager: services.stateManager, option });
   if (!rolled) return;
   const postActionModal = showAfterUseModal(option, services);
-  await nextPaint();
+  await runBusy(services, "Applying action...", () => commitUsedOption(option, services));
+  schedulePostActionFollowups(postActionModal, option, services);
+}
+
+function commitUsedOption(option, services) {
   if (option.cost?.movement) {
     services.stateManager.useMovement(Number(option.movement?.step ?? 5));
-  } else {
-    services.stateManager.useCombatOption(option);
+    return;
   }
-  schedulePostActionFollowups(postActionModal, option, services);
+  services.stateManager.useCombatOption(option);
+}
+
+function runBusy(services, label, task) {
+  if (services.busyApi?.run) return services.busyApi.run(label, task);
+  return nextPaint().then(task);
 }
 
 function showAfterUseModal(option, services) {

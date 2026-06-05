@@ -42,6 +42,10 @@ export async function createPlayerCombatApp() {
   const render = (snapshot) => measurePerformance("app.render", () => {
     const previousSnapshot = latestSnapshot;
     latestSnapshot = snapshot;
+    if (isRollLogOnlyUpdate(previousSnapshot, snapshot)) {
+      updateStickyHeaderOffset(roots);
+      return;
+    }
     const movementOnly = isMovementOnlyUpdate(previousSnapshot, snapshot);
     renderHeaderIdentity(roots, snapshot);
     renderTurnEconomyPanel(roots.turnPanel, snapshot, { stateManager, modalApi });
@@ -67,6 +71,7 @@ export async function createPlayerCombatApp() {
       storage,
       modalApi,
       showToast,
+      busyApi,
       openAiSettings: () => openAiOptionsModal({
         modalApi,
         storage,
@@ -103,6 +108,24 @@ export async function createPlayerCombatApp() {
   }
 
   return { stateManager };
+}
+
+function isRollLogOnlyUpdate(previous, next) {
+  if (!previous || !next) return false;
+  if (previous.activeCharacterId !== next.activeCharacterId) return false;
+  if (previous.activeCharacter !== next.activeCharacter) return false;
+  if (previous.referenceData !== next.referenceData) return false;
+  if (previous.storageAvailable !== next.storageAvailable) return false;
+
+  const previousState = previous.combatState;
+  const nextState = next.combatState;
+  if (!previousState || !nextState || previousState === nextState) return false;
+  if (previousState.round !== nextState.round) return false;
+  if (previousState.turnActive !== nextState.turnActive) return false;
+  if (previousState.turn !== nextState.turn) return false;
+  if (previousState.current !== nextState.current) return false;
+  if (previousState.resourcesUsed !== nextState.resourcesUsed) return false;
+  return previousState.lastRoll !== nextState.lastRoll || previousState.log !== nextState.log;
 }
 
 function isMovementOnlyUpdate(previous, next) {
