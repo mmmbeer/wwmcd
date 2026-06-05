@@ -16,6 +16,9 @@ import {
 } from "./aiRecommendationOptionSanitizer.js";
 
 const OPTION_GROUPS = ["attacks", "actions", "spells", "bonus", "reaction", "free", "movement", "resources"];
+const AVAILABLE_OPTION_CONTEXT_LIMIT = 24;
+const UNAVAILABLE_OPTION_CONTEXT_LIMIT = 8;
+const OPTION_SUMMARY_LIMIT = 220;
 
 export function buildAiRecommendationContext({ snapshot, groups, recommendationSets, answers, userNotes, selectedCreatures = [] }) {
   const character = snapshot.activeCharacter;
@@ -224,7 +227,7 @@ function summarizeGroups(groups = {}, spellNames = new Set()) {
     prioritizeOptionsForContext((groups[group] ?? [])
       .filter((option) => option.available !== false)
       .filter((option) => !isSpellLikeWeaponOption(option, spellNames)))
-      .slice(0, 40)
+      .slice(0, AVAILABLE_OPTION_CONTEXT_LIMIT)
       .map(summarizeOption)
   ])));
 }
@@ -235,7 +238,7 @@ export function summarizeUnavailableGroups(groups = {}, spellNames = new Set()) 
     (groups[group] ?? [])
       .filter((option) => option.available === false)
       .filter((option) => !isSpellLikeWeaponOption(option, spellNames))
-      .slice(0, 20)
+      .slice(0, UNAVAILABLE_OPTION_CONTEXT_LIMIT)
       .map(summarizeOption)
   ])));
 }
@@ -290,7 +293,7 @@ function summarizeOption(option) {
         ?? safeOption.longDescription
         ?? safeOption.featureAction?.description
         ?? spell?.reference?.description,
-      350
+      OPTION_SUMMARY_LIMIT
     )
   };
 }

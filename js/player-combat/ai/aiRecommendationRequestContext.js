@@ -5,7 +5,7 @@ const CONTEXT_JSON_BUDGET = 18000;
 
 export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) {
   const sanitized = sanitizeContextForModel(context);
-  if (JSON.stringify(sanitized).length <= budget) return sanitized;
+  if (jsonLength(sanitized) <= budget) return sanitized;
 
   const compact = buildCompactContext(sanitized, {
     availableLimit: 18,
@@ -13,7 +13,7 @@ export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) 
     optionSummaryLimit: 180,
     listLimit: 20
   });
-  if (JSON.stringify(compact).length <= budget) return compact;
+  if (jsonLength(compact) <= budget) return compact;
 
   const tighter = buildCompactContext(context, {
     availableLimit: 10,
@@ -21,7 +21,7 @@ export function compactContextForRequest(context, budget = CONTEXT_JSON_BUDGET) 
     optionSummaryLimit: 90,
     listLimit: 10
   });
-  if (JSON.stringify(tighter).length <= budget) return tighter;
+  if (jsonLength(tighter) <= budget) return tighter;
 
   return buildCompactContext(context, {
     availableLimit: 6,
@@ -477,4 +477,8 @@ function pruneEmpty(value) {
 function trimText(value, max) {
   const text = String(value ?? "").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+}
+
+function jsonLength(value) {
+  return JSON.stringify(value).length;
 }

@@ -37,13 +37,13 @@ export function updateRecommendationWizard(root, visibleGroup, groups, rankedRec
   const slot = root.querySelector("[data-recommendation-wizard-slot]");
   if (!slot) return;
   const key = visibleGroup === "recommended"
-    ? stableString({
-      answers: getRecommendationAnswers(),
-      ai: hasActiveAiSettings(context.storage),
-      character: context.character?.id,
-      turn: context.combatState?.turn,
-      count: rankedRecommendations.length
-    })
+    ? [
+      recommendationAnswersKey(),
+      hasActiveAiSettings(context.storage) ? "ai" : "no-ai",
+      context.character?.id ?? "",
+      turnRenderKey(context.combatState?.turn),
+      rankedRecommendations.length
+    ].join("|")
     : "empty";
   if (root.dataset.wizardKey === key) return;
   root.dataset.wizardKey = key;
@@ -59,15 +59,15 @@ export function updateRecommendationWizard(root, visibleGroup, groups, rankedRec
 export function updateActionList(root, visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter = null, spellLevelFilter = null }) {
   const slot = root.querySelector("[data-action-list-slot]");
   if (!slot) return;
-  const key = stableString({
-    group: visibleGroup,
+  const key = [
+    visibleGroup,
     label,
-    hideUnavailable,
-    actionCostFilter,
-    spellLevelFilter,
-    turn: combatState?.turn,
-    options: visibleOptions.map(optionRenderKey)
-  });
+    hideUnavailable ? "available" : "all",
+    actionCostFilter ?? "",
+    spellLevelFilter ?? "",
+    turnRenderKey(combatState?.turn),
+    visibleOptions.map(optionRenderKey).join("~~")
+  ].join("|");
   if (root.dataset.listKey === key) return;
   root.dataset.listKey = key;
   slot.innerHTML = renderMobileActionList(visibleGroup, label, visibleOptions, combatState, { hideUnavailable, actionCostFilter, spellLevelFilter });
@@ -97,6 +97,23 @@ function optionRenderKey(option) {
   ].filter((value) => value !== undefined && value !== null).join("|");
 }
 
-function stableString(value) {
-  return JSON.stringify(value);
+function recommendationAnswersKey() {
+  return Object.entries(getRecommendationAnswers())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}:${value}`)
+    .join(",");
+}
+
+function turnRenderKey(turn = {}) {
+  return [
+    turn.actionUsed ? "a" : "",
+    turn.bonusActionUsed ? "b" : "",
+    turn.reactionUsed ? "r" : "",
+    turn.objectInteractionUsed ? "o" : "",
+    turn.attackActionUsed ? "atk" : "",
+    turn.actionSurgeUsed ? "surge" : "",
+    turn.leveledSpellCast ? "spell" : "",
+    turn.movementUsed ?? 0,
+    turn.readiedAction ? "ready" : ""
+  ].join(",");
 }

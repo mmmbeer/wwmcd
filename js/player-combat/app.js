@@ -135,15 +135,25 @@ function isSameTurnExceptMovement(previousTurn = {}, nextTurn = {}) {
 
 function installStickyHeaderOffset(roots) {
   updateStickyHeaderOffset(roots);
-  window.addEventListener("resize", () => updateStickyHeaderOffset(roots));
+  let pending = 0;
+  const schedule = () => {
+    if (pending) return;
+    pending = window.requestAnimationFrame(() => {
+      pending = 0;
+      updateStickyHeaderOffset(roots);
+    });
+  };
+  window.addEventListener("resize", schedule);
   if (!roots.appHeader || typeof ResizeObserver === "undefined") return;
-  const observer = new ResizeObserver(() => updateStickyHeaderOffset(roots));
+  const observer = new ResizeObserver(schedule);
   observer.observe(roots.appHeader);
 }
 
 function updateStickyHeaderOffset(roots) {
   if (!roots.appShell || !roots.appHeader) return;
   const height = Math.ceil(roots.appHeader.getBoundingClientRect().height);
+  if (roots.appShell.dataset.stickyHeaderHeight === String(height)) return;
+  roots.appShell.dataset.stickyHeaderHeight = String(height);
   roots.appShell.style.setProperty("--sticky-header-height", `${height}px`);
 }
 
@@ -209,6 +219,9 @@ function unusedTurnFeatures(snapshot) {
 function renderHeaderIdentity(roots, snapshot) {
   const character = snapshot.activeCharacter;
   roots.appTitle.textContent = character ? "Combat Turn" : "what would my character do?";
+  const key = character ? `${character.id}|${character.name}|${snapshot.combatState?.round ?? 1}` : "empty";
+  if (roots.headerCharacter.dataset.renderKey === key) return;
+  roots.headerCharacter.dataset.renderKey = key;
   roots.headerCharacter.innerHTML = character ? `
     <strong>${escapeHeader(character.name)}</strong>
     <span>Round ${escapeHeader(snapshot.combatState?.round ?? 1)}</span>
@@ -232,6 +245,9 @@ function escapeHeader(value) {
 
 function renderHeaderActions(root, snapshot, { stateManager, modalApi, showToast, busyApi }) {
   if (!root) return;
+  const key = snapshot.activeCharacter ? `active|${snapshot.activeCharacter.id}|${combatStateRenderKey(snapshot.combatState)}` : "empty";
+  if (root.dataset.renderKey === key) return;
+  root.dataset.renderKey = key;
   if (!snapshot.activeCharacter) {
     root.innerHTML = "";
     return;
@@ -286,6 +302,10 @@ function renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, s
   const menu = roots.utilityMenu;
   if (!button || !menu) return;
 
+  const key = `${snapshot.activeCharacter ? "active" : "empty"}|${hasActiveAiSettings(storage) ? "ai" : "no-ai"}`;
+  const shouldRenderMenu = menu.dataset.renderKey !== key;
+  menu.dataset.renderKey = key;
+  if (shouldRenderMenu) {
   menu.innerHTML = `
     <button class="utility-menu-item" type="button" data-menu-action="import">
       ${snapshot.activeCharacter ? "Import / Replace Character" : "Import Character"}
@@ -294,6 +314,7 @@ function renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, s
       AI Options${hasActiveAiSettings(storage) ? " (saved)" : ""}
     </button>
   `;
+  }
 
   if (!renderUtilityMenu.bound) {
     renderUtilityMenu.bound = true;
@@ -310,14 +331,16 @@ function renderUtilityMenu(roots, snapshot, { stateManager, storage, modalApi, s
     });
   }
 
-  menu.querySelector("[data-menu-action='import']")?.addEventListener("click", () => {
-    setUtilityMenuOpen(button, menu, false);
-    openImportModal({ modalApi, stateManager, showToast, busyApi });
-  });
-  menu.querySelector("[data-menu-action='ai-options']")?.addEventListener("click", () => {
-    setUtilityMenuOpen(button, menu, false);
-    openAiOptionsModal({ modalApi, storage, showToast, onSettingsChanged });
-  });
+  if (shouldRenderMenu) {
+    menu.querySelector("[data-menu-action='import']")?.addEventListener("click", () => {
+      setUtilityMenuOpen(button, menu, false);
+      openImportModal({ modalApi, stateManager, showToast, busyApi });
+    });
+    menu.querySelector("[data-menu-action='ai-options']")?.addEventListener("click", () => {
+      setUtilityMenuOpen(button, menu, false);
+      openAiOptionsModal({ modalApi, storage, showToast, onSettingsChanged });
+    });
+  }
 }
 
 function setUtilityMenuOpen(button, menu, open) {
@@ -327,12 +350,37 @@ function setUtilityMenuOpen(button, menu, open) {
 
 function renderImportLauncher(root, snapshot, { stateManager, modalApi, showToast, busyApi }) {
   if (!root) return;
+  const key = snapshot.activeCharacter ? "active" : "empty";
+  if (root.dataset.renderKey === key) return;
+  root.dataset.renderKey = key;
   root.innerHTML = snapshot.activeCharacter ? "" : `
     <section class="import-empty" aria-label="Import character">
       <button class="btn btn-primary" type="button" data-action="import-character">Import Character</button>
     </section>
   `;
   root.querySelector("[data-action='import-character']")?.addEventListener("click", () => openImportModal({ modalApi, stateManager, showToast, busyApi }));
+}
+
+function combatStateRenderKey(state) {
+  if (!state) return "empty";
+  const lastLog = state.log?.[0];
+  return [
+    state.round,
+    state.turnActive ? "turn" : "idle",
+    state.current?.hp,
+    state.current?.tempHp,
+    state.current?.concentration,
+    state.log?.length ?? 0,
+    lastLog?.at ?? "",
+    resourceStateKey(state.resourcesUsed)
+  ].join("|");
+}
+
+function resourceStateKey(resources = {}) {
+  return [
+    Object.entries(resources.spellSlots ?? {}).map(([level, used]) => `${level}:${used}`).join(","),
+    Object.entries(resources.classResources ?? {}).map(([id, used]) => `${id}:${used}`).join(",")
+  ].join("/");
 }
 
 function openImportModal({ modalApi, stateManager, showToast, busyApi }) {

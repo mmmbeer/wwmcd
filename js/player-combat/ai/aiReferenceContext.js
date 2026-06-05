@@ -12,12 +12,24 @@ const REFERENCE_FILES = [
   "spells"
 ];
 
+const INDEX_BY_FILE = {
+  classes: "classIndexByName",
+  conditions: "conditionIndexByName",
+  equipment: "equipmentIndexByName",
+  feats: "featIndexByName",
+  items: "itemIndexByName",
+  "magic-items": "magicItemIndexByName",
+  races: "raceIndexByName",
+  spells: "spellIndexByName"
+};
+
 export function buildReferenceSummaries({ referenceData, character, selectedCreatures = [], availableOptions = {} } = {}) {
   const names = collectRelevantNames({ character, selectedCreatures, availableOptions });
   const data = referenceData?.data ?? {};
+  const indexes = referenceData?.indexes ?? {};
   return pruneEmpty(Object.fromEntries(REFERENCE_FILES.map((file) => [
     file,
-    summarizeReferenceFile(data[file], names, file)
+    summarizeReferenceFile(data[file], names, file, indexes)
   ])));
 }
 
@@ -39,8 +51,8 @@ function collectRelevantNames({ character, selectedCreatures, availableOptions }
   return names;
 }
 
-function summarizeReferenceFile(fileData, names, file) {
-  const entries = referenceEntries(fileData, file)
+function summarizeReferenceFile(fileData, names, file, indexes = {}) {
+  const entries = referenceEntries(fileData, file, indexes)
     .filter((entry) => names.has(normalizeName(entry?.name)))
     .slice(0, 20)
     .map((entry) => pruneEmpty({
@@ -60,8 +72,10 @@ function summarizeReferenceFile(fileData, names, file) {
   return entries.length ? entries : undefined;
 }
 
-function referenceEntries(fileData, file) {
+function referenceEntries(fileData, file, indexes = {}) {
   if (Array.isArray(fileData)) return fileData;
+  const index = indexes[INDEX_BY_FILE[file]];
+  if (index instanceof Map) return [...index.values()];
   if (!fileData || typeof fileData !== "object") return [];
   const key = {
     "bestiary-mm": "monster",

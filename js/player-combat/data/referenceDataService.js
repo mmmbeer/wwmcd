@@ -10,16 +10,19 @@ let cache = null;
 export async function loadReferenceData() {
   const files = listAvailableReferenceFiles();
   const data = {};
-  const statuses = [];
-
-  for (const file of files) {
+  const results = await Promise.all(files.map(async (file) => {
     try {
-      data[file.name] = await loadReferenceDataFile(file.name);
-      statuses.push({ name: file.name, ok: true, count: countEntries(data[file.name]) });
+      const fileData = await loadReferenceDataFile(file.name);
+      return { file, data: fileData, status: { name: file.name, ok: true, count: countEntries(fileData) } };
     } catch (error) {
-      data[file.name] = null;
-      statuses.push({ name: file.name, ok: false, count: 0, error: error.message });
+      return { file, data: null, status: { name: file.name, ok: false, count: 0, error: error.message } };
     }
+  }));
+
+  const statuses = [];
+  for (const result of results) {
+    data[result.file.name] = result.data;
+    statuses.push(result.status);
   }
 
   const transformed = transformCombatData(data);
@@ -28,7 +31,7 @@ export async function loadReferenceData() {
     status.count = transformed.counts[status.name] ?? status.count;
   }
   cache = {
-    data,
+    data: retainedReferenceData(data),
     statuses: [...statuses, ...recommendations.statuses],
     recommendations: recommendations.metadata,
     ...transformed
@@ -68,4 +71,15 @@ function countEntries(data) {
   if (Array.isArray(data)) return data.length;
   if (data && typeof data === "object") return Object.keys(data).length;
   return 0;
+}
+
+function retainedReferenceData(data) {
+  return {
+    classes: data.classes,
+    conditions: data.conditions,
+    equipment: data.equipment,
+    feats: data.feats,
+    races: data.races,
+    "bestiary-mm": data["bestiary-mm"] ? { monster: data["bestiary-mm"].monster ?? [] } : null
+  };
 }

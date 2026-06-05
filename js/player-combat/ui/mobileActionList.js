@@ -4,7 +4,7 @@ import { isOptionPlanned } from "./plannedTurnState.js";
 import { resourceLabel as formatResourceLabel } from "./resourceIcon.js";
 
 const rowHtmlCache = new Map();
-const ROW_CACHE_LIMIT = 600;
+const ROW_CACHE_LIMIT = 240;
 
 export function renderMobileActionList(group, label, options, combatState, { hideUnavailable = false, actionCostFilter = null, spellLevelFilter = null } = {}) {
   if (group === "log") return renderLog(label, combatState);
@@ -455,7 +455,6 @@ function actionRowCacheKey(option, group) {
     option.rolls?.map((roll) => `${roll.id}:${roll.type}:${roll.formula}:${roll.damageType}`).join(","),
     option.meta?.join("~"),
     option.warnings?.join("~"),
-    option.unavailableReasons?.join("~"),
-    descriptionText(option)
+    option.unavailableReasons?.join("~")
   ].filter((value) => value !== undefined && value !== null).join("|");
 }

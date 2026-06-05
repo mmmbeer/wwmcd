@@ -41,10 +41,7 @@ function toConditionEntries(data) {
 
 export function toNamedEntries(data) {
   if (Array.isArray(data)) {
-    return data.map((entry) => ({
-      ...entry,
-      name: entry.name ?? entry.Name ?? entry.title ?? ""
-    })).filter((entry) => entry.name);
+    return data.map(withEntryName).filter((entry) => entry.name);
   }
 
   if (!data || typeof data !== "object") {
@@ -62,4 +59,10 @@ export function createNameIndex(entries) {
 
 export function normalizeName(name) {
   return String(name ?? "").trim().toLowerCase();
+}
+
+function withEntryName(entry) {
+  const name = entry?.name ?? entry?.Name ?? entry?.title ?? "";
+  if (!name) return { name: "" };
+  return entry.name === name ? entry : { ...entry, name };
 }
