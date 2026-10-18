@@ -1,2 +1,10 @@
 dm-roster
 dm-roster/
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+api/*-config.local.php

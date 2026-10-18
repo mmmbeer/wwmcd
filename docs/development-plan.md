@@ -4389,3 +4389,29 @@ Improve normalization mappings for more D&D Beyond spell and weapon shapes, add 
 - `node --check js\player-combat\ui\aiRecommendationModal.js`
 - `node --check js\player-combat\ui\aiRecommendationTableAdapter.js`
 - `node --test tests\aiRecommendationContext.test.mjs tests\aiRecommendationService.test.mjs tests\aiRecommendationTableAdapter.test.mjs tests\recommendationScoring.test.mjs`
+
+## Cloudflare Worker migration — October 18, 2026
+
+- Added `wrangler.jsonc` for Worker `wwmcd` and the Custom Domain
+  `help.dndadventurerslog.com` with a dedicated `ASSETS` binding.
+- Added a public-file build (`scripts/build.mjs`), npm scripts, and locked
+  Wrangler dependency. Only HTML, CSS, JavaScript, images, and rule data ship
+  as public assets. PHP, local configuration, tests, and docs stay private.
+- Ported the AI PHP contract to focused Worker routing, validation, response,
+  and provider modules under `worker/`. Kept the existing endpoint paths and
+  visitor-key precedence. Added `/api/health`, JSON errors, provider timeouts,
+  no-store responses, and same-origin browser checks.
+- Added `tests/worker.test.mjs` for routing, provider payloads, structured output,
+  credentials, invalid inputs, legacy support, and provider/network failures.
+- Added `README.md` and `docs/cloudflare-deployment.md` for Cloudflare build
+  settings, optional secrets, domain requirements, and manual smoke tests.
+- Extended `.gitignore` to exclude generated assets and local secrets.
+- No character normalization or rule-data transformations changed. Existing
+  local storage remains browser/origin-specific. No database is introduced.
+- Remaining deployment work: connect the repository to Cloudflare Workers and
+  deploy with the account that owns the domain. Real AI smoke tests require a
+  visitor API key. See `docs/cloudflare-deployment.md` for test steps.
+- Verified: all 173 tests pass, `npm run deploy:check` packages 209 public
+  assets successfully, and local Wrangler smoke checks pass for the root,
+  health endpoint, CSS, modules, images, rule data, and private/missing-file
+  rejection. No live provider calls or Cloudflare deployment were performed.
